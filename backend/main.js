@@ -28,20 +28,20 @@ app.use(express.json());
 app.use('/uploads', express.static(uploadDir));
 
 // Setup SQLite database
-const db = new sqlite3.Database('./files.db', (err) => {
-  if (err) console.error('DB Connection error:', err.message);
-  else console.log('Connected to SQLite database.');
-});
+// const db = new sqlite3.Database('./files.db', (err) => {
+//   if (err) console.error('DB Connection error:', err.message);
+//   else console.log('Connected to SQLite database.');
+// });
 
-// Create table if not exists
-db.run(
-  `CREATE TABLE IF NOT EXISTS uploaded_files (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    filename TEXT NOT NULL,
-    stored_name TEXT NOT NULL,
-    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`
-);
+// // Create table if not exists
+// db.run(
+//   `CREATE TABLE IF NOT EXISTS uploaded_files (
+//     id INTEGER PRIMARY KEY AUTOINCREMENT,
+//     filename TEXT NOT NULL,
+//     stored_name TEXT NOT NULL,
+//     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+//   )`
+// );
 
 // Upload endpoint
 app.post('/upload-csv', upload.single('file'), (req, res) => {
