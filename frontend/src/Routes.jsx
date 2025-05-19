@@ -2,14 +2,17 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // Import page components
-import RegisterPage from './pages/Register';
+import LoginPage from './pages/login';
+import HomePage from './pages/homepage';
+import UploadPage from './pages/upload';
 
 const AppRoutes = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/" element={<RegisterPage />} /> {/* Default route redirects to register */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/upload" element={<UploadPage />} />
       </Routes>
     </Router>
   );

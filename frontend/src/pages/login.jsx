@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import InputField from '../../components/ui/InputField';
-import Button from '../../components/ui/Button';
+import InputField from '../components/ui/InputField';
+import Button from '../components/ui/Button';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
