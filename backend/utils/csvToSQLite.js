@@ -64,9 +64,70 @@ const csvToSQLite = (filePath, originalName, timestamp) => {
           return uniqueName;
         });
 
-        console.log("Sanitized headers:", sanitizedHeaders);
+        // Add Run Number column to sanitized headers if it doesn't exist
+        if (!sanitizedHeaders.includes('Run Number')) {
+          sanitizedHeaders.unshift('Run Number');
+        }
+
+        console.log("Sanitized headers with Run Number:", sanitizedHeaders);
 
         // --- END HEADER SANITIZATION ---
+
+        // Log original column data for debug
+        console.log("Original data sample (first row):", rows[0]);
+        console.log("Original headers:", headers);
+
+        // --- START RUN NUMBER PROCESSING ---
+        
+        // Find the Solution Label column
+        const solutionLabelColumn = headers.find(h => 
+          h === 'Solution Label' || h.includes('Solution') || h.includes('Label'));
+        
+        console.log("Solution Label column found:", solutionLabelColumn);
+        
+        // Process rows to add Run Number
+        let processedRows = [...rows];
+        
+        // Filter rows starting from QC_MES_5 ppm if that solution exists
+        if (solutionLabelColumn) {
+          const qcRowIndex = processedRows.findIndex(row => 
+            row[solutionLabelColumn] === 'QC_MES_5 ppm');
+          
+          if (qcRowIndex !== -1) {
+            processedRows = processedRows.slice(qcRowIndex);
+            console.log(`Found QC_MES_5 ppm at row ${qcRowIndex}, filtered down to ${processedRows.length} rows`);
+          }
+        }
+        
+        // Assign run numbers
+        let runNumber = 1; // Start with 1 instead of 0
+        const processedRowsWithRunNumbers = [];
+        
+        for (const row of processedRows) {
+          // Check if this is a new run (QC_MES_5 ppm)
+          if (solutionLabelColumn && row[solutionLabelColumn] === 'QC_MES_5 ppm' && processedRowsWithRunNumbers.length > 0) {
+            runNumber += 1;
+            console.log(`Incrementing run number to ${runNumber} at row with Solution Label: ${row[solutionLabelColumn]}`);
+          }
+          
+          // Add the run number to this row
+          const newRow = { 'Run Number': runNumber.toString(), ...row };
+          processedRowsWithRunNumbers.push(newRow);
+        }
+        
+        // Replace processed rows with the new array that has run numbers
+        processedRows = processedRowsWithRunNumbers;
+        
+        console.log(`Assigned ${runNumber} different run numbers. First few rows:`, 
+          processedRows.slice(0, 3).map(row => ({ 'Run Number': row['Run Number'], 'Solution Label': row[solutionLabelColumn] })));
+        
+        // --- END RUN NUMBER PROCESSING ---
+
+        // Create a map of original header positions
+        const headerPositionMap = {};
+        headers.forEach((header, index) => {
+          headerPositionMap[header] = index;
+        });
 
         const createTableSQL = `CREATE TABLE IF NOT EXISTS "${tableName}" (${sanitizedHeaders.map(h => `"${h}" TEXT`).join(', ')})`;
 
@@ -79,14 +140,49 @@ const csvToSQLite = (filePath, originalName, timestamp) => {
           const insertSQL = `INSERT INTO "${tableName}" (${sanitizedHeaders.map(h => `"${h}"`).join(', ')}) VALUES (${sanitizedHeaders.map(() => '?').join(', ')})`;
 
           const stmt = db.prepare(insertSQL);
-          rows.forEach(row => {
-            // Map the original headers to sanitized headers to fetch correct values
-            const values = sanitizedHeaders.map((sanitizedHeader, i) => {
-              const originalHeader = headers[i];
-              return row[originalHeader];
+          processedRows.forEach(row => {
+            // Map the sanitized headers to values
+            const values = sanitizedHeaders.map(sanitizedHeader => {
+              // Handle the Run Number column we added
+              if (sanitizedHeader === 'Run Number') {
+                return row['Run Number'];
+              }
+              
+              // For all other columns, try to find the matching original header
+              for (const origHeader of Object.keys(row)) {
+                // Skip the Run Number we added
+                if (origHeader === 'Run Number') continue;
+                
+                // Direct match
+                if (origHeader === sanitizedHeader) {
+                  return row[origHeader];
+                }
+                
+                // Sanitized match (replace spaces and special chars with underscores)
+                const sanitizedOrigHeader = origHeader.trim().replace(/[^a-zA-Z0-9_]/g, '_');
+                if (sanitizedOrigHeader === sanitizedHeader) {
+                  return row[origHeader];
+                }
+                
+                // Handle case where header was renamed due to duplicates
+                if (sanitizedHeader.startsWith(sanitizedOrigHeader + '_')) {
+                  return row[origHeader];
+                }
+              }
+              
+              // If we get here, there's no matching value in the original row
+              console.warn(`No matching value found for column "${sanitizedHeader}"`);
+              return null;
             });
+
+            // Debug log for values on the first few rows
+            if (processedRows.indexOf(row) < 3) {
+              console.log(`Row ${processedRows.indexOf(row)} values:`, values);
+            }
+            
             stmt.run(values);
           });
+          
           stmt.finalize((finalizeErr) => {
             if (finalizeErr) {
               console.error('Finalize statement error:', finalizeErr);
