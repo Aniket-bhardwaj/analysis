@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Primary Colors */
+    --primary-blue: #1570ef;
+    --primary-dark: #050a24;
+    
+    /* Text Colors */
+    --text-primary: #101828;
+    --text-secondary: #344054;
+    --text-tertiary: #98a2b3;
+    
+    /* Border Colors */
+    --border-light: #d1e9ff;
+    --border-default: #d0d5dd;
+  }
+  
+  body {
+    font-family: 'Poppins', sans-serif;
+  }
+}
+
+@layer utilities {
+  .bg-primary-blue {
+    background-color: var(--primary-blue);
+  }
+  
+  .bg-primary-dark {
+    background-color: var(--primary-dark);
+  }
+  
+  .text-primary {
+    color: var(--text-primary);
+  }
+  
+  .text-secondary {
+    color: var(--text-secondary);
+  }
+  
+  .text-tertiary {
+    color: var(--text-tertiary);
+  }
+  
+  .border-light {
+    border-color: var(--border-light);
+  }
+  
+  .border-default {
+    border-color: var(--border-default);
+  }
+}
