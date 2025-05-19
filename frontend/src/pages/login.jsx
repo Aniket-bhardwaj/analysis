@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import InputField from '../components/ui/InputField';
 import Button from '../components/ui/Button';
+import { useNavigate } from 'react-router-dom';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -48,15 +49,42 @@ const RegisterPage = () => {
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
+    const navigate = useNavigate();
     e.preventDefault();
     
     if (validateForm()) {
-      // Here you would typically send the data to your backend
-      console.log('Form submitted:', formData);
+      setIsSubmitting(true);
+      setServerError('');
       
-      // For demo purposes, show an alert
-      alert('Account created successfully!');
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        });
+        
+        const data = await response.text();
+        
+        if (response.ok) {
+          // Registration successful
+          console.log('Login successful:', data);
+          
+          // Redirect to login page
+          navigate('/homepage', { replace: true
+          });
+        } else {
+          // Registration failed
+          setServerError(data || 'Login failed. Please try again.');
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        setServerError('Network error. Please try again later.');
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
   
@@ -102,7 +130,7 @@ const RegisterPage = () => {
         <div className="w-full max-w-md">
           <form onSubmit={handleSubmit} className="space-y-6">
             <h2 className="text-[28px] font-poppins font-semibold text-[#101828] mb-8">
-              Create an account
+              Log In
             </h2>
             
             <div className="space-y-6">
@@ -113,7 +141,7 @@ const RegisterPage = () => {
                 id="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="balamia@gmail.com"
+                placeholder="email@gmail.com"
                 error={errors.email}
                 required
                 className="border-[3px] border-[#d1e9ff] rounded-lg"
@@ -139,17 +167,17 @@ const RegisterPage = () => {
               size="full"
               className="h-12 rounded-lg text-[16px] font-semibold mt-8"
             >
-              Create account
+              Log In
             </Button>
             
-            <div className="text-center mt-4">
+            {/* <div className="text-center mt-4">
               <span className="text-[16px] font-poppins text-[#98a2b3]">
                 Already have an account ?
               </span>{' '}
               <Link to="/login" className="text-[16px] font-poppins text-[#1570ef]">
                 Log in
               </Link>
-            </div>
+            </div> */}
           </form>
         </div>
       </div>
