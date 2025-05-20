@@ -10,6 +10,10 @@ const RegisterPage = () => {
     password: '',
   });
   
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serverError, setServerError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   
   const handleChange = (e) => {
@@ -50,7 +54,7 @@ const RegisterPage = () => {
   };
   
   const handleSubmit = async (e) => {
-    const navigate = useNavigate();
+
     e.preventDefault();
     
     if (validateForm()) {
@@ -58,7 +62,7 @@ const RegisterPage = () => {
       setServerError('');
       
       try {
-        const response = await fetch('/api/auth/login', {
+        const response = await fetch('http://localhost:4028/api/auth/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -72,8 +76,8 @@ const RegisterPage = () => {
           // Registration successful
           console.log('Login successful:', data);
           
-          // Redirect to login page
-          navigate('/homepage', { replace: true
+          // Redirect to home page
+          navigate('/homepage', { state: {loggedIn: true}
           });
         } else {
           // Registration failed

@@ -11,7 +11,7 @@ const hideRoutes = require('./routes/hide');
 const authRoutes = require('./routes/auth');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4028;
 
 // Ensures uploads folder exists
 const uploadDir = path.join(__dirname, 'uploads');
@@ -30,7 +30,7 @@ app.use('/', uploadRoutes);
 app.use('/', listRoutes);
 app.use('/', previewRoutes);
 app.use('/', hideRoutes);
-app.use('/', authRoutes);
+app.use('/api/auth', authRoutes);
 
 // Start server
 app.listen(PORT, () => {
