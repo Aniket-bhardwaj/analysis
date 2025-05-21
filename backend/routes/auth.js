@@ -29,6 +29,6 @@ const authController = require('../controllers/authController');
 // });
 
 // User login
-router.post('/login', authController.loginUser);
+router.post('/auth/login', authController.loginUser);
 
 module.exports = router;

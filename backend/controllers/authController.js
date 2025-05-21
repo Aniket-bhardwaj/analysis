@@ -12,16 +12,16 @@ const loginUser = async (req, res) => {
         }
 
         if(!user){
-            return res.user(404).send({ error: 'User not found' });
+            return res.status(404).send({ error: 'User not found' });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
         if(isMatch){
-            res.status(200).send({ message: 'Login successful' });
+            return res.status(200).send({ message: 'Login successful' });
         }
 
         else{
-            res.status(401).send({ error: 'Invalid credentials' });
+            return res.status(401).send({ error: 'Invalid credentials' });
         }
     });
 };

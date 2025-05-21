@@ -62,7 +62,7 @@ const RegisterPage = () => {
       setServerError('');
       
       try {
-        const response = await fetch('http://localhost:4028/api/auth/login', {
+        const response = await fetch('http://localhost:4028/auth/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
