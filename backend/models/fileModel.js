@@ -1,4 +1,4 @@
-const db = require('../database');
+const db = require('../initialize_db');
 
 function insertFile(filename, storedName, callback) {
   const sql = `INSERT INTO uploaded_files (filename, stored_name) VALUES (?, ?)`;

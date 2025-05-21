@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
-const db = require('../database');
+const db = require('../initialize_db');
 
 const sanitizeTableName = (name) => {
   return name.replace(/[^a-zA-Z0-9_]/g, '_');
