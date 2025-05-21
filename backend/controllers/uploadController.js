@@ -1,47 +1,31 @@
 const path = require('path');
 const fileModel = require('../models/fileModel');
-const parseCSVtoArray = require('../utils/parseCSVtoArray');
 
-const uploadFile = (req, res) => {
+const uploadFile = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
-  const filename = req.file.originalname;
-  const savedFilePath = path.join('uploads', filename);
+  const originalName = req.file.originalname;
+  const savedFilePath = path.join('uploads', originalName);
 
-  // Check if file with same name already exists
-  fileModel.isFilenameExists(filename, (err, exists) => {
-    if (err) {
-      console.error('DB check error:', err.message);
-      return res.status(500).json({ error: 'Database error' });
-    }
-
+  try {
+    const exists = await fileModel.fileExists(originalName);
     if (exists) {
-      return res.status(400).json({ error: 'File with this name already uploaded' });
+      return res.status(400).json({ error: 'File already present' });
     }
 
-    console.log('Upload received:', filename, savedFilePath);
+    console.log('Upload received:', originalName, savedFilePath);
 
-    // Insert file into uploaded_files table
-    fileModel.insertFile(filename, (err, row) => {
-      if (err) {
-        console.error('DB insert error:', err.message);
-        return res.status(500).json({ error: 'Failed to insert file' });
-      }
+    const row = await fileModel.insertFile(originalName, savedFilePath);
 
-      // Parse CSV and insert into Data table
-      parseCSVtoArray(savedFilePath)
-        .then(() => {
-          console.log('CSV content stored in Data table successfully.');
-          res.json(row);
-        })
-        .catch((parseErr) => {
-          console.error('CSV to DB error:', parseErr);
-          res.status(500).json({ error: 'Failed to store CSV content in DB' });
-        });
-    });
-  });
+    console.log('File inserted into DB:', row);
+    res.status(200).json(row);
+
+  } catch (err) {
+    console.error('DB error:', err.message);
+    res.status(500).json({ error: 'Database operation failed' });
+  }
 };
 
 module.exports = { uploadFile };
