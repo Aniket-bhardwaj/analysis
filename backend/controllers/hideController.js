@@ -1,14 +1,15 @@
 const fileModel = require('../models/fileModel');
 
-const hideFile = (req, res) => {
+const hideFile = async (req, res) => {
   const { id } = req.params;
-  fileModel.hideFileById(id, (err, result) => {
-    if (err) {
-      console.error('DB hide error:', err.message);
-      return res.status(500).json({ error: 'Failed to hide file' });
-    }
+
+  try {
+    const result = await fileModel.hideFileById(id);
     res.json(result);
-  });
+  } catch (err) {
+    console.error('DB hide error:', err.message);
+    res.status(500).json({ error: 'Failed to hide file' });
+  }
 };
 
 module.exports = { hideFile };

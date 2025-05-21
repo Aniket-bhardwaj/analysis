@@ -30,7 +30,7 @@ app.use('/', uploadRoutes);
 app.use('/', listRoutes);
 app.use('/', previewRoutes);
 app.use('/', hideRoutes);
-app.use('/', authRoutes);
+app.use('/auth', authRoutes);
 
 // Start server
 app.listen(PORT, () => {

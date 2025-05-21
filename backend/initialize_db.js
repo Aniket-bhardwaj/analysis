@@ -29,7 +29,7 @@ db.serialize(() => {
     CREATE TABLE IF NOT EXISTS uploaded_files (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       filename TEXT NOT NULL,
-      stored_name TEXT NOT NULL,
+      path TEXT NOT NULL,
       uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP,
       hidden INTEGER DEFAULT 0
     )
