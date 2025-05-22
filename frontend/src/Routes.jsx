@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // Import page components
 import RegisterPage from './pages/login';
-import HomePage from './pages/homepage';
+import DashboardPage from './pages/homepage';
 // import UploadPage from './pages/upload';
 
 const AppRoutes = () => {
@@ -11,7 +11,7 @@ const AppRoutes = () => {
     <Router>
       <Routes>
         <Route path="/" element={<RegisterPage />} />
-        <Route path="/homepage" element={<HomePage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         {/* <Route path="/upload" element={<UploadPage />} /> */}
       </Routes>
     </Router>
