@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const bcrypt = require('bcrypt');
 
 const dbPath = path.resolve(__dirname, 'database.sqlite');
 
@@ -14,16 +15,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // Create tables
 db.serialize(() => {
-  // Create users table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
   // Create uploaded_files table
   db.run(`
     CREATE TABLE IF NOT EXISTS uploaded_files (
@@ -34,23 +25,32 @@ db.serialize(() => {
       hidden INTEGER DEFAULT 0
     )
   `);
+  //create users table
 
-  // Insert hardcoded user if users table is empty
-  db.get(`SELECT COUNT(*) AS count FROM users`, (err, row) => {
-    if (err) {
-      console.error('Error checking users table:', err.message);
-    } else if (row.count === 0) {
-      const stmt = db.prepare(`INSERT INTO users (email, password) VALUES (?, ?)`);
-      stmt.run('user1@gmail.com', 'password1', (err) => {
-        if (err) {
-          console.error('Error inserting default user:', err.message);
+db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE,
+        password TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    const email = 'user2@gmail.com';
+    const plainPassword = 'password2';
+
+    db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, row) => {
+        if (!row) {
+            const hashedPassword = await bcrypt.hash(plainPassword, 10);
+            db.run(`INSERT INTO users (email, password) VALUES (?, ?)`, [email, hashedPassword], (err) => {
+                if (err) {
+                    console.error('Insert error:', err.message);
+                } else {
+                    console.log('Inserted default user with hashed password');
+                }
+            });
         } else {
-          console.log('Inserted default user.');
+            console.log('User already exists');
         }
-      });
-      stmt.finalize();
-    }
-  });
+    });
 });
 
 module.exports = db;

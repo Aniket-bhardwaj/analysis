@@ -62,7 +62,7 @@ const RegisterPage = () => {
       setServerError('');
       
       try {
-        const response = await fetch('http://localhost:4028/auth/login', {
+        const response = await fetch('http://localhost:5000/auth/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -70,7 +70,7 @@ const RegisterPage = () => {
           body: JSON.stringify(formData),
         });
         
-        const data = await response.text();
+        const data = await response.json();
         
         if (response.ok) {
           // Registration successful
