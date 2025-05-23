@@ -101,7 +101,7 @@ const DataManagerPage = () => {
     
      return (
     <Box className="file-upload-container">
-      <Navbar />
+      <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem}/>
       
       <Box className="main-content">
         <Box className="header-section">

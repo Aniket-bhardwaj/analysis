@@ -56,7 +56,7 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
 
   const handleItemClick = (itemText, route) => {
     setSelectedItem(itemText);
-    if (route && route !== '/dashboard') {
+    if (route) {
       navigate(route);
     }
   };
@@ -71,7 +71,7 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
     >
       <Box className="logo-container">
         <img 
-          src="/images/img_mati_carbon_logo_white_1.png" 
+          src="/images/img_mati_carbon_logo_black_1.png" 
           alt="Mati Logo" 
           className="logo-image"
         />
