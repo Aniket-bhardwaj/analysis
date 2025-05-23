@@ -22,6 +22,7 @@ db.serialize(() => {
       filename TEXT NOT NULL,
       path TEXT NOT NULL,
       uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      measured_timestamp TEXT,
       hidden INTEGER DEFAULT 0
     )
   `);

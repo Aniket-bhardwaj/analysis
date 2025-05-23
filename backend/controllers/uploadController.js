@@ -20,40 +20,33 @@ const uploadFile = async (req, res) => {
 
     console.log('Upload received:', originalName, savedFilePath);
 
-    // Insert file metadata first
-    const fileRow = await fileModel.insertFile(originalName, savedFilePath);
-    console.log('File inserted into DB:', fileRow);
-
-    // Now parse and clean CSV file
+    // Parse and clean CSV first
     const { headers, rows } = await parseAndCleanCSV(savedFilePath);
-
-    console.log('Parsed headers:', headers);
-    console.log('Type of headers:', Array.isArray(headers));
 
     if (!Array.isArray(headers)) {
       console.error('headers is NOT an array:', headers);
       return res.status(500).json({ error: 'Invalid CSV headers format' });
     }
 
-    console.log('About to call ensureTableWithColumns with:', headers);
-    console.log('Type:', Array.isArray(headers), typeof headers);
+    // Extract measured timestamp from first row
+    const measuredTimestamp = rows[0]?.Timestamp || null;
 
-    // Ensure your DB table exists with these columns, create or update dynamically
+    // Insert file metadata including measured timestamp
+    const fileRow = await fileModel.insertFile(originalName, savedFilePath, measuredTimestamp);
+    console.log('File inserted into DB:', fileRow);
+
+    // Ensure your DB table exists with these columns
     await dataModel.ensureTableWithColumns(headers);
 
-    // IMPORTANT: Find the solution label column by examining the headers
-    // This is the key fix - dynamically determine the column name instead of hardcoding
+    // Detect solution label column (e.g., “Solution Label”)
     const solutionLabelHeader = headers.find(h => 
       h.toLowerCase().includes('solution') && h.toLowerCase().includes('label'));
-    
-    console.log('Solution label column detected as:', solutionLabelHeader);
 
-    // If we can't find the exact column, check the first row to see what values are available
     if (!solutionLabelHeader && rows.length > 0) {
       console.log('Available columns in first row:', Object.keys(rows[0]));
     }
 
-    // Insert CSV data rows with run numbers and file_id
+    // Insert the cleaned rows into the data table
     await dataModel.insertRowsWithRunNumbers(rows, headers, fileRow.id, solutionLabelHeader);
 
     res.status(200).json(fileRow);
@@ -63,5 +56,6 @@ const uploadFile = async (req, res) => {
     res.status(500).json({ error: 'Database or CSV processing failed' });
   }
 };
+
 
 module.exports = { uploadFile };

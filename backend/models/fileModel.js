@@ -1,14 +1,19 @@
 const db = require('../initialize_db');
 
-function insertFile(filename, filePath) {
-  const sql = `INSERT INTO uploaded_files (filename, path) VALUES (?, ?)`;
+async function insertFile(filename, path, measuredTimestamp) {
+  const sql = `
+    INSERT INTO uploaded_files (filename, path, measured_timestamp)
+    VALUES (?, ?, ?)
+  `;
   return new Promise((resolve, reject) => {
-    db.run(sql, [filename, filePath], function(err) {
+    db.run(sql, [filename, path, measuredTimestamp], function (err) {
       if (err) return reject(err);
-      const selectSql = `SELECT * FROM uploaded_files WHERE id = ?`;
-      db.get(selectSql, [this.lastID], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
+      console.log('Final timestamp to insert (inside db.run):', measuredTimestamp);
+      resolve({
+        id: this.lastID,
+        filename,
+        path,
+        measuredTimestamp
       });
     });
   });

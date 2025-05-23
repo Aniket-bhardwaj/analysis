@@ -91,4 +91,19 @@ const parseAndCleanCSV = (filePath) => {
   });
 };
 
-module.exports = { parseAndCleanCSV };
+function parseCSV(filePath) {
+  return new Promise((resolve, reject) => {
+    const rows = [];
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on('data', (data) => rows.push(data))
+      .on('end', () => {
+        const measuredTimestamp = rows[0]?.Timestamp || null; // use first row's Timestamp
+        resolve({ rows, measuredTimestamp });
+      })
+      .on('error', reject);
+  });
+}
+
+
+module.exports = { parseAndCleanCSV, parseCSV };
