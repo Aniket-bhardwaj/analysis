@@ -77,7 +77,7 @@ const RegisterPage = () => {
           console.log('Login successful:', data);
           
           // Redirect to home page
-          navigate('/homepage', { state: {loggedIn: true}
+          navigate('/dashboard', { state: {loggedIn: true}
           });
         } else {
           // Registration failed
