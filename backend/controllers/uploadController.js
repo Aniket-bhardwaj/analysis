@@ -1,7 +1,6 @@
 const path = require('path');
 const fileModel = require('../models/fileModel');
 const dataModel = require('../models/dataModel');
-
 const { parseAndCleanCSV } = require('../utils/csvHandler');
 
 const uploadFile = async (req, res) => {
@@ -20,34 +19,50 @@ const uploadFile = async (req, res) => {
 
     console.log('Upload received:', originalName, savedFilePath);
 
-    // Parse and clean CSV first
+    // Insert file metadata first
+    const fileRow = await fileModel.insertFile(originalName, savedFilePath);
+    console.log('File inserted into DB:', fileRow);
+
+    // Now parse and clean CSV file
     const { headers, rows } = await parseAndCleanCSV(savedFilePath);
+
+    console.log('Parsed headers:', headers);
+    console.log('Type of headers:', Array.isArray(headers));
 
     if (!Array.isArray(headers)) {
       console.error('headers is NOT an array:', headers);
       return res.status(500).json({ error: 'Invalid CSV headers format' });
     }
 
-    // Extract measured timestamp from first row
-    const measuredTimestamp = rows[0]?.Timestamp || null;
+    console.log('About to call ensureTableWithColumns with:', headers);
+    console.log('Type:', Array.isArray(headers), typeof headers);
 
-    // Insert file metadata including measured timestamp
-    const fileRow = await fileModel.insertFile(originalName, savedFilePath, measuredTimestamp);
-    console.log('File inserted into DB:', fileRow);
-
-    // Ensure your DB table exists with these columns
+    // Ensure your DB table exists with these columns, create or update dynamically
     await dataModel.ensureTableWithColumns(headers);
 
-    // Detect solution label column (e.g., “Solution Label”)
+    // IMPORTANT: Find the solution label column by examining the headers
+    // This is the key fix - dynamically determine the column name instead of hardcoding
     const solutionLabelHeader = headers.find(h => 
       h.toLowerCase().includes('solution') && h.toLowerCase().includes('label'));
+    
+    console.log('Solution label column detected as:', solutionLabelHeader);
 
+    // If we can't find the exact column, check the first row to see what values are available
     if (!solutionLabelHeader && rows.length > 0) {
       console.log('Available columns in first row:', Object.keys(rows[0]));
     }
 
-    // Insert the cleaned rows into the data table
-    await dataModel.insertRowsWithRunNumbers(rows, headers, fileRow.id, solutionLabelHeader);
+    const tableAlreadyExists = await dataModel.tableExists();
+
+if (tableAlreadyExists) {
+  // Remove the first row (header row) from CSV data, as it would be duplicated
+  rows.shift();
+} else {
+  // Table does not exist yet - create table with sanitized headers
+  await dataModel.ensureTableWithColumns(headers);
+}
+    // Insert CSV data rows with run numbers and file_id
+    await dataModel.insertRows(rows, headers, fileRow.id);
 
     res.status(200).json(fileRow);
 
@@ -55,7 +70,16 @@ const uploadFile = async (req, res) => {
     console.error('DB or CSV processing error:', err.message);
     res.status(500).json({ error: 'Database or CSV processing failed' });
   }
+
+  dataModel.getMinMaxTimestamp((err, range) => {
+    if (err) {
+    console.error('Error fetching timestamp range:', err);
+    } else {
+    console.log('Timestamp range:', range.minTimestamp, '-', range.maxTimestamp);
+    }
+    });
 };
+
 
 
 module.exports = { uploadFile };
