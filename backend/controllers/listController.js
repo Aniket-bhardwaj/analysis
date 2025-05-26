@@ -1,15 +1,15 @@
 const fileModel = require('../models/fileModel');
+const authModel = require('../models/authModel');
 
 const listFiles = async (req, res) => {
   try {
     const rows = await fileModel.getVisibleFiles();
     
-    // Transform the data to match frontend expectations
     const transformedFiles = rows.map(file => ({
       id: file.id,
       name: file.filename, // Map filename to name
       type: file.filename.split('.').pop().toUpperCase(), // Extract file extension
-      user: 'System User', // Default user since we don't have user management
+      user: 'Default', //Default for now, need to integrate user authentication later
       email: 'system@example.com', // Default email
       uploadDate: new Date(file.uploaded_at).toLocaleString('en-GB', {
         day: '2-digit',
