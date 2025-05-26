@@ -37,8 +37,16 @@ const uploadFile = async (req, res) => {
     console.log('About to call ensureTableWithColumns with:', headers);
     console.log('Type:', Array.isArray(headers), typeof headers);
 
-    // Ensure your DB table exists with these columns, create or update dynamically
-    await dataModel.ensureTableWithColumns(headers);
+    // Check if table already exists before creating/updating
+    const tableAlreadyExists = await dataModel.tableExists();
+    
+    if (!tableAlreadyExists) {
+      // Create table with sanitized headers only if it doesn't exist
+      await dataModel.ensureTableWithColumns(headers);
+      console.log('Table created with columns:', headers);
+    } else {
+      console.log('Table already exists, skipping column creation');
+    }
 
     // IMPORTANT: Find the solution label column by examining the headers
     // This is the key fix - dynamically determine the column name instead of hardcoding
@@ -52,17 +60,21 @@ const uploadFile = async (req, res) => {
       console.log('Available columns in first row:', Object.keys(rows[0]));
     }
 
-    const tableAlreadyExists = await dataModel.tableExists();
-
-if (tableAlreadyExists) {
-  // Remove the first row (header row) from CSV data, as it would be duplicated
-  rows.shift();
-} else {
-  // Table does not exist yet - create table with sanitized headers
-  await dataModel.ensureTableWithColumns(headers);
-}
     // Insert CSV data rows with run numbers and file_id
+    // Note: Don't shift rows here - let the parseAndCleanCSV handle header removal
     await dataModel.insertRows(rows, headers, fileRow.id);
+
+    // Fetch and log timestamp ranges after successful insertion
+    dataModel.getMinMaxTimestamp((err, ranges) => {
+      if (err) {
+        console.error('Error fetching timestamp ranges:', err);
+      } else {
+        console.log('Timestamp ranges for all file_ids:');
+        ranges.forEach(range => {
+          console.log(`File ID ${range.file_id}: ${range.minTimestamp} - ${range.maxTimestamp}`);
+        });
+      }
+    });
 
     res.status(200).json(fileRow);
 
@@ -70,16 +82,6 @@ if (tableAlreadyExists) {
     console.error('DB or CSV processing error:', err.message);
     res.status(500).json({ error: 'Database or CSV processing failed' });
   }
-
-  dataModel.getMinMaxTimestamp((err, range) => {
-    if (err) {
-    console.error('Error fetching timestamp range:', err);
-    } else {
-    console.log('Timestamp range:', range.minTimestamp, '-', range.maxTimestamp);
-    }
-    });
 };
-
-
 
 module.exports = { uploadFile };
