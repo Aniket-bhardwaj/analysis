@@ -66,15 +66,17 @@ const uploadFile = async (req, res) => {
 
     // Fetch and log timestamp ranges after successful insertion
     dataModel.getMinMaxTimestamp((err, ranges) => {
-      if (err) {
-        console.error('Error fetching timestamp ranges:', err);
-      } else {
-        console.log('Timestamp ranges for all file_ids:');
-        ranges.forEach(range => {
-          console.log(`File ID ${range.file_id}: ${range.minTimestamp} - ${range.maxTimestamp}`);
-        });
-      }
+  if (err) {
+    console.error('Error fetching timestamp ranges:', err);
+  } else {
+    console.log('Timestamp ranges for all file_ids:');
+    ranges.forEach(range => {
+      console.log(`File ID ${range.file_id}: ${range.minTimestamp} - ${range.maxTimestamp}`);
     });
+  }
+});
+
+
 
     res.status(200).json(fileRow);
 
