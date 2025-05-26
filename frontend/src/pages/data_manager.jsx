@@ -31,17 +31,7 @@ import '../styles/data_manager.css';
 
 const DataManagerPage = () => {
 
-    const [files, setFiles] = useState([
-        {
-            id: 1,
-            name: 'Sample File 1',
-            type: 'CSV',
-            user: 'User A',
-            email: 'randomemail@gmail.com',
-            uploadDate: '2023-10-01',
-            status: 'Uploaded'
-        }
-    ]);
+    const [files, setFiles] = useState([]);
 
     const [dragActive, setDragActive] = useState(false);
 
@@ -98,6 +88,7 @@ const DataManagerPage = () => {
         if (!selectedFiles || selectedFiles.length === 0) return;
 
         await handleFileUpload(selectedFiles[0]);
+        e.target.value = '';
     };
 
     const fetchUploadedFiles = async () => {
