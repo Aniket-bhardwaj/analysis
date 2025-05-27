@@ -47,45 +47,28 @@ async function insertRows(rows, headers, fileId) {
     const stmt = db.prepare(sql, (err) => {
       if (err) return reject(err);
 
-      try {
-        db.serialize(() => {
-          db.run('BEGIN TRANSACTION');
+      for (const row of rows) {
+        const values = [fileId];
+        for (const col of headers) {
+          values.push(row[col] !== undefined ? row[col] : null);
+        }
 
-          for (const row of rows) {
-            const values = [fileId];
-            for (const col of headers) {
-              values.push(row[col] !== undefined ? row[col] : null);
-            }
-
-            stmt.run(values, (err) => {
-              if (err) {
-                console.error('Insert error:', err);
-                // Don't reject here to avoid transaction issues
-              }
-            });
+        stmt.run(values, (err) => {
+          if (err) {
+            console.error('Insert error:', err);
+            // still continue to insert others
           }
-
-          db.run('COMMIT', (err) => {
-            if (err) {
-              console.error('Commit error:', err);
-              reject(err);
-              return;
-            }
-
-            stmt.finalize((err) => {
-              if (err) reject(err);
-              else resolve();
-            });
-          });
         });
-      } catch (e) {
-        console.error('Transaction error:', e);
-        db.run('ROLLBACK');
-        reject(e);
       }
+
+      stmt.finalize((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
     });
   });
 }
+
 
 async function getDataByFileId(fileId) {
   return new Promise((resolve, reject) => {
