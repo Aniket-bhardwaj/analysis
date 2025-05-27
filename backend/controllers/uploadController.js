@@ -13,19 +13,14 @@ const uploadFile = async (req, res) => {
   const savedFilePath = path.join('uploads', originalName);
 
   try {
+    const { headers, rows, nmPpmColumns, correctedColumns } = await parseAndCleanCSV(savedFilePath);
+
     const exists = await fileModel.fileExists(originalName);
     if (exists) {
       return res.status(400).json({ error: 'File already present' });
     }
 
     console.log('Upload received:', originalName, savedFilePath);
-
-    // Insert file metadata first
-    const fileRow = await fileModel.insertFile(originalName, savedFilePath);
-    console.log('File inserted into DB:', fileRow);
-
-    // Now parse and clean CSV file
-    const { headers, rows, nmPpmColumns, correctedColumns } = await parseAndCleanCSV(savedFilePath);
 
     console.log('Parsed headers:', headers);
 
@@ -41,6 +36,33 @@ const uploadFile = async (req, res) => {
 
     console.log('Solution label column detected as:', solutionLabelHeader);
 
+    // ⬇️ Added block to validate rows BEFORE inserting anything
+   
+   
+    const errorLabels = ['QC_MES_5 ppm', 'QC_MES_2.5 ppm', 'SJS_STD'];
+
+    const invalidRowFound = rows.some(row => {
+      const label = row[solutionLabelHeader]?.trim();
+      if (errorLabels.includes(label)) {
+        return nmPpmColumns.some(col => {
+          const val = row[col];
+          return val === null || val === undefined || val === '' || parseFloat(val) === 0;
+        });
+      }
+      return false;
+    });
+
+    if (invalidRowFound) {
+      return res.status(400).json({ error: 'One or more 0 or null values found in QC or SJS_STD rows.' });
+    }
+
+
+    // ⬆️ End of added validation block
+
+    // Insert file metadata first
+    const fileRow = await fileModel.insertFile(originalName, savedFilePath);
+    console.log('File inserted into DB:', fileRow);
+
     const tableAlreadyExists = await dataModel.tableExists();
 
     if (tableAlreadyExists) {
@@ -55,8 +77,6 @@ const uploadFile = async (req, res) => {
     await dataModel.insertRows(rows, headers, fileRow.id);
 
     // Get averages for nm ppm columns by solution label (no filtering of rows this time)
-    // If you want to average over all rows (no filter), modify below to pass null or skip filter
-    // But per your original code, we filter by label 'QC_MES_5 ppm' here
     const averages = await dataModel.getColumnAveragesByLabel(nmPpmColumns, 'QC_MES_5 ppm', fileRow.id);
 
     console.log('Averages for QC_MES_5 ppm in this file:', averages);
@@ -64,7 +84,7 @@ const uploadFile = async (req, res) => {
     const correctionFactors = {};
     for (const [key, value] of Object.entries(averages)) {
       const num = parseFloat(value);
-      correctionFactors[key] = (5 - num)/5
+      correctionFactors[key] = (5 - num) / 5;
     }
 
     // Apply correction factors to all rows for file, updating corrected columns
