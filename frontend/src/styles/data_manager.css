@@ -8,7 +8,6 @@
   padding-top: 0; /* Remove if navbar is sidebar, add if top navbar */
 }
 
-
 .main-content {
   max-width: 1200px;
   margin: 0 auto;
@@ -52,13 +51,20 @@
 }
 
 .upload-zone {
-  padding: 3rem;
+  padding: 3rem 2rem;
   border: 2px dashed #e0e0e0;
   border-radius: 8px;
   text-align: center;
   transition: all 0.3s ease;
   background: #fafafa;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  gap: 1.5rem;
+  position: relative;
 }
 
 .upload-zone:hover {
@@ -72,29 +78,73 @@
   transform: scale(1.02);
 }
 
+/* Upload States */
+.upload-zone .upload-normal-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.upload-zone .upload-progress-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
 .upload-icon {
-  font-size: 3rem !important;
+  font-size: 3.5rem !important;
   color: #bbb !important;
-  margin-bottom: 1rem;
+  margin: 0;
 }
 
 .upload-button {
-  margin-bottom: 1rem !important;
-  padding: 0.75rem 2rem !important;
+  padding: 0.875rem 2.5rem !important;
   font-size: 1rem !important;
   text-transform: none !important;
-  border-radius: 6px !important;
-  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.25) !important;
+  font-weight: 500 !important;
+  margin: 0;
+  transition: all 0.2s ease !important;
 }
 
-.upload-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4) !important;
+.upload-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.35) !important;
+}
+
+.upload-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .upload-text {
   color: #666 !important;
-  margin-top: 0.5rem;
+  margin: 0;
+  font-size: 0.95rem !important;
+  font-weight: 400;
+}
+
+/* Progress Indicator Styling */
+.upload-progress-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.upload-progress-text {
+  color: #2196f3 !important;
+  font-weight: 500 !important;
+  font-size: 1rem !important;
+  margin: 0;
+}
+
+.upload-progress-circular {
+  color: #2196f3 !important;
 }
 
 /* Files Table */
@@ -108,11 +158,13 @@
 }
 
 .table-cell-header {
-  font-weight: 500 !important;
-  color: #666 !important;
-  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  color: #555 !important;
+  font-size: 0.875rem !important;
   padding: 1rem !important;
   border-bottom: 1px solid #e0e0e0 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .table-row {
@@ -143,6 +195,7 @@
   color: white !important;
   font-weight: 500 !important;
   font-size: 0.75rem !important;
+  border-radius: 12px !important;
 }
 
 .user-cell {
@@ -185,6 +238,7 @@
 .delete-button {
   color: #f44336 !important;
   transition: all 0.2s ease;
+  padding: 8px !important;
 }
 
 .delete-button:hover {
@@ -196,6 +250,15 @@
 @media (max-width: 1024px) {
   .file-upload-container {
     margin-left: 200px; /* Smaller sidebar on tablets */
+  }
+  
+  .upload-zone {
+    padding: 2.5rem 1.5rem;
+    min-height: 180px;
+  }
+  
+  .upload-icon {
+    font-size: 3rem !important;
   }
 }
 
@@ -222,10 +285,17 @@
   
   .upload-zone {
     padding: 2rem 1rem;
+    min-height: 160px;
+    gap: 1rem;
   }
   
   .upload-icon {
-    font-size: 2rem !important;
+    font-size: 2.5rem !important;
+  }
+  
+  .upload-button {
+    padding: 0.75rem 2rem !important;
+    font-size: 0.9rem !important;
   }
   
   .page-title {
@@ -235,8 +305,8 @@
   .table-cell,
   .table-cell-header,
   .filename-cell {
-    padding: 0.5rem !important;
-    font-size: 0.8rem !important;
+    padding: 0.75rem !important;
+    font-size: 0.85rem !important;
   }
   
   .user-cell {
@@ -246,9 +316,9 @@
   }
   
   .user-avatar {
-    width: 24px !important;
-    height: 24px !important;
-    font-size: 0.7rem !important;
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 0.75rem !important;
   }
 }
 
@@ -262,13 +332,33 @@
     width: 100%;
   }
   
+  .upload-zone {
+    padding: 1.5rem 1rem;
+    min-height: 140px;
+    gap: 0.75rem;
+  }
+  
+  .upload-icon {
+    font-size: 2rem !important;
+  }
+  
   .upload-button {
-    font-size: 0.9rem !important;
+    font-size: 0.85rem !important;
     padding: 0.6rem 1.5rem !important;
   }
   
   .upload-text {
     font-size: 0.8rem !important;
+  }
+  
+  .upload-progress-text {
+    font-size: 0.9rem !important;
+  }
+  
+  /* Make table horizontally scrollable on very small screens */
+  .files-table-card .MuiTableContainer-root {
+    max-width: calc(100vw - 2rem);
+    overflow-x: auto;
   }
 }
 
@@ -290,12 +380,23 @@
 }
 
 .table-row.new-file {
-  animation: fileAdded 0.3s ease-out;
+  animation: fileAdded 0.5s ease-out;
+}
+
+/* Loading pulse animation */
+@keyframes uploadPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.upload-zone .upload-progress-container {
+  animation: uploadPulse 2s ease-in-out infinite;
 }
 
 /* Custom scrollbar for table */
 .MuiTableContainer-root::-webkit-scrollbar {
   height: 6px;
+  width: 6px;
 }
 
 .MuiTableContainer-root::-webkit-scrollbar-track {
@@ -329,6 +430,30 @@
 
 /* Ensure content is never hidden behind navbar */
 .main-content {
-  min-height: calc(100vh - 2rem); /* Adjust based on your navbar height */
+  min-height: calc(100vh - 4rem); /* Adjust based on your navbar height */
   box-sizing: border-box;
+}
+
+/* Enhanced focus states for accessibility */
+.upload-button:focus-visible {
+  outline: 2px solid #2196f3;
+  outline-offset: 2px;
+}
+
+.delete-button:focus-visible {
+  outline: 2px solid #f44336;
+  outline-offset: 2px;
+}
+
+/* Improved drag and drop visual feedback */
+.upload-zone.drag-active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 150, 243, 0.05) 100%);
+  border-radius: 6px;
+  pointer-events: none;
 }

@@ -18,7 +18,8 @@ import {
     Avatar,
     IconButton,
     TextField,
-    Stack
+    Stack,
+    CircularProgress
 } from '@mui/material'
 
 import {
@@ -32,8 +33,9 @@ import '../styles/data_manager.css';
 const DataManagerPage = () => {
 
     const [files, setFiles] = useState([]);
-
     const [dragActive, setDragActive] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     const handleDrag = (e) => {
         e.preventDefault();
@@ -61,25 +63,49 @@ const DataManagerPage = () => {
         const formData = new FormData();
         formData.append('file', file);
 
+        setIsUploading(true);
+        setUploadProgress(0);
+
         try {
-            const res = await fetch("http://localhost:5000/upload-csv", {
-                method: 'POST',
-                body: formData
+            // Create XMLHttpRequest for progress tracking
+            const xhr = new XMLHttpRequest();
+            
+            // Track upload progress
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    setUploadProgress(Math.round(percentComplete));
+                }
             });
 
-            const result = await res.json();
+            // Handle response
+            const uploadPromise = new Promise((resolve, reject) => {
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        resolve(JSON.parse(xhr.responseText));
+                    } else {
+                        reject(new Error(JSON.parse(xhr.responseText).error || 'Upload failed'));
+                    }
+                };
+                
+                xhr.onerror = () => reject(new Error('Network error'));
+            });
 
-            if (res.ok) {
-                alert('File uploaded successfully');
-                fetchUploadedFiles();
-            }
-            else {
-                alert(result.error || 'Failed to Upload');
-            }
-        }
-        catch (err) {
+            // Send the request
+            xhr.open('POST', 'http://localhost:5000/upload-csv');
+            xhr.send(formData);
+
+            const result = await uploadPromise;
+            
+            alert('File uploaded successfully');
+            fetchUploadedFiles();
+            
+        } catch (err) {
             console.error('Error uploading file:', err);
-            alert('Something went wrong');
+            alert(err.message || 'Something went wrong');
+        } finally {
+            setIsUploading(false);
+            setUploadProgress(0);
         }
     };
 
@@ -174,25 +200,42 @@ const DataManagerPage = () => {
                             onDragOver={handleDrag}
                             onDrop={handleDrop}
                         >
-                            <CloudUpload className="upload-icon" />
-                            <Button
-                                variant="contained"
-                                component="label"
-                                className="upload-button"
-                                startIcon={<CloudUpload />}
-                                size="large"
-                            >
-                                Choose file
-                                <input
-                                    type="file"
-                                    hidden
-                                    multiple
-                                    onChange={handleFileSelect}
-                                />
-                            </Button>
-                            <Typography variant="body2" className="upload-text">
-                                or drag file in here
-                            </Typography>
+                            {isUploading ? (
+                                <Box className="upload-progress-container">
+                                    <CircularProgress 
+                                        variant="determinate" 
+                                        value={uploadProgress} 
+                                        size={70}
+                                        thickness={4}
+                                        className="upload-progress-circular"
+                                    />
+                                    <Typography variant="body1" className="upload-progress-text">
+                                        Uploading... {uploadProgress}%
+                                    </Typography>
+                                </Box>
+                            ) : (
+                                <Box className="upload-normal-state">
+                                    <Button
+                                        variant="contained"
+                                        component="label"
+                                        className="upload-button"
+                                        startIcon={<CloudUpload />}
+                                        size="large"
+                                        disabled={isUploading}
+                                    >
+                                        Choose file
+                                        <input
+                                            type="file"
+                                            hidden
+                                            multiple
+                                            onChange={handleFileSelect}
+                                        />
+                                    </Button>
+                                    <Typography variant="body2" className="upload-text">
+                                        or drag file in here
+                                    </Typography>
+                                </Box>
+                            )}
                         </Box>
                     </CardContent>
                 </Card>
