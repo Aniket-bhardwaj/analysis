@@ -34,14 +34,12 @@ function cleanRows(rows, headers, cleanedHeaders) {
 
     headers.forEach((origHeader, i) => {
       const baseCol = cleanedHeaders[cleanedIndex++];
-
-      // parseFloat if numeric (for calculation), else keep string
       const val = row[origHeader];
       newRow[baseCol] = isNaN(val) ? val : parseFloat(val);
 
       if (baseCol.match(/nm\s*ppm$/i)) {
         const correctedCol = cleanedHeaders[cleanedIndex++];
-        newRow[correctedCol] = null; // initially null, to be updated after correction
+        newRow[correctedCol] = null;
       }
     });
 
@@ -57,21 +55,31 @@ async function parseAndCleanCSV(filepath) {
     fs.createReadStream(filepath)
       .pipe(csv())
       .on('headers', (rawHeaders) => {
-        headers = rawHeaders.map(h => h.trim());
+        headers = rawHeaders.map(h =>
+          h.trim().replace(/^"|"$/g, '')
+        );
       })
-      .on('data', (data) => rows.push(data))
+      .on('data', (data) => {
+        const cleanedRow = {};
+        Object.entries(data).forEach(([key, value]) => {
+          const cleanKey = key.trim().replace(/^"|"$/g, '');
+          cleanedRow[cleanKey] = value;
+        });
+        rows.push(cleanedRow);
+      })
       .on('end', () => {
         const cleanedHeaders = sanitizeHeaders(headers);
-
         const cleanedRows = cleanRows(rows, headers, cleanedHeaders);
 
-        // Extract nm ppm and corrected columns lists for controller
         const nmPpmColumns = [];
         const correctedColumns = [];
 
         cleanedHeaders.forEach((col) => {
-          if (col.match(/nm\s*ppm$/i)) nmPpmColumns.push(col);
-          else if (col.match(/_Corrected$/)) correctedColumns.push(col);
+          if (col.match(/nm\s*ppm$/i) && !col.includes('_Corrected')) {
+            nmPpmColumns.push(col);
+          } else if (col.includes('_Corrected')) {
+            correctedColumns.push(col);
+          }
         });
 
         resolve({ headers: cleanedHeaders, rows: cleanedRows, nmPpmColumns, correctedColumns });
