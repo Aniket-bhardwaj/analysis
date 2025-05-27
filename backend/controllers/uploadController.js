@@ -39,7 +39,7 @@ const uploadFile = async (req, res) => {
     // ⬇️ Added block to validate rows BEFORE inserting anything
    
    
-    const errorLabels = ['QC_MES_5 ppm', 'QC_MES_2.5 ppm', 'SJS_STD'];
+    const errorLabels = ['QC_MES_5 ppm', 'QC_WCS_2.5 ppm', 'SJS_STD'];
 
     const invalidRowFound = rows.some(row => {
       const label = row[solutionLabelHeader]?.trim();
