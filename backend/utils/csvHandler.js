@@ -1,6 +1,6 @@
 const fs = require('fs');
 const csv = require('csv-parser');
-const {OcleanedHeaders} = require('../array'); 
+const {OcleanedHeaders} = require('../colHeaders'); 
 // Parse and return trimmed headers and rows
 async function cleanCSV(filepath) {
   return new Promise((resolve, reject) => {
