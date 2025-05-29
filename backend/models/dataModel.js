@@ -2,6 +2,9 @@ const db = require('../initialize_db');
 
 db.run("PRAGMA foreign_keys = ON");
 
+const tableName = 'data';
+
+
 async function insertRows(rows, headers, fileId) {
   if (!rows || rows.length === 0) return;
 
