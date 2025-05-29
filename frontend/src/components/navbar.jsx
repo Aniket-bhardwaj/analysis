@@ -29,7 +29,7 @@ const menuItems = [
     text: 'QC Checks',
     icon: <QCChecksIcon />,
     iconClass: 'menu-icon-qc',
-    //route: '/qc-checks',
+    route: '/qc-checks',
   },
   {
     text: 'Analytics',

@@ -35,7 +35,7 @@ app.use('/', listRoutes);
 app.use('/', previewRoutes);
 app.use('/', hideRoutes);
 app.use('/auth', authRoutes);
-app.use('/api', graphRoutes); // /api/graph-data
+app.use('/', graphRoutes); // /api/graph-data
 
 // Start server
 app.listen(PORT, () => {

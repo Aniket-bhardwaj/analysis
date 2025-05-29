@@ -4,13 +4,12 @@
   min-height: 100vh;
   font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Adjust for fixed navbar - modify these values based on your navbar height */
-  margin-left: 223px; /* Adjust based on sidebar navbar width */
+  margin-left: 280px; /* Adjust based on sidebar navbar width */
   padding-top: 0; /* Remove if navbar is sidebar, add if top navbar */
 }
 
-.main-content {
+.data-main-content {
   max-width: 1200px;
-  margin: 0 auto;
   padding: 2rem;
   /* Ensure content doesn't touch navbar edges */
   position: relative;

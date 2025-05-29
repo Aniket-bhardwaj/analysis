@@ -19,13 +19,16 @@ import {
     IconButton,
     TextField,
     Stack,
-    CircularProgress
+    CircularProgress,
+    
 } from '@mui/material'
 
 import {
     CloudUpload,
     Delete,
-    DateRange
+    DateRange,
+    ErrorOutlineOutlined,
+    CheckCircleOutlineOutlined
 } from '@mui/icons-material';
 
 import '../styles/data_manager.css';
@@ -67,7 +70,7 @@ const DataManagerPage = () => {
         setUploadProgress(0);
 
         try {
-            // Create XMLHttpRequest for progress tracking
+           
             const xhr = new XMLHttpRequest();
             
             // Track upload progress
@@ -129,7 +132,7 @@ const DataManagerPage = () => {
     };
 
     useEffect(() => {
-        fetchUploadedFiles(); // <- this runs once when the component mounts
+        fetchUploadedFiles(); 
     }, []);
 
     const handleFiles = (fileList) => {
@@ -139,7 +142,7 @@ const DataManagerPage = () => {
             type: file.name.split('.').pop().toUpperCase(),
             user: 'Current User',
             email: 'randommail@gmail.com',
-            uploadDate: new Date().toLocaleString('en-GB', {
+            uploadDate: new Date().toLocaleString('en-IN', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
