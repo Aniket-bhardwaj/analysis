@@ -10,7 +10,7 @@ const {
   nmPpmColumns,
   correctedColumns,
   errorLabels
-} = require('../array'); 
+} = require('../colHeaders'); 
 
  // Same SQLite instance
 
