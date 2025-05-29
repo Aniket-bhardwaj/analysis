@@ -1,6 +1,8 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcrypt');
+const {completeHeaders} = require('./colHeaders'); 
+
 
 const dbPath = path.resolve(__dirname, 'database.sqlite');
 
@@ -25,6 +27,16 @@ db.serialize(() => {
       hidden INTEGER DEFAULT 0
     )
   `);
+  // create data tablle
+  const colsDef = completeHeaders.map(col => `"${col}" TEXT`).join(', ');
+
+db.run(`CREATE TABLE IF NOT EXISTS data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_id INTEGER,
+    ${colsDef},
+    FOREIGN KEY (file_id) REFERENCES uploaded_files(id)
+)`);
+
   //create users table
 
 db.run(`CREATE TABLE IF NOT EXISTS users (
