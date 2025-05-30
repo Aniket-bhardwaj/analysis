@@ -15,16 +15,6 @@ import {
   Legend,
 } from 'chart.js';
 
-import {
-  Box,
-  Typography,
-  InputLabel,
-  FormControl,
-  Select,
-  MenuItem,
-  Button,
-} from '@mui/material';
-
 ChartJS.register(
   LineElement,
   CategoryScale,
@@ -38,9 +28,18 @@ ChartJS.register(
 const QualityCheck = () => {
   const [originalChartData, setOriginalChartData] = useState(null);
   const [correctedChartData, setCorrectedChartData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [fileId, setFileId] = useState(null); // Add fileId state
+  const [selectedItem, setSelectedItem] = useState('qc-checks');
+  
+  // Form state
+  const [fileId, setFileId] = useState('');
+  const [startDate, setStartDate] = useState('2024-01-01');
+  const [endDate, setEndDate] = useState('2024-12-31');
+  const [solutionLabel, setSolutionLabel] = useState('QC_MES_5 ppm');
+  const [availableFiles, setAvailableFiles] = useState([]);
+  const [solutionLabels, setSolutionLabels] = useState([]);
+  const [selectionMode, setSelectionMode] = useState('file'); // 'file' or 'date'
 
   // Generate different colors for multiple elements
   const generateColors = (count) => {
@@ -58,83 +57,196 @@ const QualityCheck = () => {
     return Array.from({ length: count }, (_, i) => colors[i % colors.length]);
   };
 
-  useEffect(() => {
-    const fetchGraphData = async () => {
-      setLoading(true);
-      setError(null);
-      
+  // Fetch available files on component mount
+ useEffect(() => {
+    const fetchUploadedFiles = async () => {
       try {
-        const response = await fetch('http://localhost:5000/graph-data');
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error!, status: ${response.status}`);
+      
+        const response = await fetch('http://localhost:5000/upload-csv');
+        if(response.ok){
+          const data = await response.json();
+          if (data.success && data.files) {
+            setAvailableFiles(data.files);
+            if (data.files.length > 0) {
+              setFileId(data.files[0].id.toString()); // Set first file as default
+            }
+          } else {
+            console.error('Failed to fetch files:', data);
+            setError('Failed to load uploaded files');
         }
-        
-        const data = await response.json();
-        
-        if (!data.success) {
-          throw new Error(data.message || 'Failed to fetch graph data');
+        } else {
+          console.error('Failed to fetch uploaded files:', response.status);
+          setError('Failed to load uploaded files');
         }
-
-        // Extract timestamps from the first element's data (assuming all elements have same timestamps)
-        const timestamps = data.originalGraph.data[0]?.data.map(point => point.timestamp) || [];
-        
-        // Generate colors for all elements
-        const colors = generateColors(data.elements.length);
-        
-        const originalConfig = {
-          labels: timestamps,
-          datasets: data.originalGraph.data.map((elementData, index) => ({
-            label: elementData.element,
-            data: elementData.data.map(point => point.value),
-            fill: false,
-            borderColor: colors[index],
-            backgroundColor: colors[index] + '20', // Add transparency
-            tension: 0.3,
-            pointRadius: 3,
-            pointHoverRadius: 6,
-            borderWidth: 2,
-          })),
-        };
-
-        // Create chart config for corrected values
-        const correctedConfig = {
-          labels: timestamps,
-          datasets: data.correctedGraph.data.map((elementData, index) => ({
-            label: elementData.element,
-            data: elementData.data.map(point => point.value),
-            fill: false,
-            borderColor: colors[index],
-            backgroundColor: colors[index] + '20', // Add transparency
-            tension: 0.3,
-            pointRadius: 3,
-            pointHoverRadius: 6,
-            borderWidth: 2,
-          })),
-        };
-
-        setOriginalChartData(originalConfig);
-        setCorrectedChartData(correctedConfig);
-        
       } catch (error) {
-        console.error('Error fetching graph data:', error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
+        console.error('Error fetching uploaded files:', error);
+        setError('Error loading uploaded files');
       }
     };
 
-    if (fileId) {
-      fetchGraphData();
+    fetchUploadedFiles();
+  }, []);
+
+  // Fetch solution labels when file changes
+  useEffect(() => {
+    const fetchSolutionLabels = async () => {
+      if (!fileId) return;
+      
+      try {
+        const response = await fetch(`http://localhost:5000/solution-labels?file_id=${fileId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSolutionLabels(data.solutionLabels || []);
+          if (data.solutionLabels && data.solutionLabels.length > 0) {
+            setSolutionLabel(data.solutionLabels[0]); // Set first solution as default
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching solution labels:', error);
+      }
+    };
+
+    fetchSolutionLabels();
+  }, [fileId, selectionMode]);
+
+  useEffect(() => {
+    const fetchAllSolutionLabels = async () => {
+      if (selectionMode !== 'date' || availableFiles.length === 0) return;
+      
+      try {
+        // Get solution labels from the first file as a reference
+        // In a real application, you might want to get all unique solution labels across all files
+        const response = await fetch(`http://localhost:5000/solution-labels?file_id=${availableFiles[0].id}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.solutionLabels) {
+            setSolutionLabels(data.solutionLabels);
+            if (data.solutionLabels.length > 0) {
+              setSolutionLabel(data.solutionLabels[0]);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching solution labels for date range:', error);
+      }
+    };
+
+    fetchAllSolutionLabels();
+  }, [selectionMode, availableFiles]);
+
+  const fetchGraphData = async () => {
+    if (selectionMode ==='file' && !fileId) {
+      setError('Please select a file');
+      return;
     }
-  }, [fileId]);
+
+    if(selectionMode === 'date' && (!startDate || !endDate)) {
+      setError('Please select a valid date range');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+
+      let url;
+      if(selectionMode === 'file'){
+        url = `http://localhost:5000/graph-data?file_id=${fileId}&solution_label=${encodeURIComponent(solutionLabel)}`;
+      } else {
+       url = `http://localhost:5000/graph-data-by-date?start_date=${startDate}&end_date=${endDate}&solution_label=${encodeURIComponent(solutionLabel)}`;
+      }
+      console.log('Fetching data from:', url);
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to fetch graph data');
+      }
+
+      // Extract timestamps from the first element's data (assuming all elements have same timestamps)
+      const timestamps = data.originalGraph.data[0]?.data.map(point => {
+        // Format timestamp for display
+        const date = new Date(point.timestamp);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+      }) || [];
+      
+      // Generate colors for all elements
+      const colors = generateColors(data.elements.length);
+      
+      const originalConfig = {
+        labels: timestamps,
+        datasets: data.originalGraph.data.map((elementData, index) => ({
+          label: elementData.element,
+          data: elementData.data.map(point => point.value),
+          fill: false,
+          borderColor: colors[index],
+          backgroundColor: colors[index] + '20', // Add transparency
+          tension: 0.3,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          borderWidth: 2,
+        })),
+      };
+
+      // Create chart config for corrected values
+      const correctedConfig = {
+        labels: timestamps,
+        datasets: data.correctedGraph.data.map((elementData, index) => ({
+          label: elementData.element,
+          data: elementData.data.map(point => point.value),
+          fill: false,
+          borderColor: colors[index],
+          backgroundColor: colors[index] + '20', // Add transparency
+          tension: 0.3,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          borderWidth: 2,
+        })),
+      };
+
+      setOriginalChartData(originalConfig);
+      setCorrectedChartData(correctedConfig);
+      
+    } catch (error) {
+      console.error('Error fetching graph data:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadGraphs = () => {
+    fetchGraphData();
+  };
+
+  const handleSelectionModeChange = (mode) =>{
+    setSelectionMode(mode);
+
+    setOriginalChartData(null);
+    setCorrectedChartData(null);
+    setError(null);
+  };
 
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false, // Hide legend to match design
+        display: true,
+        position: 'top',
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+          font: {
+            size: 12
+          }
+        }
       },
       tooltip: {
         mode: 'index',
@@ -205,32 +317,6 @@ const QualityCheck = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="qc-container">
-        <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
-        <div className="qc-main-content">
-          <div className="loading-state">
-            <p>Loading graphs...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="qc-container">
-        <Navbar />
-        <div className="qc-main-content">
-          <div className="error-state">
-            <p>Error loading graphs: {error}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="qc-container">
       <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
@@ -243,43 +329,112 @@ const QualityCheck = () => {
           <div className="qc-header-controls">
             <div className="date-selector">
               <label>
-                <input type="radio" name="dateType" value="file" />
+                <input 
+                  type="radio" 
+                  name="dateType" 
+                  value="file" 
+                  checked={selectionMode === 'file'}
+                  onChange={(e) => setSelectionMode(e.target.value)}
+                />
                 Select a file
               </label>
               <label>
-                <input type="radio" name="dateType" value="start" defaultChecked />
-                Select a start date
+                <input 
+                  type="radio" 
+                  name="dateType" 
+                  value="date" 
+                  checked={selectionMode === 'date'}
+                  onChange={(e) => setSelectionMode(e.target.value)}
+                />
+                Select date range
               </label>
-              <input type="date" className="date-input" defaultValue="2024-01-01" />
-              <label>
-                Select end date
-              </label>
-              <input type="date" className="date-input" defaultValue="2024-12-31" />
+              
+              {selectionMode === 'file' ? (
+                <select 
+                  value={fileId} 
+                  onChange={(e) => setFileId(e.target.value)}
+                  className="date-input"
+                >
+                  <option value="">Select a file</option>
+                  {availableFiles.map((file) => (
+                    <option key={file.id} value={file.id}>
+                      {file.filename}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <>
+                  <label>Start date:</label>
+                  <input 
+                    type="date" 
+                    className="date-input" 
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                  <label>End date:</label>
+                  <input 
+                    type="date" 
+                    className="date-input" 
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </>
+              )}
+              
+              <select 
+                value={solutionLabel} 
+                onChange={(e) => setSolutionLabel(e.target.value)}
+                className="date-input"
+              >
+                {solutionLabels.map((label, index) => (
+                  <option key={index} value={label}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              
+              <button 
+                onClick={handleLoadGraphs}
+                className="load-button"
+                disabled={loading}
+              >
+                {loading ? 'Loading...' : 'Load Graphs'}
+              </button>
             </div>
           </div>
         </div>
+
+        {error && (
+          <div className="error-banner">
+            <p>Error: {error}</p>
+          </div>
+        )}
 
         {/* QC Samples Section */}
         <div className="qc-section">
           <div className="qc-section-header">
             <h2>QC Samples</h2>
-            <div className="sample-indicator">Ca (1111.9...)</div>
+            <div className="sample-indicator">
+              {solutionLabel}
+            </div>
           </div>
           
           <div className="graphs-container">
             <div className="graph-card">
               <div className="graph-header">
                 <h3>Original</h3>
-                <p className="graph-description">QC_MES_5 ppm - Original Values vs Timestamp</p>
+                <p className="graph-description">{solutionLabel} - Original Values vs Timestamp</p>
               </div>
               <div className="chart-container">
-                {originalChartData ? (
+                {loading ? (
+                  <div className="loading-state">Loading original data...</div>
+                ) : originalChartData ? (
                   <Line 
                     data={originalChartData} 
                     options={chartOptions}
                   />
                 ) : (
-                  <div className="no-data">No original data available</div>
+                  <div className="no-data">No original data available. Click "Load Graphs" to fetch data.</div>
                 )}
               </div>
             </div>
@@ -287,59 +442,18 @@ const QualityCheck = () => {
             <div className="graph-card">
               <div className="graph-header">
                 <h3>Corrected</h3>
-                <p className="graph-description">QC_MES_5 ppm - Corrected Values vs Timestamp</p>
+                <p className="graph-description">{solutionLabel} - Corrected Values vs Timestamp</p>
               </div>
               <div className="chart-container">
-                {correctedChartData ? (
+                {loading ? (
+                  <div className="loading-state">Loading corrected data...</div>
+                ) : correctedChartData ? (
                   <Line 
                     data={correctedChartData} 
                     options={chartOptions}
                   />
                 ) : (
-                  <div className="no-data">No corrected data available</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* SJS Samples Section */}
-        <div className="qc-section">
-          <div className="qc-section-header">
-            <h2>SJS Samples</h2>
-          </div>
-          
-          <div className="graphs-container">
-            <div className="graph-card">
-              <div className="graph-header">
-                <h3>Original</h3>
-                <p className="graph-description">Graph name/description</p>
-              </div>
-              <div className="chart-container">
-                {originalChartData ? (
-                  <Line 
-                    data={originalChartData} 
-                    options={chartOptions}
-                  />
-                ) : (
-                  <div className="no-data">No original data available</div>
-                )}
-              </div>
-            </div>
-            
-            <div className="graph-card">
-              <div className="graph-header">
-                <h3>Corrected</h3>
-                <p className="graph-description">Graph name/description</p>
-              </div>
-              <div className="chart-container">
-                {correctedChartData ? (
-                  <Line 
-                    data={correctedChartData} 
-                    options={chartOptions}
-                  />
-                ) : (
-                  <div className="no-data">No corrected data available</div>
+                  <div className="no-data">No corrected data available. Click "Load Graphs" to fetch data.</div>
                 )}
               </div>
             </div>

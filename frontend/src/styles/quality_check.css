@@ -1,4 +1,4 @@
-/* styles.css */
+/* quality_check.css */
 
 * {
     margin: 0;
@@ -20,7 +20,6 @@ body {
 
 /* Main Content Styles */
 .qc-main-content {
-    /* margin-left: 240px; */
     flex: 1;
     padding: 0;
     background-color: #f8fafc;
@@ -38,13 +37,19 @@ body {
     z-index: 50;
 }
 
-.breadcrumb {
+.qc-breadcrumb {
     font-size: 24px;
     font-weight: 600;
     color: #1e293b;
 }
 
-.header-controls {
+.breadcrumb-item {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.qc-header-controls {
     display: flex;
     align-items: center;
     gap: 16px;
@@ -58,6 +63,7 @@ body {
     padding: 8px 16px;
     border-radius: 8px;
     border: 1px solid #e2e8f0;
+    flex-wrap: wrap;
 }
 
 .date-selector label {
@@ -67,22 +73,59 @@ body {
     font-size: 14px;
     color: #475569;
     cursor: pointer;
+    white-space: nowrap;
 }
 
 .date-selector input[type="radio"] {
     margin: 0;
 }
 
-.date-input {
+.date-input, .date-selector select {
     padding: 6px 10px;
     border: 1px solid #d1d5db;
     border-radius: 6px;
     font-size: 14px;
     background: white;
+    min-width: 120px;
+}
+
+.load-button {
+    background: #22c55e;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.load-button:hover:not(:disabled) {
+    background: #16a34a;
+}
+
+.load-button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Error Banner */
+.error-banner {
+    background: #fef2f2;
+    color: #dc2626;
+    padding: 12px 32px;
+    border-bottom: 1px solid #fecaca;
+    margin: 0;
+}
+
+.error-banner p {
+    margin: 0;
+    font-size: 14px;
 }
 
 /* Section Styles */
-.section {
+.qc-section {
     margin: 32px;
     background: white;
     border-radius: 12px;
@@ -90,7 +133,7 @@ body {
     overflow: hidden;
 }
 
-.section-header {
+.qc-section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -99,7 +142,7 @@ body {
     background: #fafbfc;
 }
 
-.section-header h2 {
+.qc-section-header h2 {
     font-size: 20px;
     font-weight: 700;
     color: #1e293b;
@@ -152,7 +195,7 @@ body {
 
 .chart-container {
     padding: 24px;
-    height: 350px;
+    height: 400px;
     position: relative;
 }
 
@@ -162,17 +205,25 @@ body {
 
 /* Loading and Error States */
 .loading-state,
-.error-state {
+.error-state,
+.no-data {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 300px;
     color: #64748b;
     font-size: 16px;
+    text-align: center;
+    padding: 20px;
 }
 
 .error-state {
     color: #dc2626;
+}
+
+.no-data {
+    color: #6b7280;
+    font-style: italic;
 }
 
 /* Responsive Design */
@@ -192,39 +243,46 @@ body {
 }
 
 @media (max-width: 768px) {
-    .sidebar {
-        transform: translateX(-100%);
-    }
-    
-    .main-content {
+    .qc-main-content {
         margin-left: 0;
     }
     
-    .header {
+    .qc-header {
         padding: 16px 20px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
     }
     
-    .section {
+    .qc-header-controls {
+        width: 100%;
+    }
+    
+    .date-selector {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .qc-section {
         margin: 16px;
     }
     
-    .section-header {
+    .qc-section-header {
         padding: 20px 24px;
         flex-direction: column;
         align-items: flex-start;
         gap: 12px;
     }
     
-    .date-selector {
-        flex-wrap: wrap;
-        gap: 8px;
+    .chart-container {
+        height: 300px;
+        padding: 16px;
     }
 }
 
 /* Animation for smooth transitions */
-.nav-item,
-.user-menu,
-.date-input {
+.date-input,
+.load-button {
     transition: all 0.2s ease;
 }
 

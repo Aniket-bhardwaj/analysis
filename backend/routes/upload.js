@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const { uploadFile } = require('../controllers/uploadController');
+const { uploadFile, getUploadedFiles } = require('../controllers/uploadController');
 
 const router = express.Router();
 
@@ -15,6 +15,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+//POST route for file upload
 router.post('/upload-csv', upload.single('file'), uploadFile);
+
+//GET route to serve uploaded files
+router.get('/upload-csv', getUploadedFiles)
 
 module.exports = router;

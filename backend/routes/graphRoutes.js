@@ -6,6 +6,9 @@ const GraphController = require('../controllers/graphController');
 // Get graph data for a specific file and solution (separate original/corrected)
 router.get('/graph-data', GraphController.getGraphDataByFileId);
 
+//Get graph data by date range across all files
+router.get('/graph-data-by-date', GraphController.getGraphDataByDateRange);
+
 // Get comparison data (original vs corrected in one response)  
 router.get('/comparison-data', GraphController.getComparisonGraphData);
 

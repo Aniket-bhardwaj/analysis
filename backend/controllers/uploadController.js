@@ -11,6 +11,7 @@ const {
   correctedColumns,
   errorLabels
 } = require('../colHeaders'); 
+const { get } = require('http');
 
  // Same SQLite instance
 
@@ -123,4 +124,24 @@ const uploadFile = async (req, res) => {
   });
 };
 
-module.exports = { uploadFile };
+//new method to get list of uploaded file
+const getUploadedFiles = async (req, res) => {
+  try {
+    const files = await fileModel.getAllFiles();
+
+    res.json({
+      success: true,
+      files: files.map(file => ({
+        id: file.id,
+        filename: file.filename,
+        filepath: file.filepath,
+        uploaded_at: file.uploaded_at
+      }))
+    });
+  } catch(err){
+    console.error('Error fetching uploaded files:', err);
+    res.status(500).json({ error: 'Failed to fetch uploaded files' , message: err.message});
+  }
+};
+
+module.exports = { uploadFile, getUploadedFiles };
