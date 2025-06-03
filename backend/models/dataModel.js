@@ -2,100 +2,89 @@ const db = require('../initialize_db');
 
 db.run("PRAGMA foreign_keys = ON");
 
-const tableName = 'data';
-
-
-async function insertRows(rows, headers, fileId) {
-  if (!rows || rows.length === 0) return;
-
-  const insertColumns = ['file_id', ...headers];
-  const placeholders = insertColumns.map(() => '?').join(', ');
-  const sql = `INSERT INTO ${tableName} (${insertColumns.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
-
+// Check if a sample with given Solution Label exists
+async function sampleExists(solutionLabel) {
   return new Promise((resolve, reject) => {
-    const stmt = db.prepare(sql, (err) => {
+    const query = `SELECT 1 FROM Sample_data WHERE "Solution Label" = ? LIMIT 1`;
+    db.get(query, [solutionLabel], (err, row) => {
+      if (err) return reject(err);
+      resolve(!!row);
+    });
+  });
+}
+
+// Insert a new sample row (only columns present in row object)
+// Insert a new sample row (only columns present in row object AND in DB)
+async function insertSample(row) {
+  return new Promise((resolve, reject) => {
+    // Fetch valid columns from Sample_data table schema
+    db.all(`PRAGMA table_info(Sample_data)`, [], (err, columns) => {
       if (err) return reject(err);
 
-      for (const row of rows) {
-        const values = [fileId];
-        for (const col of headers) {
-          values.push(row[col] !== undefined ? row[col] : null);
-        }
+      const validCols = columns.map(c => c.name);
+      const rowKeys = Object.keys(row);
 
-        stmt.run(values, (err) => {
-          if (err) {
-            console.error('Insert error:', err);
-            // still continue to insert others
-          }
-        });
+      // Filter row keys to only those that exist in DB
+      const filteredKeys = rowKeys.filter(col => validCols.includes(col));
+      if (filteredKeys.length === 0) {
+        console.warn('[insertSample] No valid columns in row, skipping:', row);
+        return resolve(); // Skip if nothing matches
       }
 
-      stmt.finalize((err) => {
-        if (err) reject(err);
-        else resolve();
+      const cols = filteredKeys.map(col => `"${col}"`).join(', ');
+      const placeholders = filteredKeys.map(() => '?').join(', ');
+      const values = filteredKeys.map(col => row[col]);
+
+      const query = `INSERT INTO Sample_data (${cols}) VALUES (${placeholders})`;
+      console.log('[insertSample] Final INSERT query:', query);
+      console.log('[insertSample] Values:', values);
+
+      db.run(query, values, function(err) {
+        if (err) {
+          console.error('[insertSample] INSERT error:', err.message);
+          return reject(err);
+        }
+        resolve(this.lastID);
       });
     });
   });
 }
 
-async function getColumnAveragesByLabel(columns, label, fileId) {
-  if (!Array.isArray(columns) || columns.length === 0) {
-    throw new Error('Column list must be a non-empty array');
-  }
+// Update existing sample by Solution Label; update only columns present in row except Solution Label itself
+async function updateSample(solutionLabel, row) {
+  return new Promise((resolve, reject) => {
+    // exclude "Solution Label" from SET clause
+    const columns = Object.keys(row).filter(col => col !== 'Solution Label');
+    if (columns.length === 0) return resolve(); // nothing to update
 
-  const avgExpressions = columns
-    .map(col => `AVG(CAST("${col}" AS REAL)) AS "${col}"`)
-    .join(', ');
+    const setClause = columns.map(col => `"${col}" = ?`).join(', ');
+    const values = columns.map(col => row[col]);
+    values.push(solutionLabel); // for WHERE clause
 
-  const query = `
-    SELECT ${avgExpressions}
-    FROM data
-    WHERE "Solution Label" = ? AND file_id = ?
-  `;
+    const query = `UPDATE Sample_data SET ${setClause} WHERE "Solution Label" = ?`;
 
-  try {
-    const row = await new Promise((resolve, reject) => {
-      db.get(query, [label, fileId], (err, result) => {
-        if (err) reject(err);
-        else resolve(result);
-      });
+    db.run(query, values, function(err) {
+      if (err) return reject(err);
+      resolve(this.changes);
     });
-
-    return row;
-  } catch (err) {
-    console.error('Error in getColumnAveragesByLabel:', err.message);
-    throw err;
-  }
+  });
 }
 
-async function applyCorrectionFactorsToFileRows(fileId, correctionFactors, nmPpmColumns, correctedColumns) {
-  if (nmPpmColumns.length !== correctedColumns.length) {
-    throw new Error('nmPpmColumns and correctedColumns length mismatch');
-  }
-
-  // We need to run each update query with await to ensure DB completes updates correctly
-  for (let i = 0; i < nmPpmColumns.length; i++) {
-    const col = nmPpmColumns[i];
-    const correctedCol = correctedColumns[i];
-    const factor = correctionFactors[col];
-
-    if (factor == null) continue; // skip if factor is null or undefined
-
-    await new Promise((resolve, reject) => {
-      db.run(
-        `UPDATE data SET "${correctedCol}" = CAST("${col}" AS REAL) + (CAST("${col}" AS REAL) * ?) WHERE file_id = ?`,
-        [factor, fileId],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
+// Insert into mapping table: sample_file_mapping("Solution Label", file_id)
+async function insertSampleFileMapping(solutionLabel, fileId) {
+  return new Promise((resolve, reject) => {
+    const query = `INSERT INTO sample_file_mapping ("Solution Label", file_id) VALUES (?, ?)`;
+    db.run(query, [solutionLabel, fileId], function(err) {
+      if (err) return reject(err);
+      resolve(this.lastID);
     });
-  }
+  });
 }
 
 module.exports = {
-  insertRows,
-  getColumnAveragesByLabel,
-  applyCorrectionFactorsToFileRows
+  sampleExists,
+  insertSample,
+  updateSample,
+  insertSampleFileMapping,
 };
+
