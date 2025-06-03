@@ -81,10 +81,32 @@ async function insertSampleFileMapping(solutionLabel, fileId) {
   });
 }
 
+async function insertQCRow(row, fileId) {
+  return new Promise((resolve, reject) => {
+    const columns = Object.keys(row);
+    const quotedColumns = ['file_id', ...columns.map(col => `"${col}"`)];
+    const placeholders = Array(1 + columns.length).fill('?').join(', '); // file_id + data columns
+    const sql = `INSERT INTO QC_data (${quotedColumns.join(', ')}) VALUES (${placeholders})`;
+    const values = [fileId, ...columns.map(col => row[col])];
+
+    db.run(sql, values, function (err) {
+      if (err) {
+        console.error('[insertQCRow] Error inserting QC row:', err);
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+
 module.exports = {
   sampleExists,
   insertSample,
   updateSample,
   insertSampleFileMapping,
+  insertQCRow
 };
+
 
