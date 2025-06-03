@@ -6,12 +6,12 @@
     /* box-sizing: border-box; */
 }
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+/* body {
+     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
     background-color: #f8fafc;
     color: #334155;
     overflow-x: hidden;
-}
+} */
 
 .qc-container {
     display: flex;
@@ -54,60 +54,242 @@ body {
     align-items: center;
     gap: 16px;
 }
-
-.date-selector {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: #f1f5f9;
-    padding: 8px 16px;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    flex-wrap: wrap;
+/* Filter Toggle Button */
+.filter-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.date-selector label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    color: #475569;
-    cursor: pointer;
-    white-space: nowrap;
+.filter-toggle-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
-.date-selector input[type="radio"] {
-    margin: 0;
+.filter-toggle-btn svg {
+  flex-shrink: 0;
 }
 
-.date-input, .date-selector select {
-    padding: 6px 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 14px;
-    background: white;
-    min-width: 120px;
+/* Filter Sidebar */
+.filter-sidebar {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 350px;
+  height: 100vh;
+  background: white;
+  border-left: 1px solid #e2e8f0;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+  transition: right 0.3s ease;
+  z-index: 1000;
+  overflow-y: auto;
 }
 
-.load-button {
-    background: #22c55e;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.2s ease;
+.filter-sidebar.open {
+  right: 0;
 }
 
-.load-button:hover:not(:disabled) {
-    background: #16a34a;
+.filter-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
 }
 
-.load-button:disabled {
-    background: #9ca3af;
-    cursor: not-allowed;
+.filter-sidebar-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.filter-close-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.filter-close-btn:hover {
+  background: #e2e8f0;
+}
+
+.filter-content {
+  padding: 20px;
+}
+
+.filter-group {
+  margin-bottom: 24px;
+}
+
+.filter-group h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.filter-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #374151;
+  background: white;
+  transition: border-color 0.2s ease;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.radio-label:hover {
+  background: #f9fafb;
+}
+
+.radio-label input[type="radio"] {
+  margin: 0;
+}
+
+.radio-label span {
+  font-size: 14px;
+  color: #374151;
+}
+
+.date-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.date-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.date-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.filter-date-input {
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #374151;
+  transition: border-color 0.2s ease;
+}
+
+.filter-date-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.load-graphs-btn {
+  width: 100%;
+  padding: 12px;
+  background: #22c55e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 8px;
+}
+
+.load-graphs-btn:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.load-graphs-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Filter Overlay for mobile */
+.filter-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+/* Updated Graph Container for Vertical Layout */
+.graphs-container-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.graph-card.full-width {
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.graph-card .chart-container {
+  height: 400px;
+  padding: 20px;
 }
 
 /* Error Banner */
@@ -279,6 +461,36 @@ body {
         padding: 16px;
     }
 }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .filter-sidebar {
+    width: 300px;
+    right: -300px;
+  }
+  
+  .filter-content {
+    padding: 16px;
+  }
+  
+  .graph-card .chart-container {
+    height: 300px;
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-sidebar {
+    width: 100vw;
+    right: -100vw;
+  }
+  
+  .graph-card .chart-container {
+    height: 250px;
+    padding: 12px;
+  }
+}
+
 
 /* Animation for smooth transitions */
 .date-input,

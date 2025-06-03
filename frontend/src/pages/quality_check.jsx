@@ -31,6 +31,7 @@ const QualityCheck = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedItem, setSelectedItem] = useState('qc-checks');
+  const [filterSidebarOpen, setFilterSidebarOpen] = useState(false);
   
   // Form state
   const [fileId, setFileId] = useState('');
@@ -327,80 +328,22 @@ const QualityCheck = () => {
             <span className="breadcrumb-item">QC Checks</span>
           </div>
           <div className="qc-header-controls">
-            <div className="date-selector">
-              <label>
-                <input 
-                  type="radio" 
-                  name="dateType" 
-                  value="file" 
-                  checked={selectionMode === 'file'}
-                  onChange={(e) => setSelectionMode(e.target.value)}
-                />
-                Select a file
-              </label>
-              <label>
-                <input 
-                  type="radio" 
-                  name="dateType" 
-                  value="date" 
-                  checked={selectionMode === 'date'}
-                  onChange={(e) => setSelectionMode(e.target.value)}
-                />
-                Select date range
-              </label>
-              
-              {selectionMode === 'file' ? (
-                <select 
-                  value={fileId} 
-                  onChange={(e) => setFileId(e.target.value)}
-                  className="date-input"
-                >
-                  <option value="">Select a file</option>
-                  {availableFiles.map((file) => (
-                    <option key={file.id} value={file.id}>
-                      {file.filename}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <>
-                  <label>Start date:</label>
-                  <input 
-                    type="date" 
-                    className="date-input" 
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                  />
-                  <label>End date:</label>
-                  <input 
-                    type="date" 
-                    className="date-input" 
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
-                </>
-              )}
-              
-              <select 
-                value={solutionLabel} 
-                onChange={(e) => setSolutionLabel(e.target.value)}
-                className="date-input"
+            <button 
+              className="filter-toggle-btn"
+              onClick={() => setFilterSidebarOpen(!filterSidebarOpen)}
+            >
+              <svg 
+                width="20" 
+                height="20" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2"
               >
-                {solutionLabels.map((label, index) => (
-                  <option key={index} value={label}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              
-              <button 
-                onClick={handleLoadGraphs}
-                className="load-button"
-                disabled={loading}
-              >
-                {loading ? 'Loading...' : 'Load Graphs'}
-              </button>
-            </div>
+                <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3"></polygon>
+              </svg>
+              Filters
+            </button>
           </div>
         </div>
 
@@ -409,6 +352,115 @@ const QualityCheck = () => {
             <p>Error: {error}</p>
           </div>
         )}
+
+        {/* Filter Sidebar */}
+        <div className={`filter-sidebar ${filterSidebarOpen ? 'open' : ''}`}>
+          <div className="filter-sidebar-header">
+            <h3>Filters</h3>
+            <button 
+              className="filter-close-btn"
+              onClick={() => setFilterSidebarOpen(false)}
+            >
+              ×
+            </button>
+          </div>
+          
+          <div className="filter-content">
+            <div className="filter-group">
+              <h4>Data Selection</h4>
+              <div className="radio-group">
+                <label className="radio-label">
+                  <input 
+                    type="radio" 
+                    name="dateType" 
+                    value="file" 
+                    checked={selectionMode === 'file'}
+                    onChange={(e) => setSelectionMode(e.target.value)}
+                  />
+                  <span>Select a file</span>
+                </label>
+                <label className="radio-label">
+                  <input 
+                    type="radio" 
+                    name="dateType" 
+                    value="date" 
+                    checked={selectionMode === 'date'}
+                    onChange={(e) => setSelectionMode(e.target.value)}
+                  />
+                  <span>Select date range</span>
+                </label>
+              </div>
+            </div>
+
+            {selectionMode === 'file' ? (
+              <div className="filter-group">
+                <label className="filter-label">File Selection</label>
+                <select 
+                  value={fileId} 
+                  onChange={(e) => setFileId(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="">Select a file</option>
+                  {availableFiles.map((file) => (
+                    <option key={file.id} value={file.id}>
+                      {file.filename}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="filter-group">
+                <label className="filter-label">Date Range</label>
+                <div className="date-inputs">
+                  <div className="date-input-group">
+                    <label className="date-label">Start date:</label>
+                    <input 
+                      type="date" 
+                      className="filter-date-input" 
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="date-input-group">
+                    <label className="date-label">End date:</label>
+                    <input 
+                      type="date" 
+                      className="filter-date-input" 
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="filter-group">
+              <label className="filter-label">Solution Label</label>
+              <select 
+                value={solutionLabel} 
+                onChange={(e) => setSolutionLabel(e.target.value)}
+                className="filter-select"
+              >
+                {solutionLabels.map((label, index) => (
+                  <option key={index} value={label}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <button 
+              onClick={handleLoadGraphs}
+              className="load-graphs-btn"
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : 'Load Graphs'}
+            </button>
+          </div>
+        </div>
+
+        {/* Overlay for mobile */}
+        {filterSidebarOpen && <div className="filter-overlay" onClick={() => setFilterSidebarOpen(false)}></div>}
 
         {/* QC Samples Section */}
         <div className="qc-section">
@@ -419,8 +471,8 @@ const QualityCheck = () => {
             </div>
           </div>
           
-          <div className="graphs-container">
-            <div className="graph-card">
+          <div className="graphs-container-vertical">
+            <div className="graph-card full-width">
               <div className="graph-header">
                 <h3>Original</h3>
                 <p className="graph-description">{solutionLabel} - Original Values vs Timestamp</p>
@@ -439,7 +491,7 @@ const QualityCheck = () => {
               </div>
             </div>
             
-            <div className="graph-card">
+            <div className="graph-card full-width">
               <div className="graph-header">
                 <h3>Corrected</h3>
                 <p className="graph-description">{solutionLabel} - Corrected Values vs Timestamp</p>
