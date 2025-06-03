@@ -38,6 +38,10 @@ const colsDef = completeHeaders.map(col => {
   }
 }).join(', ');
 
+const colsDef2 = completeHeaders.map(col => {
+  return `"${col}" TEXT`;
+}).join(', ');
+
 db.run(`CREATE TABLE IF NOT EXISTS Sample_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ${colsDef}
@@ -53,7 +57,7 @@ db.run(`CREATE TABLE IF NOT EXISTS sample_file_mapping (
 db.run(`CREATE TABLE IF NOT EXISTS qc_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     file_id INTEGER NOT NULL,
-    ${colsDef},
+    ${colsDef2},
     FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
 )`);
 
