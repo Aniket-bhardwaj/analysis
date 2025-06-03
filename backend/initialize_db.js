@@ -27,15 +27,36 @@ db.serialize(() => {
       hidden INTEGER DEFAULT 0
     )
   `);
-  // create data tablle
-  const colsDef = completeHeaders.map(col => `"${col}" TEXT`).join(', ');
+  // create Sample_data , qc_data , sample_file_mapping tables
 
-db.run(`CREATE TABLE IF NOT EXISTS data (
+
+const colsDef = completeHeaders.map(col => {
+  if (col === 'Solution Label') {
+    return `"${col}" TEXT UNIQUE`;  // add UNIQUE constraint
+  } else {
+    return `"${col}" TEXT`;
+  }
+}).join(', ');
+
+db.run(`CREATE TABLE IF NOT EXISTS Sample_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    file_id INTEGER,
-    ${colsDef},
-    FOREIGN KEY (file_id) REFERENCES uploaded_files(id)
+    ${colsDef}
 )`);
+
+db.run(`CREATE TABLE IF NOT EXISTS sample_file_mapping (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  "Solution Label" TEXT NOT NULL,
+  file_id INTEGER NOT NULL,
+  FOREIGN KEY ("Solution Label") REFERENCES Sample_data("Solution Label") ON DELETE CASCADE,
+  FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
+)`);
+db.run(`CREATE TABLE IF NOT EXISTS qc_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_id INTEGER NOT NULL,
+    ${colsDef},
+    FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
+)`);
+
 
   //create users table
 
