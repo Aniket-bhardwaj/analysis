@@ -62,38 +62,27 @@ const uploadFile = async (req, res) => {
       // Step 5: split into samples and QC rows
       const { samples, qc } = splitSamplesAndQC(allRows);
 
-      // Process samples based on CSV type
-      if (csvType === 1) {
-        for (const row of samples) {
-          const solutionLabel = row['Solution Label'] || row['solution_label'];
-          if (!solutionLabel) continue;
 
-          const sampleExists = await dataModel.sampleExists(solutionLabel);
-          if (sampleExists) {
-            await dataModel.updateSample(solutionLabel, row);
-          } else {
-            await dataModel.insertSample(row);
-          }
-          await dataModel.insertSampleFileMapping(solutionLabel, fileId);
-        }
-      } else if (csvType === 2) {
-        for (const row of samples) {
-          const solutionLabel = row['Solution Label'];
-          if (!solutionLabel) continue;
 
-          const sampleExists = await dataModel.sampleExists(solutionLabel);
-          if (sampleExists) {
-            await dataModel.updateSample(solutionLabel, row);
-          } else {
-            const insertRow = { ...row };
-            insertRow['Solution Label'] = solutionLabel;
-            await dataModel.insertSample(insertRow);
-          }
-          await dataModel.insertSampleFileMapping(solutionLabel, fileId);
-        }
+      // === Insert all QC rows ===
+      for (const row of qc) {
+        await dataModel.insertQCRow(row, fileId);
       }
 
-      // You can add QC data processing here if needed (your current code skips QC processing)
+
+      // Process samples 
+  for (const row of samples) {
+    const solutionLabel = row['Solution Label'];
+    if (!solutionLabel) continue;
+
+    const sampleExists = await dataModel.sampleExists(solutionLabel);
+    if (sampleExists) {
+        await dataModel.updateSample(solutionLabel, row);
+    } else {
+        await dataModel.insertSample(row);
+    }
+    await dataModel.insertSampleFileMapping(solutionLabel, fileId);
+  }
 
       db.run('COMMIT');
       res.status(200).json({ message: 'File uploaded and processed successfully', fileId });
