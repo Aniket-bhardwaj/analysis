@@ -15,20 +15,20 @@ import {
     TableRow,
     Paper,
     Chip,
-    Avatar,
     IconButton,
     TextField,
     Stack,
     CircularProgress,
-    
+    Tooltip,
 } from '@mui/material'
 
 import {
     CloudUpload,
     Delete,
     DateRange,
-    ErrorOutlineOutlined,
-    CheckCircleOutlineOutlined
+    CheckCircle,
+    Error,
+    Warning
 } from '@mui/icons-material';
 
 import '../styles/data_manager.css';
@@ -60,6 +60,15 @@ const DataManagerPage = () => {
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             handleFileUpload(e.dataTransfer.files[0]);
         }
+    };
+
+    // Helper function to determine quality check status
+    const getQualityCheckStatus = (file) => {
+        // You can modify this logic based on your actual quality check criteria
+        const random = Math.random();
+        if (random > 0.7) return 'success';
+        if (random > 0.4) return 'warning';
+        return 'error';
     };
 
     const handleFileUpload = async (file) => {
@@ -124,7 +133,12 @@ const DataManagerPage = () => {
         try {
             const res = await fetch('http://localhost:5000/uploaded-files');
             const data = await res.json();
-            setFiles(data);
+            // Add quality check status to each file
+            const filesWithStatus = data.map(file => ({
+                ...file,
+                qualityStatus: getQualityCheckStatus(file)
+            }));
+            setFiles(filesWithStatus);
         }
         catch (err) {
             console.error('Failed to fetch uploaded files:', err);
@@ -149,13 +163,45 @@ const DataManagerPage = () => {
                 hour: '2-digit',
                 minute: '2-digit'
             }).replace(',', ''),
-            status: 'Uploaded'
+            status: 'Uploaded',
+            qualityStatus: getQualityCheckStatus(file)
         }));
         setFiles([...files, ...newFiles]);
     };
 
     const handleDelete = (id) => {
         setFiles(files.filter(file => file.id !== id));
+    };
+
+    // Function to render quality check status icon
+    const renderQualityStatus = (status, filename) => {
+        const statusConfig = {
+            success: {
+                icon: <CheckCircle sx={{ color: '#4caf50', fontSize: 20 }} />,
+                tooltip: `Quality check passed for ${filename}`,
+                color: '#4caf50'
+            },
+            warning: {
+                icon: <Warning sx={{ color: '#ff9800', fontSize: 20 }} />,
+                tooltip: `Quality check completed with warnings for ${filename}`,
+                color: '#ff9800'
+            },
+            error: {
+                icon: <Error sx={{ color: '#f44336', fontSize: 20 }} />,
+                tooltip: `Quality check failed for ${filename}`,
+                color: '#f44336'
+            }
+        };
+
+        const config = statusConfig[status] || statusConfig.error;
+
+        return (
+            <Tooltip title={config.tooltip} arrow>
+                <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    {config.icon}
+                </Box>
+            </Tooltip>
+        );
     };
 
     const [selectedItem, setSelectedItem] = useState('Data Manager');
@@ -251,6 +297,7 @@ const DataManagerPage = () => {
                                     <TableRow className="table-header">
                                         <TableCell className="table-cell-header">#</TableCell>
                                         <TableCell className="table-cell-header">Filename</TableCell>
+                                        <TableCell className="table-cell-header">Quality Check</TableCell>
                                         <TableCell className="table-cell-header">Type</TableCell>
                                         <TableCell className="table-cell-header">User</TableCell>
                                         <TableCell className="table-cell-header">Upload Date</TableCell>
@@ -265,6 +312,9 @@ const DataManagerPage = () => {
                                                 <Typography variant="body2" className="filename-text">
                                                     {file.name}
                                                 </Typography>
+                                            </TableCell>
+                                            <TableCell className="table-cell">
+                                                {renderQualityStatus(file.qualityStatus, file.name)}
                                             </TableCell>
                                             <TableCell className="table-cell">
                                                 <Chip 
