@@ -1,76 +1,110 @@
 const fs = require('fs');
 const csv = require('csv-parser');
-const {OcleanedHeaders} = require('../colHeaders'); 
-// Parse and return trimmed headers and rows
-async function cleanCSV(filepath) {
+const readline = require('readline');
+const { OcleanedHeaders1, OcleanedHeaders2 } = require('../colHeaders');
+
+// 1. Normalize CSV headers
+function normalizeHeader(header) {
+  return header.trim().replace(/^"|"$/g, '').replace(/\s+/g, ' ');
+}
+
+async function parseHeaders(filepath) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const stream = fs.createReadStream(filepath);
+      const rl = readline.createInterface({ input: stream });
+
+      let rawHeaders = null;
+      for await (const line of rl) {
+        rawHeaders = line.split(',').map(normalizeHeader).filter(h => h !== '');
+        break; // only first line headers
+      }
+      rl.close();
+
+      if (!rawHeaders || rawHeaders.length === 0) {
+        return reject(new Error('CSV file has no headers'));
+      }
+
+      resolve(rawHeaders);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+// 2. Detect CSV type via column count and first column check
+function checkColumnCount(headers) {
+  if (headers.length === OcleanedHeaders1.length && headers[0] === 'Rack:Tube') {
+    return 1;
+  } else if (headers.length === OcleanedHeaders2.length && headers[0] === 'Sample') {
+    return 2;
+  }
+  return 0; // unsupported
+}
+
+// 3. Validate header names strictly match expected
+function validateHeaderNames(headers, csvType) {
+  const expected = csvType === 1 ? OcleanedHeaders1 : OcleanedHeaders2;
+  if (headers.length !== expected.length) {
+    return false;
+  }
+  for (let i = 0; i < headers.length; i++) {
+    if (normalizeHeader(headers[i]) !== normalizeHeader(expected[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// 4. Parse data rows (skip 2nd row if needed, map rows with normalized keys)
+async function parseDataRows(filepath) {
   return new Promise((resolve, reject) => {
     const rows = [];
-    let headers = null;
+    let isSecondRowSkipped = false;
 
     fs.createReadStream(filepath)
       .pipe(csv())
-      .on('headers', (rawHeaders) => {
-        headers = rawHeaders.map(h =>
-          h.trim().replace(/^"|"$/g, '')
-        );
-      })
       .on('data', (data) => {
+        if (!isSecondRowSkipped) {
+          // skip the second row (index 1)
+          isSecondRowSkipped = true;
+          return;
+        }
+
         const cleanedRow = {};
-        Object.entries(data).forEach(([key, value]) => {
-          const cleanKey = key.trim().replace(/^"|"$/g, '');
-          cleanedRow[cleanKey] = value;
+        Object.entries(data).forEach(([key, val]) => {
+          const cleanKey = normalizeHeader(key);
+          if (cleanKey !== '') cleanedRow[cleanKey] = val;
         });
+
         rows.push(cleanedRow);
       })
-      .on('end', () => {
-        const cleanedHeaders = headers;
-        const cleanedRows = rows;
-        resolve({ headers: cleanedHeaders, rows: cleanedRows});
-      })
-      .on('error', (err) => reject(err));
-  });
-}
-//to check if column names of uploaded files are exactly what they should be
-function colCheck(headers) {
-  headers = headers || [];
-
-  const normalizedHeaders = headers.map(h => h.trim().toLowerCase());
-  const normalizedExpected = OcleanedHeaders.map(h => h.trim().toLowerCase());
-
-  const missing = OcleanedHeaders.filter(
-    col => !normalizedHeaders.includes(col.trim().toLowerCase())
-  );
-  const extra = headers.filter(
-    col => !normalizedExpected.includes(col.trim().toLowerCase())
-  );
-
-  const isValid = missing.length === 0 && extra.length === 0;
-
-  return {
-    valid: isValid,
-    missing,
-    extra
-  };
-}
-// Since we are adding _corrected columns, this function add cells and expand the rows
-function completeRows(rows, headers, cleanedHeaders) {
-  return rows.map(row => {
-    const newRow = {};
-    let cleanedIndex = 0;
-
-    headers.forEach((origHeader, i) => {
-      const baseCol = cleanedHeaders[cleanedIndex++];
-      const val = row[origHeader];
-      newRow[baseCol] = isNaN(val) ? val : parseFloat(val);
-
-      if (baseCol.match(/nm\s*ppm$/i)) {
-        const correctedCol = cleanedHeaders[cleanedIndex++];
-        newRow[correctedCol] = null;
-      }
-    });
-
-    return newRow;
+      .on('end', () => resolve(rows))
+      .on('error', reject);
   });
 }
 
-module.exports = { completeRows,cleanCSV,colCheck };
+// 5. Split rows into samples and QC based on 'Solution Label'
+function splitSamplesAndQC(rows) {
+  const samples = [];
+  const qc = [];
+
+  for (const row of rows) {
+    const label = (row['Solution Label'] || '').toUpperCase().trim();
+    if (label.startsWith('MCS')) {
+      samples.push(row);
+    } else {
+      qc.push(row);
+    }
+  }
+
+  return { samples, qc };
+}
+
+module.exports = {
+  parseHeaders,
+  checkColumnCount,
+  validateHeaderNames,
+  parseDataRows,
+  splitSamplesAndQC,
+};
