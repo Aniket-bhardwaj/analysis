@@ -193,6 +193,71 @@ async function getQCMESFactors(fileId) {
   }
 }
 
+async function applyCorrectionFactors(fileId, factors) {
+  const mappingTable = "sample_id_X_file_id";
+  const sampleTable = "sample_data";
+
+  // Step 1: Fetch sample labels for this file_id
+  const sample_ids = await new Promise((resolve, reject) => {
+    const query = `SELECT sample_id FROM "${mappingTable}" WHERE file_id = ?`;
+    db.all(query, [fileId], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows.map(row => row.sample_id));
+    });
+  });
+
+  if (!sample_ids || sample_ids.length === 0) {
+    console.warn(`No sample labels found for file_id ${fileId}`);
+    return;
+  }
+
+  // Step 2: For each label, fetch and update data in sample_data
+  for (const s_id of sample_ids) {
+    const sampleRow = await new Promise((resolve, reject) => {
+      const query = `SELECT * FROM "${sampleTable}" WHERE id = ?`;
+      db.get(query, [s_id], (err, row) => {
+        if (err) return reject(err);
+        resolve(row);
+      });
+    });
+
+    if (!sampleRow) continue;
+
+    const updates = {};
+    for (const [element, factor] of Object.entries(factors)) {
+      const rawVal = sampleRow[element];
+
+      if (rawVal !== null && rawVal !== undefined && !isNaN(parseFloat(rawVal))) {
+        const val = parseFloat(rawVal);
+        const corrected = val + val * factor;
+        const correctedCol = `${element}_Corrected`;
+        updates[correctedCol] = corrected;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      const setClause = Object.keys(updates).map(k => `"${k}" = ?`).join(', ');
+      const values = Object.values(updates);
+
+      const updateSQL = `
+        UPDATE "${sampleTable}" 
+        SET ${setClause} 
+        WHERE id = ?`;
+
+    //  console.log(`Updating label "${label}" with:`, updates);
+
+      await new Promise((resolve, reject) => {
+        db.run(updateSQL, [...values, s_id], function (err) {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+    }
+  }
+
+  console.log(`Corrected values updated for file_id ${fileId}`);
+}
+
 
 module.exports = {
   sampleExists,
@@ -201,7 +266,8 @@ module.exports = {
   insertSampleFileMapping,
   insertQCRow,
   getQCMESAverages,
-  getQCMESFactors
+  getQCMESFactors,
+  applyCorrectionFactors
 };
 
 
