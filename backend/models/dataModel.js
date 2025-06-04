@@ -100,13 +100,81 @@ async function insertQCRow(row, fileId) {
   });
 }
 
+async function getQCMESAverages(fileId) {
+  try {
+    // Step 1: Try both labels and use whichever is present
+    const possibleLabels = ['QC MES 5 ppm', 'QC MES 50 ppb'];
+    let labelFound = null;
+    let sampleRow = null;
+
+    for (const label of possibleLabels) {
+      sampleRow = await new Promise((resolve, reject) => {
+        db.get(
+          `SELECT * FROM qc_data WHERE "Solution Label" = ? AND file_id = ? LIMIT 1`,
+          [label, fileId],
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+          }
+        );
+      });
+
+      if (sampleRow) {
+        labelFound = label;
+        break;
+      }
+    }
+
+    if (!sampleRow) {
+      throw new Error('No QC MES rows found for the given file_id.');
+    }
+
+    // Step 2: Determine element columns
+    const excludeColumns = [
+      'id', 'file_id', 'Solution Label', 'Timestamp', 'Sample', 'Rjct', 'Data File',
+      'Acq. Date-Time', 'Type', 'Level', 'Total Dil.', 'Vial Number', 'Rack:Tube',
+    ];
+    const elementColumns = Object.keys(sampleRow).filter(
+      col => !excludeColumns.includes(col) && sampleRow[col] !== null && sampleRow[col] !== ''
+    );
+
+    if (elementColumns.length === 0) {
+      throw new Error('No element columns with valid values found.');
+    }
+
+    const avgExpressions = elementColumns
+      .map(col => `AVG(CAST("${col}" AS REAL)) AS "${col}"`)
+      .join(', ');
+
+    const query = `
+      SELECT ${avgExpressions}
+      FROM qc_data
+      WHERE "Solution Label" = ? AND file_id = ?
+    `;
+
+    const averages = await new Promise((resolve, reject) => {
+      db.get(query, [labelFound, fileId], (err, result) => {
+        if (err) reject(err);
+        else resolve({ averages: result, usedLabel: labelFound });
+      });
+    });
+
+    return averages;
+
+  } catch (error) {
+    console.error('Error in getQCMESAverages:', error.message);
+    throw error;
+  }
+}
+
 
 module.exports = {
   sampleExists,
   insertSample,
   updateSample,
   insertSampleFileMapping,
-  insertQCRow
+  insertQCRow,
+  getQCMESAverages
 };
 
 
