@@ -87,6 +87,9 @@ const uploadFile = async (req, res) => {
       const averages = await dataModel.getQCMESAverages(fileId);
       console.log('QC MES 5 ppm averages:', averages);
 
+      const factors = await dataModel.getQCMESFactors(fileId);
+      console.log(`Multiplying factors for QC MES 5 ppm (fileId: ${fileId}):`, factors);
+
       db.run('COMMIT');
       res.status(200).json({ message: 'File uploaded and processed successfully', fileId });
 
