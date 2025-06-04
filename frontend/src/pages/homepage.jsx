@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import "../styles/homepage.css"; 
 import Navbar from '@/components/navbar';
-import { Box, Typography } from '@mui/material';
+import { Box, 
+        Typography,
+        Button } from '@mui/material';
 
 
 const DashboardPage = () => {
