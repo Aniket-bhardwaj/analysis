@@ -167,6 +167,32 @@ async function getQCMESAverages(fileId) {
   }
 }
 
+async function getQCMESFactors(fileId) {
+  try {
+    const { averages, usedLabel } = await getQCMESAverages(fileId);
+    const factors = {};
+
+    // Extract numeric value from label (e.g., 'QC MES 50 ppb' -> 50)
+    const match = usedLabel.match(/(\d+(\.\d+)?)/); // Matches int or float
+    if (!match) {
+      throw new Error(`Unable to extract numeric value from label: ${usedLabel}`);
+    }
+
+    const known = parseFloat(match[0]);
+
+    for (const [key, value] of Object.entries(averages)) {
+      if (value !== null && !isNaN(value)) {
+        factors[key] = (known - value) / known;
+      }
+    }
+
+    return factors;
+  } catch (err) {
+    console.error('Error in getQCMESFactors:', err.message);
+    throw err;
+  }
+}
+
 
 module.exports = {
   sampleExists,
@@ -174,7 +200,8 @@ module.exports = {
   updateSample,
   insertSampleFileMapping,
   insertQCRow,
-  getQCMESAverages
+  getQCMESAverages,
+  getQCMESFactors
 };
 
 
