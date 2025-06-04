@@ -27,7 +27,7 @@ db.serialize(() => {
       hidden INTEGER DEFAULT 0
     )
   `);
-  // create Sample_data , qc_data , sample_file_mapping tables
+  // create sample_data , qc_data , sample_file_mapping tables
 
 
 const colsDef = completeHeaders.map(col => {
@@ -42,16 +42,16 @@ const colsDef2 = completeHeaders.map(col => {
   return `"${col}" TEXT`;
 }).join(', ');
 
-db.run(`CREATE TABLE IF NOT EXISTS Sample_data (
+db.run(`CREATE TABLE IF NOT EXISTS sample_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ${colsDef}
 )`);
 
-db.run(`CREATE TABLE IF NOT EXISTS sample_file_mapping (
+db.run(`CREATE TABLE IF NOT EXISTS sample_id_X_file_id (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  "Solution Label" TEXT NOT NULL,
+  sample_id INTEGER NOT NULL,
   file_id INTEGER NOT NULL,
-  FOREIGN KEY ("Solution Label") REFERENCES Sample_data("Solution Label") ON DELETE CASCADE,
+  FOREIGN KEY (sample_id) REFERENCES sample_data(id) ON DELETE CASCADE,
   FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
 )`);
 db.run(`CREATE TABLE IF NOT EXISTS qc_data (
