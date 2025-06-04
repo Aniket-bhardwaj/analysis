@@ -12,7 +12,7 @@ const {
 } = require('../utils/csvHandler');
 const { get } = require('http');
 
- // Same SQLite instance
+// Same SQLite instance
 
 const uploadFile = async (req, res) => {
   if (!req.file) {
@@ -71,18 +71,21 @@ const uploadFile = async (req, res) => {
 
 
       // Process samples 
-  for (const row of samples) {
-    const solutionLabel = row['Solution Label'];
-    if (!solutionLabel) continue;
+      for (const row of samples) {
+        const solutionLabel = row['Solution Label'];
+        if (!solutionLabel) continue;
 
-    const sampleExists = await dataModel.sampleExists(solutionLabel);
-    if (sampleExists) {
-        await dataModel.updateSample(solutionLabel, row);
-    } else {
-        await dataModel.insertSample(row);
-    }
-    await dataModel.insertSampleFileMapping(solutionLabel, fileId);
-  }
+        const sampleExists = await dataModel.sampleExists(solutionLabel);
+        if (sampleExists) {
+          await dataModel.updateSample(solutionLabel, row);
+        } else {
+          await dataModel.insertSample(row);
+        }
+        await dataModel.insertSampleFileMapping(solutionLabel, fileId);
+      }
+
+      const averages = await dataModel.getQCMESAverages(fileId);
+      console.log('QC MES 5 ppm averages:', averages);
 
       db.run('COMMIT');
       res.status(200).json({ message: 'File uploaded and processed successfully', fileId });
@@ -113,9 +116,9 @@ const getUploadedFiles = async (req, res) => {
         uploaded_at: file.uploaded_at
       }))
     });
-  } catch(err){
+  } catch (err) {
     console.error('Error fetching uploaded files:', err);
-    res.status(500).json({ error: 'Failed to fetch uploaded files' , message: err.message});
+    res.status(500).json({ error: 'Failed to fetch uploaded files', message: err.message });
   }
 };
 
