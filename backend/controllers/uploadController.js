@@ -3,13 +3,6 @@ const fs = require('fs');
 const db = require('../initialize_db');
 const fileModel = require('../models/fileModel');
 const dataModel = require('../models/dataModel');
-const {
-  parseHeaders,
-  checkColumnCount,
-  validateHeaderNames,
-  parseDataRows,
-  splitSamplesAndQC,
-} = require('../utils/csvHandler');
 const { get } = require('http');
 
 // Same SQLite instance
@@ -26,77 +19,48 @@ const uploadFile = async (req, res) => {
     try {
       db.run('BEGIN TRANSACTION');
 
-      // Check if file already exists in DB
-      const exists = await fileModel.fileExists(originalName);
-      if (exists) {
+      const {
+        error: validationError,
+        samples,
+        qc,
+      } = await uploadService.validate(savedFilePath, originalName);
+
+      if (validationError) {
         db.run('ROLLBACK', () => {
           fs.unlink(savedFilePath, err => {
-            if (err) console.error('Failed to delete duplicate file:', err);
+            if (err) console.error('Failed to delete invalid file:', err);
           });
-          return res.status(400).json({ error: 'File already present' });
+          return res.status(400).json({ error: validationError });
         });
         return;
       }
 
-      // Step 1-3: parse headers and detect + validate CSV type
-      const headers = await parseHeaders(savedFilePath);
-      const csvType = checkColumnCount(headers);
+      const {
+        error: insertError,
+        fileId,
+      } = await uploadService.insertAllData(originalName, savedFilePath, samples, qc);
 
-      if (csvType === 0 || !validateHeaderNames(headers, csvType)) {
+      if (insertError) {
         db.run('ROLLBACK', () => {
           fs.unlink(savedFilePath, err => {
-            if (err) console.error('Failed to delete invalid header file:', err);
+            if (err) console.error(`Failed to delete file after insert error (fileId: ${fileId}):`, err);
           });
-          return res.status(400).json({ error: 'Invalid or unsupported CSV headers' });
+          return res.status(500).json({ error: insertError });
         });
         return;
       }
 
-      // Insert file metadata and get file id
-      const fileRow = await fileModel.insertFile(originalName, savedFilePath);
-      const fileId = fileRow.id;
-
-      // Step 4: parse data rows (skipping 2nd row internally)
-      const allRows = await parseDataRows(savedFilePath);
-
-      // Step 5: split into samples and QC rows
-      const { samples, qc } = splitSamplesAndQC(allRows);
-
-
-
-      // === Insert all QC rows ===
-      for (const row of qc) {
-        await dataModel.insertQCRow(row, fileId);
-      }
-
-
-      // Process samples 
-      for (const row of samples) {
-        const solutionLabel = row['Solution Label'];
-        if (!solutionLabel) continue;
-
-        const sampleExists = await dataModel.sampleExists(solutionLabel);
-        if (sampleExists) {
-          await dataModel.updateSample(solutionLabel, row);
-        } else {
-          await dataModel.insertSample(row);
-        }
-        await dataModel.insertSampleFileMapping(solutionLabel, fileId);
-      }
-
-      //this will calculate the averages
-      const averages = await dataModel.getQCMESAverages(fileId);
-      console.log('QC MES 5 ppm averages:', averages);
-      
-      //this will calculate the factors
       const factors = await dataModel.getQCMESFactors(fileId);
-      console.log(`Multiplying factors for QC MES 5 ppm (fileId: ${fileId}):`, factors);
+      //console.log(`Multiplying factors for QC MES 5 ppm (fileId: ${fileId}):`, factors);
       
       //this will store the values in _corrected coloumn of each elements in sample_data table
       await dataModel.applyCorrectionFactors(fileId, factors);
 
       db.run('COMMIT');
-      res.status(200).json({ message: 'File uploaded and processed successfully', fileId });
+      res.status(200).json({
+        message: 'File uploaded and processed successfully',
+        fileId,
+      });
 
     } catch (err) {
       console.error('[uploadFile] Error:', err);
