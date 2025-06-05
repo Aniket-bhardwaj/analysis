@@ -10,9 +10,7 @@ const previewRoutes = require('./routes/preview');
 const hideRoutes = require('./routes/hide');
 const authRoutes = require('./routes/auth');
 const graphRoutes = require('./routes/graphRoutes');
-
-
-
+const tableRoutes = require('./routes/tables'); 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -36,6 +34,7 @@ app.use('/', previewRoutes);
 app.use('/', hideRoutes);
 app.use('/auth', authRoutes);
 app.use('/', graphRoutes); // /api/graph-data
+app.use('/', tableRoutes);
 
 // Start server
 app.listen(PORT, () => {

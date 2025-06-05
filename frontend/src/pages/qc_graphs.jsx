@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/navbar';
 import { Line } from 'react-chartjs-2';
-import '../styles/quality_check.css'; 
+import '../styles/qc_graphs.css'; 
 
 import {
   Chart as ChartJS,
