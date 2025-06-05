@@ -2,18 +2,13 @@ const db = require('../initialize_db');
 
 function insertFile(filename, filePath) {
   const sql = `INSERT INTO uploaded_files (filename, path) VALUES (?, ?)`;
-  
   return new Promise((resolve, reject) => {
     db.run(sql, [filename, filePath], function(err) {
       if (err) return reject(err);
-      
       const selectSql = `SELECT * FROM uploaded_files WHERE id = ?`;
       db.get(selectSql, [this.lastID], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row);
-        }
+        if (err) reject(err);
+        else resolve(row);
       });
     });
   });
