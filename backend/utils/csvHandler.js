@@ -101,10 +101,62 @@ function splitSamplesAndQC(rows) {
   return { samples, qc };
 }
 
+function validateQcLabels(qc) {
+  const requiredPatterns = [
+    { name: 'Blank', regex: /^Blank$/ },
+    { name: 'Standard', regex: /^Standard/i },
+    { name: 'BLK', regex: /^BLK/i },
+    { name: 'QC MES', regex: /^QC MES/i },
+    { name: 'SJS-Std', regex: /^SJS-Std$/ },
+    { name: 'Wash', regex: /^Wash$/ }
+  ];
+
+  const foundFlags = new Array(requiredPatterns.length).fill(false);
+  const invalidLabels = [];
+
+  for (const row of qc) {
+    const label = row['Solution Label']?.trim();
+    if (!label) continue;
+
+    let matched = false;
+    for (let i = 0; i < requiredPatterns.length; i++) {
+      if (requiredPatterns[i].regex.test(label)) {
+        foundFlags[i] = true;
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) {
+      invalidLabels.push(label);
+    }
+  }
+
+  const missingGroups = requiredPatterns
+    .filter((_, i) => !foundFlags[i])
+    .map(p => p.name);
+
+  if (missingGroups.length > 0 || invalidLabels.length > 0) {
+    const errorMsg = [
+      `Validation failed.`,
+      ...(missingGroups.length
+        ? [`Missing required label types: ${missingGroups.join(', ')}`]
+        : []),
+      ...(invalidLabels.length
+        ? [`\nInvalid labels found: ${invalidLabels.join(', ')}`]
+        : [])
+    ].join(' ');
+    throw new Error(errorMsg);
+  }
+
+  return true;
+}
+
 module.exports = {
   parseHeaders,
   checkColumnCount,
   validateHeaderNames,
   parseDataRows,
   splitSamplesAndQC,
+  validateQcLabels
 };
