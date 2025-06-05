@@ -8,6 +8,7 @@ const {
   validateHeaderNames,
   parseDataRows,
   splitSamplesAndQC,
+  validateQcLabels,
 } = require('../utils/csvHandler');
 
 async function validate(filePath, originalName) {
@@ -54,6 +55,18 @@ async function validate(filePath, originalName) {
       };
     }
 
+    try {
+      validateQcLabels(qc, csvType); // qcArray is your QC data, csvType is 1 or 2
+      console.log('QC validation passed!');
+    } catch (error) {
+      return {
+        error: error.message,
+        samples: null,
+        qc: null,
+      };
+    }
+
+    
     // All good — return the clean rows
     return {
       error: null,
