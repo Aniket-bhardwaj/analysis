@@ -4,9 +4,6 @@ const db = require('../initialize_db');
 const fileModel = require('../models/fileModel');
 const dataModel = require('../models/dataModel');
 const uploadService = require('../services/uploadService');
-const { get } = require('http');
-
-// Same SQLite instance
 
 const uploadFile = async (req, res) => {
   if (!req.file) {
@@ -20,6 +17,7 @@ const uploadFile = async (req, res) => {
     try {
       db.run('BEGIN TRANSACTION');
 
+      // 1. Validation
       const {
         error: validationError,
         samples,
@@ -36,6 +34,7 @@ const uploadFile = async (req, res) => {
         return;
       }
 
+      // 2. Inserting data rows in respective tables and the metadata
       const {
         error: insertError,
         fileId,
@@ -51,11 +50,18 @@ const uploadFile = async (req, res) => {
         return;
       }
 
-      const factors = await dataModel.getQCMESFactors(fileId);
-      //console.log(`Multiplying factors for QC MES 5 ppm (fileId: ${fileId}):`, factors);
-      
-      //this will store the values in _corrected coloumn of each elements in sample_data table
-      await dataModel.applyCorrectionFactors(fileId, factors);
+      // 3. Calculating and inserting the corrected values
+      const { error: correctionError } = await uploadService.insertCorrected(fileId);
+
+      if (correctionError) {
+        db.run('ROLLBACK', () => {
+          fs.unlink(savedFilePath, err => {
+            if (err) console.error('Failed to delete file after correction error:', err);
+          });
+          return res.status(500).json({ error: correctionError });
+        });
+        return;
+      }
 
       db.run('COMMIT');
       res.status(200).json({
@@ -75,24 +81,4 @@ const uploadFile = async (req, res) => {
   });
 };
 
-//new method to get list of uploaded file
-const getUploadedFiles = async (req, res) => {
-  try {
-    const files = await fileModel.getAllFiles();
-
-    res.json({
-      success: true,
-      files: files.map(file => ({
-        id: file.id,
-        filename: file.filename,
-        filepath: file.filepath,
-        uploaded_at: file.uploaded_at
-      }))
-    });
-  } catch (err) {
-    console.error('Error fetching uploaded files:', err);
-    res.status(500).json({ error: 'Failed to fetch uploaded files', message: err.message });
-  }
-};
-
-module.exports = { uploadFile, getUploadedFiles };
+module.exports = { uploadFile };
