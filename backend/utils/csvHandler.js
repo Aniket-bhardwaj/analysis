@@ -3,11 +3,18 @@ const csv = require('csv-parser');
 const readline = require('readline');
 const { OcleanedHeaders1, OcleanedHeaders2 } = require('../colHeaders');
 
-// 1. Normalize CSV headers
+
+// ==========================
+// 1. Normalize CSV Header
+// ==========================
 function normalizeHeader(header) {
   return header.trim().replace(/^"|"$/g, '').replace(/\s+/g, ' ');
 }
 
+
+// ==========================
+// 2. Parse Only the Header Row
+// ==========================
 async function parseHeaders(filepath) {
   return new Promise(async (resolve, reject) => {
     try {
@@ -17,8 +24,9 @@ async function parseHeaders(filepath) {
       let rawHeaders = null;
       for await (const line of rl) {
         rawHeaders = line.split(',').map(normalizeHeader).filter(h => h !== '');
-        break; // only first line headers
+        break; // Read only the first line
       }
+
       rl.close();
 
       if (!rawHeaders || rawHeaders.length === 0) {
@@ -32,31 +40,40 @@ async function parseHeaders(filepath) {
   });
 }
 
-// 2. Detect CSV type via column count and first column check
+
+// ==========================
+// 3. Detect CSV Type by Header Signature
+// ==========================
 function checkColumnCount(headers) {
   if (headers.length === OcleanedHeaders1.length && headers[0] === 'Rack:Tube') {
     return 1;
   } else if (headers.length === OcleanedHeaders2.length && headers[0] === 'Sample') {
     return 2;
   }
-  return 0; // unsupported
+  return 0; // Unsupported structure
 }
 
-// 3. Validate header names strictly match expected
+
+// ==========================
+// 4. Strict Header Match with Templates
+// ==========================
 function validateHeaderNames(headers, csvType) {
   const expected = csvType === 1 ? OcleanedHeaders1 : OcleanedHeaders2;
-  if (headers.length !== expected.length) {
-    return false;
-  }
+
   for (let i = 0; i < headers.length; i++) {
     if (normalizeHeader(headers[i]) !== normalizeHeader(expected[i])) {
       return false;
     }
   }
+
   return true;
 }
 
-// 4. Parse data rows (skip 2nd row if needed, map rows with normalized keys)
+
+// ==========================
+// 5. Parse All Data Rows
+// ==========================
+// Skips the second row (index 1), and normalizes keys
 async function parseDataRows(filepath) {
   return new Promise((resolve, reject) => {
     const rows = [];
@@ -66,31 +83,41 @@ async function parseDataRows(filepath) {
       .pipe(csv())
       .on('data', (data) => {
         if (!isSecondRowSkipped) {
-          // skip the second row (index 1)
-          isSecondRowSkipped = true;
+          isSecondRowSkipped = true; // skip 2nd row
           return;
         }
 
         const cleanedRow = {};
         Object.entries(data).forEach(([key, val]) => {
           const cleanKey = normalizeHeader(key);
-          if (cleanKey !== '') cleanedRow[cleanKey] = val;
+          if (cleanKey !== '') {
+            cleanedRow[cleanKey] = val?.trim();
+          }
         });
 
-        rows.push(cleanedRow);
+        // ✅ Skip if 'Solution Label' is missing or empty
+        const label = cleanedRow['Solution Label'];
+        if (label && label.trim() !== '') {
+          rows.push(cleanedRow);
+        }
       })
       .on('end', () => resolve(rows))
       .on('error', reject);
   });
 }
 
-// 5. Split rows into samples and QC based on 'Solution Label'
+
+// ==========================
+// 6. Split into Samples and QC
+// ==========================
+// Based on whether 'Solution Label' starts with 'MCS'
 function splitSamplesAndQC(rows) {
   const samples = [];
   const qc = [];
 
   for (const row of rows) {
     const label = (row['Solution Label'] || '').toUpperCase().trim();
+
     if (label.startsWith('MCS')) {
       samples.push(row);
     } else {
@@ -101,6 +128,10 @@ function splitSamplesAndQC(rows) {
   return { samples, qc };
 }
 
+
+// ==========================
+// 7. Validate Required QC Labels
+// ==========================
 function validateQcLabels(qc) {
   const requiredPatterns = [
     { name: 'Blank', regex: /^Blank$/ },
@@ -108,7 +139,7 @@ function validateQcLabels(qc) {
     { name: 'BLK', regex: /^BLK/i },
     { name: 'QC MES', regex: /^QC MES/i },
     { name: 'SJS-Std', regex: /^SJS-Std$/ },
-    { name: 'Wash', regex: /^Wash$/ }
+    { name: 'Wash', regex: /^Wash$/ },
   ];
 
   const foundFlags = new Array(requiredPatterns.length).fill(false);
@@ -146,17 +177,22 @@ function validateQcLabels(qc) {
         ? [`\nInvalid labels found: ${invalidLabels.join(', ')}`]
         : [])
     ].join(' ');
+
     throw new Error(errorMsg);
   }
 
   return true;
 }
 
+
+// ==========================
+// Exports
+// ==========================
 module.exports = {
   parseHeaders,
   checkColumnCount,
   validateHeaderNames,
   parseDataRows,
   splitSamplesAndQC,
-  validateQcLabels
+  validateQcLabels,
 };
