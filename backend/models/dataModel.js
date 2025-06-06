@@ -1,280 +1,136 @@
 const db = require('../initialize_db');
 
-db.run("PRAGMA foreign_keys = ON");
+// === 1. File & Sample Insertion ===
 
-// Check if sample with Solution Label exists
-async function sampleExists(solutionLabel) {
+function insertQCRow(columns, values) {
+  const placeholders = columns.map(() => '?').join(', ');
+  const sql = `INSERT INTO qc_data (${columns.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
   return new Promise((resolve, reject) => {
-    const query = `SELECT 1 FROM sample_data WHERE "Solution Label" = ? LIMIT 1`;
-    db.get(query, [solutionLabel], (err, row) => {
-      if (err) return reject(err);
-      resolve(!!row);
-    });
-  });
-}
-
-// Insert a new sample row (all keys in row are valid columns)
-async function insertSample(row) {
-  return new Promise((resolve, reject) => {
-    const keys = Object.keys(row);
-    if (keys.length === 0) {
-      console.warn('[insertSample] No columns provided in row, skipping:', row);
-      return resolve(null);
-    }
-
-    const cols = keys.map(col => `"${col}"`).join(', ');
-    const placeholders = keys.map(() => '?').join(', ');
-    const values = keys.map(col => row[col]);
-
-    const query = `INSERT INTO sample_data (${cols}) VALUES (${placeholders})`;
-    console.log('[insertSample] Final INSERT query:', query);
-    console.log('[insertSample] Values:', values);
-
-    db.run(query, values, function (err) {
-      if (err) {
-        console.error('[insertSample] INSERT error:', err.message);
-        return reject(err);
-      }
-      resolve(this.lastID);
-    });
-  });
-}
-
-// Update existing sample by Solution Label; update all columns except 'Solution Label'
-async function updateSample(solutionLabel, row) {
-  return new Promise((resolve, reject) => {
-    const keys = Object.keys(row).filter(col => col !== 'Solution Label');
-    if (keys.length === 0) {
-      console.warn('[updateSample] No columns to update for Solution Label:', solutionLabel);
-      return resolve(null);
-    }
-
-    const setClause = keys.map(col => `"${col}" = ?`).join(', ');
-    const values = keys.map(col => row[col]);
-    values.push(solutionLabel);
-
-    const query = `UPDATE sample_data SET ${setClause} WHERE "Solution Label" = ?`;
-
-    db.run(query, values, function (err) {
-      if (err) {
-        console.error('[updateSample] UPDATE error:', err.message);
-        return reject(err);
-      }
-      // Get the updated row's ID
-      db.get(
-        `SELECT id FROM sample_data WHERE "Solution Label" = ?`,
-        [solutionLabel],
-        (err, row) => {
-          if (err) return reject(err);
-          resolve(row?.id || null);
-        }
-      );
-    });
-  });
-}
-
-// Insert a QC row (columns and values provided fully)
-async function insertQCRow(columns, values) {
-  return new Promise((resolve, reject) => {
-    const quotedColumns = columns.map(col => `"${col}"`);
-    const placeholders = columns.map(() => '?').join(', ');
-    const sql = `INSERT INTO QC_data (${quotedColumns.join(', ')}) VALUES (${placeholders})`;
-
     db.run(sql, values, function (err) {
-      if (err) {
-        console.error('[insertQCRow] INSERT error:', err.message);
-        return reject(err);
-      }
-      resolve();
+      if (err) reject(err);
+      else resolve(this.lastID);
     });
   });
 }
 
-// Insert into sample-file mapping table
-async function insertSampleFileMapping(sampleId, fileId) {
+function sampleExists(label) {
   return new Promise((resolve, reject) => {
-    const query = `INSERT INTO sample_id_X_file_id (sample_id, file_id) VALUES (?, ?)`;
-    db.run(query, [sampleId, fileId], function(err) {
-      if (err) {
-        console.error('[insertSampleFileMapping] INSERT error:', err.message);
-        return reject(err);
-      }
-      resolve(this.lastID);
+    db.get('SELECT id FROM sample_data WHERE "Solution Label" = ?', [label], (err, row) => {
+      if (err) reject(err);
+      else resolve(!!row);
     });
   });
 }
 
-
-
-
-async function getQCMESAverages(fileId) {
-  try {
-    // Step 1: Try both labels and use whichever is present
-    const possibleLabels = ['QC MES 5 ppm', 'QC MES 50 ppb'];
-    let labelFound = null;
-    let sampleRow = null;
-
-    for (const label of possibleLabels) {
-      sampleRow = await new Promise((resolve, reject) => {
-        db.get(
-          `SELECT * FROM qc_data WHERE "Solution Label" = ? AND file_id = ? LIMIT 1`,
-          [label, fileId],
-          (err, row) => {
-            if (err) reject(err);
-            else resolve(row);
-          }
-        );
-      });
-
-      if (sampleRow) {
-        labelFound = label;
-        break;
-      }
-    }
-
-    if (!sampleRow) {
-      throw new Error('No QC MES rows found for the given file_id.');
-    }
-
-    // Step 2: Determine element columns
-    const excludeColumns = [
-      'id', 'file_id', 'Solution Label', 'Timestamp', 'Sample', 'Rjct', 'Data File',
-      'Acq. Date-Time', 'Type', 'Level', 'Total Dil.', 'Vial Number', 'Rack:Tube',
-    ];
-    const elementColumns = Object.keys(sampleRow).filter(
-      col => !excludeColumns.includes(col) && sampleRow[col] !== null && sampleRow[col] !== ''
-    );
-
-    if (elementColumns.length === 0) {
-      throw new Error('No element columns with valid values found.');
-    }
-
-    const avgExpressions = elementColumns
-      .map(col => `AVG(CAST("${col}" AS REAL)) AS "${col}"`)
-      .join(', ');
-
-    const query = `
-      SELECT ${avgExpressions}
-      FROM qc_data
-      WHERE "Solution Label" = ? AND file_id = ?
-    `;
-
-    const averages = await new Promise((resolve, reject) => {
-      db.get(query, [labelFound, fileId], (err, result) => {
-        if (err) reject(err);
-        else resolve({ averages: result, usedLabel: labelFound });
-      });
-    });
-
-    return averages;
-
-  } catch (error) {
-    console.error('Error in getQCMESAverages:', error.message);
-    throw error;
-  }
-}
-
-async function getQCMESFactors(fileId) {
-  try {
-    const { averages, usedLabel } = await getQCMESAverages(fileId);
-    const factors = {};
-
-    // Extract numeric value from label (e.g., 'QC MES 50 ppb' -> 50)
-    const match = usedLabel.match(/(\d+(\.\d+)?)/); // Matches int or float
-    if (!match) {
-      throw new Error(`Unable to extract numeric value from label: ${usedLabel}`);
-    }
-
-    const known = parseFloat(match[0]);
-
-    for (const [key, value] of Object.entries(averages)) {
-      if (value !== null && !isNaN(value)) {
-        factors[key] = (known - value) / known;
-      }
-    }
-
-    return factors;
-  } catch (err) {
-    console.error('Error in getQCMESFactors:', err.message);
-    throw err;
-  }
-}
-
-async function applyCorrectionFactors(fileId, factors) {
-  const mappingTable = "sample_id_X_file_id";
-  const sampleTable = "sample_data";
-
-  // Step 1: Fetch sample labels for this file_id
-  const sample_ids = await new Promise((resolve, reject) => {
-    const query = `SELECT sample_id FROM "${mappingTable}" WHERE file_id = ?`;
-    db.all(query, [fileId], (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows.map(row => row.sample_id));
+function insertSample(row) {
+  const columns = Object.keys(row).map(k => `"${k}"`);
+  const placeholders = Object.keys(row).map(() => '?').join(', ');
+  const values = Object.values(row);
+  const sql = `INSERT INTO sample_data (${columns.join(', ')}) VALUES (${placeholders})`;
+  return new Promise((resolve, reject) => {
+    db.run(sql, values, function (err) {
+      if (err) reject(err);
+      else resolve(this.lastID);
     });
   });
-
-  if (!sample_ids || sample_ids.length === 0) {
-    console.warn(`No sample labels found for file_id ${fileId}`);
-    return;
-  }
-
-  // Step 2: For each label, fetch and update data in sample_data
-  for (const s_id of sample_ids) {
-    const sampleRow = await new Promise((resolve, reject) => {
-      const query = `SELECT * FROM "${sampleTable}" WHERE id = ?`;
-      db.get(query, [s_id], (err, row) => {
-        if (err) return reject(err);
-        resolve(row);
-      });
-    });
-
-    if (!sampleRow) continue;
-
-    const updates = {};
-    for (const [element, factor] of Object.entries(factors)) {
-      const rawVal = sampleRow[element];
-
-      if (rawVal !== null && rawVal !== undefined && !isNaN(parseFloat(rawVal))) {
-        const val = parseFloat(rawVal);
-        const corrected = val + val * factor;
-        const correctedCol = `${element}_Corrected`;
-        updates[correctedCol] = corrected;
-      }
-    }
-
-    if (Object.keys(updates).length > 0) {
-      const setClause = Object.keys(updates).map(k => `"${k}" = ?`).join(', ');
-      const values = Object.values(updates);
-
-      const updateSQL = `
-        UPDATE "${sampleTable}" 
-        SET ${setClause} 
-        WHERE id = ?`;
-
-    //  console.log(`Updating label "${label}" with:`, updates);
-
-      await new Promise((resolve, reject) => {
-        db.run(updateSQL, [...values, s_id], function (err) {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-    }
-  }
-
-  console.log(`Corrected values updated for file_id ${fileId}`);
 }
 
+function updateSample(label, row) {
+  const entries = Object.entries(row).filter(([key]) => key !== 'Solution Label');
+  const setClause = entries.map(([key]) => `"${key}" = ?`).join(', ');
+  const values = entries.map(([_, val]) => val);
+  const sql = `UPDATE sample_data SET ${setClause} WHERE "Solution Label" = ? RETURNING id`;
+
+  return new Promise((resolve, reject) => {
+    db.get(sql, [...values, label], (err, row) => {
+      if (err) reject(err);
+      else resolve(row?.id);
+    });
+  });
+}
+
+function insertSampleFileMapping(sampleId, fileId) {
+  const sql = `INSERT INTO sample_id_X_file_id (sample_id, file_id) VALUES (?, ?)`;
+  return new Promise((resolve, reject) => {
+    db.run(sql, [sampleId, fileId], function (err) {
+      if (err) reject(err);
+      else resolve(this.lastID);
+    });
+  });
+}
+
+// === 2. QC MES Extraction & Factor Logic ===
+
+function getAllQCMESRows(fileId) {
+  const sql = `SELECT * FROM qc_data WHERE "Solution Label" LIKE 'QC MES%' AND file_id = ?`;
+  return new Promise((resolve, reject) => {
+    db.all(sql, [fileId], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+}
+
+function getQCAveragesByLabel(fileId, label, elementColumns) {
+  const avgExpr = elementColumns.map(col => `AVG(CAST("${col}" AS REAL)) AS "${col}"`).join(', ');
+  const sql = `SELECT ${avgExpr} FROM qc_data WHERE "Solution Label" = ? AND file_id = ?`;
+  return new Promise((resolve, reject) => {
+    db.get(sql, [label, fileId], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+}
+
+// === 3. Sample Data Correction ===
+
+function getSampleIdsForFile(fileId) {
+  const sql = `SELECT sample_id FROM sample_id_X_file_id WHERE file_id = ?`;
+  return new Promise((resolve, reject) => {
+    db.all(sql, [fileId], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows.map(r => r.sample_id));
+    });
+  });
+}
+
+function getSampleById(id) {
+  const sql = `SELECT * FROM sample_data WHERE id = ?`;
+  return new Promise((resolve, reject) => {
+    db.get(sql, [id], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+}
+
+function updateSampleCorrectedValues(id, updates) {
+  const setClause = Object.keys(updates).map(k => `"${k}" = ?`).join(', ');
+  const values = Object.values(updates);
+  const sql = `UPDATE sample_data SET ${setClause} WHERE id = ?`;
+
+  return new Promise((resolve, reject) => {
+    db.run(sql, [...values, id], function (err) {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
 
 module.exports = {
+  // Insertion & Mapping
+  insertQCRow,
   sampleExists,
   insertSample,
   updateSample,
   insertSampleFileMapping,
-  insertQCRow,
-  getQCMESAverages,
-  getQCMESFactors,
-  applyCorrectionFactors
+
+  // QC MES and Factors
+  getAllQCMESRows,
+  getQCAveragesByLabel,
+
+  // Sample Correction
+  getSampleIdsForFile,
+  getSampleById,
+  updateSampleCorrectedValues,
 };
-
-
