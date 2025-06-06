@@ -35,13 +35,13 @@ async function validate(filePath, originalName) {
       return { error: 'No valid data rows found in CSV', samples: null, qc: null };
     }
 
-    // Split samples and QC rows
+    // Split into samples and QC
     const { samples, qc } = splitSamplesAndQC(allRows);
     if (!samples?.length || !qc?.length) {
       return { error: 'Either no samples or no other labels', samples: null, qc: null };
     }
 
-    //QC label validation
+    // Validate required QC labels
     try {
       validateQcLabels(qc, csvType);
       console.log('QC validation passed!');
@@ -64,7 +64,7 @@ async function validate(filePath, originalName) {
 async function insertAllData(originalName, savedFilePath, samples, qc) {
   let fileId;
 
-  // Step 1: Insert metadata (file info)
+  // Step 1: Insert file metadata
   try {
     const fileRow = await fileModel.insertFile(originalName, savedFilePath);
     fileId = fileRow.id;
@@ -83,16 +83,13 @@ async function insertAllData(originalName, savedFilePath, samples, qc) {
     return { error: 'Failed to insert QC data: ' + err.message, fileId };
   }
 
-  // Step 3: Insert/Update Samples and Mapping
+  // Step 3: Insert/Update samples and mapping
   try {
     for (const row of samples) {
       const label = row['Solution Label'];
-      let sampleId;
-
-      // Check if sample already exists
       const exists = await dataModel.sampleExists(label);
 
-      // Insert or update the sample
+      let sampleId;
       try {
         sampleId = exists
           ? await dataModel.updateSample(label, row)
@@ -106,7 +103,6 @@ async function insertAllData(originalName, savedFilePath, samples, qc) {
         return { error: `Failed to process sample "${label}": ${err.message}`, fileId };
       }
 
-      // Map sample to file
       try {
         await dataModel.insertSampleFileMapping(sampleId, fileId);
       } catch (err) {
@@ -126,16 +122,12 @@ async function insertAllData(originalName, savedFilePath, samples, qc) {
 // ==========================
 async function insertCorrected(fileId) {
   try {
-    // Fetch QC MES rows
+    // Step 1: Get QC MES rows for this file
     const qcRows = await dataModel.getAllQCMESRows(fileId);
-    if (!qcRows?.length) {
-      return { error: 'No QC MES rows found for the given file_id.' };
-    }
-
     const selectedRow = qcRows[0];
     const usedLabel = selectedRow["Solution Label"];
 
-    // Identify element columns to correct
+    // Step 2: Identify element columns (exclude metadata)
     const excludeCols = [
       'id', 'file_id', 'Solution Label', 'Timestamp', 'Sample', 'Rjct', 'Data File',
       'Acq. Date-Time', 'Type', 'Level', 'Total Dil.', 'Vial Number', 'Rack:Tube',
@@ -144,17 +136,9 @@ async function insertCorrected(fileId) {
       col => !excludeCols.includes(col) && selectedRow[col] !== null && selectedRow[col] !== ''
     );
 
-    if (!elementCols.length) {
-      return { error: 'No element columns with valid values found.' };
-    }
-
-    // Calculate correction factors
+    // Step 3: Calculate correction factors
     const averages = await dataModel.getQCAveragesByLabel(fileId, usedLabel, elementCols);
     const known = parseFloat(usedLabel.match(/(\d+(\.\d+)?)/)?.[0]);
-
-    if (isNaN(known)) {
-      return { error: `Unable to extract numeric value from label: ${usedLabel}` };
-    }
 
     const factors = {};
     for (const [key, avg] of Object.entries(averages)) {
@@ -163,13 +147,9 @@ async function insertCorrected(fileId) {
       }
     }
 
-    // Fetch sample IDs linked to this file
+    // Step 4: Apply corrections to sample_data
     const sampleIds = await dataModel.getSampleIdsForFile(fileId);
-    if (!sampleIds.length) {
-      return { error: `No samples found for file_id ${fileId}` };
-    }
 
-    // Apply corrections per sample
     for (const sampleId of sampleIds) {
       const row = await dataModel.getSampleById(sampleId);
       if (!row) continue;
@@ -183,9 +163,29 @@ async function insertCorrected(fileId) {
         }
       }
 
-      // Update row if there are corrected values
       if (Object.keys(updates).length > 0) {
         await dataModel.updateSampleCorrectedValues(sampleId, updates);
+      }
+    }
+
+    // Step 5: Apply corrections to SJS-Std rows in qc_data
+    const std_ids = await dataModel.getStdIdsForFile(fileId);
+
+    for (const std_id of std_ids) {
+      const row = await dataModel.getStdById(std_id);
+      if (!row) continue;
+
+      const updates = {};
+      for (const [element, factor] of Object.entries(factors)) {
+        const rawVal = row[element];
+        if (rawVal !== null && !isNaN(parseFloat(rawVal))) {
+          const corrected = parseFloat(rawVal) * (1 + factor);
+          updates[`${element}_Corrected`] = corrected;
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await dataModel.updateStdCorrectedValues(std_id, updates);
       }
     }
 
