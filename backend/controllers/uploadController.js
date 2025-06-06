@@ -1,8 +1,6 @@
 const path = require('path');
 const fs = require('fs');
 const db = require('../initialize_db');
-const fileModel = require('../models/fileModel');
-const dataModel = require('../models/dataModel');
 const uploadService = require('../services/uploadService');
 
 const uploadFile = async (req, res) => {
