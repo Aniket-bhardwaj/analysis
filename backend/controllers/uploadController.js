@@ -2,6 +2,10 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../initialize_db');
 const uploadService = require('../services/uploadService');
+const fileModel = require('../models/fileModel');
+const { get } = require('http');
+
+
 
 const uploadFile = async (req, res) => {
   if (!req.file) {
@@ -79,4 +83,25 @@ const uploadFile = async (req, res) => {
   });
 };
 
-module.exports = { uploadFile };
+
+//new method to get list of uploaded fileMore actions
+const getUploadedFiles = async (req, res) => {
+  try {
+    const files = await fileModel.getAllFiles();
+
+    res.json({
+      success: true,
+      files: files.map(file => ({
+        id: file.id,
+        filename: file.filename,
+        filepath: file.filepath,
+        uploaded_at: file.uploaded_at
+      }))
+    });
+  } catch (err) {
+    console.error('Error fetching uploaded files:', err);
+    res.status(500).json({ error: 'Failed to fetch uploaded files', message: err.message });
+  }
+};
+
+module.exports = { uploadFile,getUploadedFiles };
