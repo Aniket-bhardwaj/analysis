@@ -20,6 +20,20 @@ function insertFile(filename, filePath) {
   });
 }
 
+// ==========================
+// #. Get All Visible Files
+// ==========================
+function getUploadedFiles() {
+  const sql = `SELECT * FROM uploaded_files WHERE ORDER BY uploaded_at DESC`;
+
+  return new Promise((resolve, reject) => {
+    db.all(sql, [], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+}
+
 
 // ==========================
 // 2. Get All Visible Files
