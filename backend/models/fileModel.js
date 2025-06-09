@@ -21,15 +21,18 @@ function insertFile(filename, filePath) {
 }
 
 // ==========================
-// #. Get All Visible Files
+// #. Get All Files
 // ==========================
-function getUploadedFiles() {
-  const sql = `SELECT * FROM uploaded_files WHERE ORDER BY uploaded_at DESC`;
-
+function getAllFiles() {
+  const sql = `SELECT * FROM uploaded_files ORDER BY uploaded_at DESC`;
+  
   return new Promise((resolve, reject) => {
     db.all(sql, [], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
+      if (err) {
+        reject(err);
+      } else {
+        resolve(rows);
+      }
     });
   });
 }
@@ -100,6 +103,7 @@ function fileExists(filename) {
 // ==========================
 module.exports = {
   insertFile,
+  getAllFiles,
   getVisibleFiles,
   hideFileById,
   getFileByName,
