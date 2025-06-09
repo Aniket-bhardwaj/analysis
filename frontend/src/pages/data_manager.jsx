@@ -27,7 +27,7 @@ import {
     Delete,
     DateRange,
     CheckCircle,
-    Error,
+    Error as ErrorIcon,  // Renamed to avoid conflict with global Error
     Warning
 } from '@mui/icons-material';
 
@@ -96,6 +96,7 @@ const DataManagerPage = () => {
                     if (xhr.status === 200) {
                         resolve(JSON.parse(xhr.responseText));
                     } else {
+                        // Fixed: Now using global Error constructor correctly
                         reject(new Error(JSON.parse(xhr.responseText).error || 'Upload failed'));
                     }
                 };
@@ -202,7 +203,7 @@ const DataManagerPage = () => {
                 color: '#ff9800'
             },
             error: {
-                icon: <Error sx={{ color: '#f44336', fontSize: 20 }} />,
+                icon: <ErrorIcon sx={{ color: '#f44336', fontSize: 20 }} />,  // Using renamed ErrorIcon
                 tooltip: `Quality check failed for ${filename}`,
                 color: '#f44336'
             }
