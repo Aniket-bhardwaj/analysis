@@ -169,8 +169,23 @@ const DataManagerPage = () => {
         setFiles([...files, ...newFiles]);
     };
 
-    const handleDelete = (id) => {
-        setFiles(files.filter(file => file.id !== id));
+    const handleDelete = async (id) => {
+        try {
+            const res = await fetch(`http://localhost:5000/hide-file/${id}`, {
+                method: 'POST',
+            });
+    
+            const data = await res.json();
+    
+            if (res.ok && data.success) {
+                setFiles(prevFiles => prevFiles.filter(file => file.id !== id));
+            } else {
+                alert(data.error || 'Failed to hide the file');
+            }
+        } catch (err) {
+            console.error('Error hiding file:', err);
+            alert('Something went wrong while trying to hide the file');
+        }
     };
 
     // Function to render quality check status icon
