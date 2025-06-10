@@ -99,6 +99,18 @@ function fileExists(filename) {
 
 
 // ==========================
+// 6. Get file by ID
+// ==========================
+function getFileById(fileId, callback) {
+  const sql = `
+    SELECT filename, path
+    FROM uploaded_files
+    WHERE id = ?
+  `;
+  db.get(sql, [fileId], callback);
+}
+
+// ==========================
 // Exports
 // ==========================
 module.exports = {
@@ -108,4 +120,5 @@ module.exports = {
   hideFileById,
   getFileByName,
   fileExists,
+  getFileById
 };
