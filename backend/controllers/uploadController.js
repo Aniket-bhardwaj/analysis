@@ -4,7 +4,7 @@ const db = require('../initialize_db');
 const uploadService = require('../services/uploadService');
 const fileModel = require('../models/fileModel');
 const { get } = require('http');
-
+const { error } = require('console');
 
 
 const uploadFile = async (req, res) => {
@@ -89,14 +89,15 @@ const getUploadedFiles = async (req, res) => {
   try {
     const files = await fileModel.getAllFiles();
 
-    res.json({
+    res.status(200).json({
       success: true,
-      files: files.map(file => ({
+      data: files.map(file => ({
         id: file.id,
         filename: file.filename,
         filepath: file.filepath,
         uploaded_at: file.uploaded_at
-      }))
+      })),
+      error: null
     });
   } catch (err) {
     console.error('Error fetching uploaded files:', err);
