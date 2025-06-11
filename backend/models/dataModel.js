@@ -66,6 +66,41 @@ function updateSample(label, row) {
   });
 }
 
+
+/**
+ * Insert a new row into rest_data.
+ */
+function insertRestData(row) {
+  const columns = Object.keys(row).map(k => `"${k}"`);
+  const placeholders = Object.keys(row).map(() => '?').join(', ');
+  const values = Object.values(row);
+  const sql = `INSERT INTO rest_data (${columns.join(', ')}) VALUES (${placeholders})`;
+
+  return new Promise((resolve, reject) => {
+    db.run(sql, values, function (err) {
+      if (err) reject(err);
+      else resolve(); // no return needed
+    });
+  });
+}
+
+/**
+ * Update an existing row in rest_data using "Solution Label".
+ */
+function updateRestData(label, row) {
+  const entries = Object.entries(row).filter(([key]) => key !== 'Solution Label');
+  const setClause = entries.map(([key]) => `"${key}" = ?`).join(', ');
+  const values = entries.map(([_, val]) => val);
+  const sql = `UPDATE rest_data SET ${setClause} WHERE "Solution Label" = ?`;
+
+  return new Promise((resolve, reject) => {
+    db.run(sql, [...values, label], function (err) {
+      if (err) reject(err);
+      else resolve(); // no return needed
+    });
+  });
+}
+
 /**
  * Insert mapping between sample ID and file ID into sample_id_X_file_id.
  */
@@ -222,6 +257,8 @@ module.exports = {
   sampleExists,
   insertSample,
   updateSample,
+  insertRestData,
+  updateRestData,
   insertSampleFileMapping,
 
   // QC MES and Factors
