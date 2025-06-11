@@ -96,32 +96,41 @@ async function insertAllData(originalName, savedFilePath, samples, qc, csvType) 
 
   // Step 4: Insert or update sample data + mapping
   try {
-    for (const row of filteredRows.map(r => r.filtered1)) {
-      const label = row['Solution Label'];
+    for (const { filtered1, filtered2 } of filteredRows) {
+      const label = filtered1['Solution Label'];
       const exists = await dataModel.sampleExists(label);
 
       let sampleId;
       try {
         sampleId = exists
-          ? await dataModel.updateSample(label, row)
-          : await dataModel.insertSample(row);
+          ? await dataModel.updateSample(label, filtered1)
+          : await dataModel.insertSample(filtered1);
 
         if (!sampleId) {
-          return { error: `Failed to handle sample "${label}"`, fileId };
+        return { error: `Failed to handle sample "${label}"`, fileId };
         }
+
+      // ✅ Insert or update rest_data (filtered2)
+        if (exists) {
+        await dataModel.updateRestData(label, filtered2);
+        } else {
+        await dataModel.insertRestData(filtered2);
+        }
+
       } catch (err) {
-        return { error: `Failed to process sample "${label}": ${err.message}`, fileId };
+      return { error: `Failed to process sample "${label}": ${err.message}`, fileId };
       }
 
       try {
-        await dataModel.insertSampleFileMapping(sampleId, fileId);
+      await dataModel.insertSampleFileMapping(sampleId, fileId);
       } catch (err) {
-        return { error: `Failed to map sample "${label}" to file: ${err.message}`, fileId };
+      return { error: `Failed to map sample "${label}" to file: ${err.message}`, fileId };
       }
     }
   } catch (err) {
-    return { error: 'Failed to process sample data: ' + err.message, fileId };
+  return { error: 'Failed to process sample data: ' + err.message, fileId };
   }
+
 
   return { error: null, fileId };
 }
