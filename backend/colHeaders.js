@@ -67,6 +67,8 @@ const filterConcColumns = (columns) =>
 const filterNmPpmColumns = (columns) =>
   columns.filter(col => col.includes('nm ppm'));
 
+const filter1nonC = (columns) =>
+  columns.filter(col => !col.includes('nm ppm'));
 // Normalize and then filter for TE / ME concentrations
 const normalizedO1n2 = normalizeHeaders(O1n2);
 const TEconc = filterConcColumns(normalizedO1n2);
@@ -96,6 +98,26 @@ const filterNonNmColumns = (columns) =>
 
 const nonE1 = filterNonNmColumns(OcleanedHeaders1);
 
+/**
+ * Type 1 (Major): All headers except those in MEconc
+ */
+const nonConc1 = OcleanedHeaders1.filter(h => !MEconc.includes(h));
+
+/**
+ * Type 2 (Trace): All headers except those in TEconc
+ */
+const nonConc2 = OcleanedHeaders2.filter(h => !TEconc.includes(h));
+
+// ==========================
+// 6. Combined Non-Elemental Headers (Excluding MEconc & TEconc)
+// ==========================
+
+/**
+ * Headers from O1n2 excluding both MEconc and TEconc
+ */
+const rest_dataHeaders = normalizeHeaders(O1n2).filter(
+  h => !MEconc.includes(h) && !TEconc.includes(h)
+);
 
 // ==========================
 // Exports
@@ -109,5 +131,8 @@ module.exports = {
   MEconc,
   nonE2,
   nonE1,
-  qcHeaders
+  qcHeaders,
+  nonConc1,
+  nonConc2,
+  rest_dataHeaders
 };
