@@ -1,7 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcrypt');
-const { completeHeaders, qcHeaders } = require('./colHeaders');
+const { completeHeaders, qcHeaders,rest_dataHeaders} = require('./colHeaders');
 
 const dbPath = path.resolve(__dirname, 'database.sqlite');
 
@@ -60,6 +60,17 @@ db.serialize(() => {
       FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
     )
   `);
+
+    // Table: rest_data_table
+const colsDef3 = rest_dataHeaders.map(col => `"${col}" TEXT`).join(', ');
+db.run(`
+  CREATE TABLE IF NOT EXISTS rest_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ${colsDef3}
+  )
+`);
+
+  
 
   // Table: users
   db.run(`
