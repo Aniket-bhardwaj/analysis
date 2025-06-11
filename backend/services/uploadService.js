@@ -1,59 +1,59 @@
 const fileModel = require('../models/fileModel');
 const dataModel = require('../models/dataModel');
-const {
-  parseHeaders,
-  checkColumnCount,
-  validateHeaderNames,
-  parseDataRows,
-  splitSamplesAndQC,
-  validateQcLabels
-} = require('../utils/csvHandler');
+const csvHandler = require('../utils/csvHandler');
+const { MEconc, TEconc } = require('../colHeaders');
 
 
 // ==========================
 // 1. File Validation
 // ==========================
+
+/**
+ * Validate a CSV file before processing.
+ * - Checks for duplicates
+ * - Determines file type
+ * - Validates headers
+ * - Parses rows and splits sample/QC
+ */
 async function validate(filePath, originalName) {
   try {
-    // Check if file already exists
-    const exists = await fileModel.fileExists(originalName);
-    if (exists) {
-      return { error: 'File already present', samples: null, qc: null };
+    // Check if file with same name already exists
+    if (await fileModel.fileExists(originalName)) {
+      return { error: 'File already present', samples: null, qc: null, csvType: null };
     }
 
-    // Parse and validate headers
-    const headers = await parseHeaders(filePath);
-    const csvType = checkColumnCount(headers);
-
-    if (csvType === 0 || !validateHeaderNames(headers, csvType)) {
-      return { error: 'Invalid or unsupported CSV headers', samples: null, qc: null };
+    // Detect CSV type from initial header(s)
+    const firstLine = await csvHandler.getHeaders(1, filePath);
+    const csvType = csvHandler.checkCsvType(firstLine);
+    if (csvType === 0) {
+      return { error: 'Unrecognized CSV structure', samples: null, qc: null, csvType };
     }
 
-    // Parse data rows
-    const allRows = await parseDataRows(filePath);
-    if (!Array.isArray(allRows) || allRows.length === 0) {
-      return { error: 'No valid data rows found in CSV', samples: null, qc: null };
+    // Validate full header set
+    const headers = await csvHandler.getHeaders(csvType, filePath);
+    if (!csvHandler.validateHeaders(headers, csvType)) {
+      return { error: 'Invalid or mismatched headers', samples: null, qc: null, csvType };
     }
 
-    // Split into samples and QC
-    const { samples, qc } = splitSamplesAndQC(allRows);
-    if (!samples?.length || !qc?.length) {
-      return { error: 'Either no samples or no other labels', samples: null, qc: null };
+    // Parse all data rows
+    const rows = await csvHandler.parseDataRows(filePath, csvType);
+    if (!rows.length) {
+      return { error: 'No valid data rows', samples: null, qc: null, csvType };
     }
 
-    // Validate required QC labels
-    try {
-      validateQcLabels(qc, csvType);
-      console.log('QC validation passed!');
-    } catch (error) {
-      return { error: error.message, samples: null, qc: null };
+    // Separate rows into samples and QC
+    const { samples, qc } = csvHandler.splitSamplesAndQc(rows);
+    if (!samples.length || !qc.length) {
+      return { error: 'Either no samples or no QC rows', samples: null, qc: null, csvType };
     }
 
-    return { error: null, samples, qc };
+    // Final QC label check
+    csvHandler.validateQcLabels(qc);
 
+    return { error: null, samples, qc, csvType };
   } catch (err) {
-    console.error('[validate] Unexpected error:', err.message);
-    return { error: 'Unexpected error while validating file', samples: null, qc: null };
+    console.error('[validate] Error:', err.message);
+    return { error: err.message || 'Validation failed', samples: null, qc: null, csvType: null };
   }
 }
 
@@ -61,10 +61,18 @@ async function validate(filePath, originalName) {
 // ==========================
 // 2. Insert Raw CSV Data
 // ==========================
-async function insertAllData(originalName, savedFilePath, samples, qc) {
+
+/**
+ * Insert validated data into DB.
+ * - Insert file metadata
+ * - Insert QC data
+ * - Insert/update sample rows
+ * - Map sample IDs to file
+ */
+async function insertAllData(originalName, savedFilePath, samples, qc, csvType) {
   let fileId;
 
-  // Step 1: Insert file metadata
+  // Step 1: Insert file info
   try {
     const fileRow = await fileModel.insertFile(originalName, savedFilePath);
     fileId = fileRow.id;
@@ -72,7 +80,7 @@ async function insertAllData(originalName, savedFilePath, samples, qc) {
     return { error: 'Failed to insert file metadata: ' + err.message, fileId: null };
   }
 
-  // Step 2: Insert QC rows
+  // Step 2: Insert QC data
   try {
     for (const row of qc) {
       const columns = ['file_id', ...Object.keys(row)];
@@ -83,9 +91,12 @@ async function insertAllData(originalName, savedFilePath, samples, qc) {
     return { error: 'Failed to insert QC data: ' + err.message, fileId };
   }
 
-  // Step 3: Insert/Update samples and mapping
+  // Step 3: Filter relevant sample columns
+  const filteredRows = csvHandler.filterColumnsByKeys(samples, csvType);
+
+  // Step 4: Insert or update sample data + mapping
   try {
-    for (const row of samples) {
+    for (const row of filteredRows.map(r => r.filtered1)) {
       const label = row['Solution Label'];
       const exists = await dataModel.sampleExists(label);
 
@@ -98,7 +109,6 @@ async function insertAllData(originalName, savedFilePath, samples, qc) {
         if (!sampleId) {
           return { error: `Failed to handle sample "${label}"`, fileId };
         }
-
       } catch (err) {
         return { error: `Failed to process sample "${label}": ${err.message}`, fileId };
       }
@@ -120,26 +130,31 @@ async function insertAllData(originalName, savedFilePath, samples, qc) {
 // ==========================
 // 3. Apply Correction Factors
 // ==========================
-async function insertCorrected(fileId) {
+
+/**
+ * Apply correction factors using QC MES rows.
+ * - Calculates % deviation from known value
+ * - Applies correction to sample_data and SJS-Std
+ */
+async function insertCorrected(fileId, csvType) {
   try {
     // Step 1: Get QC MES rows for this file
     const qcRows = await dataModel.getAllQCMESRows(fileId);
     const selectedRow = qcRows[0];
     const usedLabel = selectedRow["Solution Label"];
 
-    // Step 2: Identify element columns (exclude metadata)
-    const excludeCols = [
-      'id', 'file_id', 'Solution Label', 'Timestamp', 'Sample', 'Rjct', 'Data File',
-      'Acq. Date-Time', 'Type', 'Level', 'Total Dil.', 'Vial Number', 'Rack:Tube',
-    ];
-    const elementCols = Object.keys(selectedRow).filter(
-      col => !excludeCols.includes(col) && selectedRow[col] !== null && selectedRow[col] !== ''
+    // Step 2: Determine applicable element columns
+    const allowedCols = csvType === 1 ? MEconc : TEconc;
+    const elementCols = allowedCols.filter(
+      col => selectedRow.hasOwnProperty(col) && selectedRow[col] !== null && selectedRow[col] !== ''
     );
 
-    // Step 3: Calculate correction factors
+    // Step 3: Get average measured values
     const averages = await dataModel.getQCAveragesByLabel(fileId, usedLabel, elementCols);
-    const known = parseFloat(usedLabel.match(/(\d+(\.\d+)?)/)?.[0]);
 
+    const known = parseFloat(usedLabel.match(/(\d+(\.\d+)?)/)?.[0]); // e.g., extract 50 from "QC MES 50"
+
+    // Step 4: Calculate correction factors
     const factors = {};
     for (const [key, avg] of Object.entries(averages)) {
       if (avg !== null && !isNaN(avg)) {
@@ -147,7 +162,7 @@ async function insertCorrected(fileId) {
       }
     }
 
-    // Step 4: Apply corrections to sample_data
+    // Step 5: Apply correction to samples
     const sampleIds = await dataModel.getSampleIdsForFile(fileId);
 
     for (const sampleId of sampleIds) {
@@ -158,8 +173,7 @@ async function insertCorrected(fileId) {
       for (const [element, factor] of Object.entries(factors)) {
         const rawVal = row[element];
         if (rawVal !== null && !isNaN(parseFloat(rawVal))) {
-          const corrected = parseFloat(rawVal) * (1 + factor);
-          updates[`${element}_Corrected`] = corrected;
+          updates[`${element}_Corrected`] = parseFloat(rawVal) * (1 + factor);
         }
       }
 
@@ -168,24 +182,23 @@ async function insertCorrected(fileId) {
       }
     }
 
-    // Step 5: Apply corrections to SJS-Std rows in qc_data
-    const std_ids = await dataModel.getStdIdsForFile(fileId);
+    // Step 6: Apply correction to SJS-Std rows
+    const stdIds = await dataModel.getStdIdsForFile(fileId);
 
-    for (const std_id of std_ids) {
-      const row = await dataModel.getStdById(std_id);
+    for (const stdId of stdIds) {
+      const row = await dataModel.getStdById(stdId);
       if (!row) continue;
 
       const updates = {};
       for (const [element, factor] of Object.entries(factors)) {
         const rawVal = row[element];
         if (rawVal !== null && !isNaN(parseFloat(rawVal))) {
-          const corrected = parseFloat(rawVal) * (1 + factor);
-          updates[`${element}_Corrected`] = corrected;
+          updates[`${element}_Corrected`] = parseFloat(rawVal) * (1 + factor);
         }
       }
 
       if (Object.keys(updates).length > 0) {
-        await dataModel.updateStdCorrectedValues(std_id, updates);
+        await dataModel.updateStdCorrectedValues(stdId, updates);
       }
     }
 
