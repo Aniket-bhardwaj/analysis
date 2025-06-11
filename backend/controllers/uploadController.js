@@ -6,7 +6,12 @@ const fileModel = require('../models/fileModel');
 const { get } = require('http');
 const { error } = require('console');
 
-
+/**
+ * Controller to handle file upload and processing:
+ * 1. Validate uploaded file
+ * 2. Insert raw data into DB
+ * 3. Apply correction factors
+ */
 const uploadFile = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
@@ -19,11 +24,14 @@ const uploadFile = async (req, res) => {
     try {
       db.run('BEGIN TRANSACTION');
 
-      // 1. Validation
+      // ========================
+      // 1. Validate the file
+      // ========================
       const {
         error: validationError,
         samples,
         qc,
+        csvType
       } = await uploadService.validate(savedFilePath, originalName);
 
       if (validationError) {
@@ -36,11 +44,13 @@ const uploadFile = async (req, res) => {
         return;
       }
 
-      // 2. Inserting data rows in respective tables and the metadata
+      // ========================
+      // 2. Insert raw data rows + file metadata
+      // ========================
       const {
         error: insertError,
         fileId,
-      } = await uploadService.insertAllData(originalName, savedFilePath, samples, qc);
+      } = await uploadService.insertAllData(originalName, savedFilePath, samples, qc, csvType);
 
       if (insertError) {
         db.run('ROLLBACK', () => {
@@ -52,8 +62,10 @@ const uploadFile = async (req, res) => {
         return;
       }
 
-      // 3. Calculating and inserting the corrected values
-      const { error: correctionError } = await uploadService.insertCorrected(fileId);
+      // ========================
+      // 3. Apply correction factors to sample & std data
+      // ========================
+      const { error: correctionError } = await uploadService.insertCorrected(fileId, csvType);
 
       if (correctionError) {
         db.run('ROLLBACK', () => {
@@ -65,6 +77,9 @@ const uploadFile = async (req, res) => {
         return;
       }
 
+      // ========================
+      // 4. Success: Commit changes
+      // ========================
       db.run('COMMIT');
       res.status(200).json({
         message: 'File uploaded and processed successfully',
