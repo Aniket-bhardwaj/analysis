@@ -7,6 +7,8 @@ const db = require('../initialize_db');
 
 /**
  * Insert a single QC row into qc_data table.
+ * @param {string[]} columns - Column names
+ * @param {any[]} values - Corresponding values
  */
 function insertQCRow(columns, values) {
   const placeholders = columns.map(() => '?').join(', ');
@@ -20,19 +22,19 @@ function insertQCRow(columns, values) {
 }
 
 /**
- * Check if a sample already exists by its label.
+ * Check if a sample already exists by its label in sample_data.
  */
 function sampleExists(label) {
   return new Promise((resolve, reject) => {
     db.get('SELECT id FROM sample_data WHERE "Solution Label" = ?', [label], (err, row) => {
       if (err) reject(err);
-      else resolve(!!row);
+      else resolve(!!row); // true if row found
     });
   });
 }
 
 /**
- * Insert a new sample row into sample_data.
+ * Insert a new sample into sample_data.
  */
 function insertSample(row) {
   const columns = Object.keys(row).map(k => `"${k}"`);
@@ -48,7 +50,7 @@ function insertSample(row) {
 }
 
 /**
- * Update an existing sample row using its label.
+ * Update an existing sample in sample_data using the "Solution Label" as identifier.
  */
 function updateSample(label, row) {
   const entries = Object.entries(row).filter(([key]) => key !== 'Solution Label');
@@ -59,13 +61,13 @@ function updateSample(label, row) {
   return new Promise((resolve, reject) => {
     db.get(sql, [...values, label], (err, row) => {
       if (err) reject(err);
-      else resolve(row?.id);
+      else resolve(row?.id); // return updated row ID if available
     });
   });
 }
 
 /**
- * Insert mapping between sample and file into sample_id_X_file_id.
+ * Insert mapping between sample ID and file ID into sample_id_X_file_id.
  */
 function insertSampleFileMapping(sampleId, fileId) {
   const sql = `INSERT INTO sample_id_X_file_id (sample_id, file_id) VALUES (?, ?)`;
@@ -83,7 +85,7 @@ function insertSampleFileMapping(sampleId, fileId) {
 // ==========================
 
 /**
- * Get all QC rows that begin with 'QC MES' for a given file.
+ * Get all QC rows beginning with 'QC MES' for a specific file.
  */
 function getAllQCMESRows(fileId) {
   const sql = `SELECT * FROM qc_data WHERE "Solution Label" LIKE 'QC MES%' AND file_id = ?`;
@@ -98,13 +100,25 @@ function getAllQCMESRows(fileId) {
 /**
  * Get average values for each element column for a specific QC label and file.
  */
-function getQCAveragesByLabel(fileId, label, elementColumns) {
-  const avgExpr = elementColumns.map(col => `AVG(CAST("${col}" AS REAL)) AS "${col}"`).join(', ');
-  const sql = `SELECT ${avgExpr} FROM qc_data WHERE "Solution Label" = ? AND file_id = ?`;
+function getQCAveragesByLabel(fileId, label, elementCols) {
+  if (!elementCols.length) {
+    return Promise.reject(new Error('No element columns provided for averaging'));
+  }
+
+  const avgExpressions = elementCols
+    .map(col => `AVG("${col}") AS "${col}"`)
+    .join(', ');
+
+  const sql = `
+    SELECT ${avgExpressions}
+    FROM qc_data
+    WHERE file_id = ? AND "Solution Label" = ?
+  `;
+
   return new Promise((resolve, reject) => {
-    db.get(sql, [label, fileId], (err, row) => {
+    db.get(sql, [fileId, label], (err, row) => {
       if (err) reject(err);
-      else resolve(row);
+      else resolve(row); // object with avg values keyed by column
     });
   });
 }
@@ -115,7 +129,7 @@ function getQCAveragesByLabel(fileId, label, elementColumns) {
 // ==========================
 
 /**
- * Get sample IDs linked to a file from mapping table.
+ * Get all sample IDs from mapping table linked to a specific file.
  */
 function getSampleIdsForFile(fileId) {
   const sql = `SELECT sample_id FROM sample_id_X_file_id WHERE file_id = ?`;
@@ -128,7 +142,7 @@ function getSampleIdsForFile(fileId) {
 }
 
 /**
- * Get IDs of all SJS-Std rows from qc_data for a file.
+ * Get all row IDs from qc_data that are labeled as 'SJS-Std' for a given file.
  */
 function getStdIdsForFile(fileId) {
   const sql = `SELECT id FROM qc_data WHERE file_id = ? AND "Solution Label" = ?`;
@@ -141,7 +155,7 @@ function getStdIdsForFile(fileId) {
 }
 
 /**
- * Fetch sample_data row by ID.
+ * Fetch a full sample_data row by its ID.
  */
 function getSampleById(id) {
   const sql = `SELECT * FROM sample_data WHERE id = ?`;
@@ -154,7 +168,7 @@ function getSampleById(id) {
 }
 
 /**
- * Fetch qc_data row by ID (used for SJS-Std corrections).
+ * Fetch a full qc_data row by ID (usually for SJS-Std corrections).
  */
 function getStdById(id) {
   const sql = `SELECT * FROM qc_data WHERE id = ?`;
@@ -167,7 +181,7 @@ function getStdById(id) {
 }
 
 /**
- * Update corrected values for a sample in sample_data.
+ * Update specific corrected values for a sample row.
  */
 function updateSampleCorrectedValues(id, updates) {
   const setClause = Object.keys(updates).map(k => `"${k}" = ?`).join(', ');
@@ -177,13 +191,13 @@ function updateSampleCorrectedValues(id, updates) {
   return new Promise((resolve, reject) => {
     db.run(sql, [...values, id], function (err) {
       if (err) reject(err);
-      else resolve();
+      else resolve(); // no return value needed
     });
   });
 }
 
 /**
- * Update corrected values for a standard row in qc_data (SJS-Std).
+ * Update specific corrected values for a standard (SJS-Std) row in qc_data.
  */
 function updateStdCorrectedValues(id, updates) {
   const setClause = Object.keys(updates).map(k => `"${k}" = ?`).join(', ');
