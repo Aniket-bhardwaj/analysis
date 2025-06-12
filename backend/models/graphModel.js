@@ -77,6 +77,75 @@ class GraphModel {
     });
   }
 
+ static getGraphDataByDateRange(startDate, endDate, solutionLabel = 'QC_MES_5 ppm') {
+    return new Promise((resolve, reject) => {
+      const db = new sqlite3.Database(dbPath);
+
+      const query = `
+        SELECT * FROM data
+        WHERE "Solution Label" = ? AND date(Timestamp) BETWEEN ? AND ?
+        ORDER BY Timestamp ASC
+      `;
+
+      db.all(query, [solutionLabel, startDate, endDate], (err, rows) => {
+        db.close();
+
+        if (err) {
+          console.error('Database error:', err);
+          return reject(err);
+        }
+
+        if (rows.length === 0) {
+          return resolve({ originalData: [], correctedData: [], elements: [] });
+        }
+
+        const excludeColumns = ['Timestamp', 'Solution Label', 'file_id'];
+        const allColumns = Object.keys(rows[0]).filter(key =>
+          !excludeColumns.some(excluded =>
+            excluded.toLowerCase() === key.toLowerCase()
+          )
+        );
+
+        const originalColumns = allColumns.filter(col => !col.includes('_Corrected'));
+        const correctedColumns = allColumns.filter(col => col.includes('_Corrected'));
+
+        const elementPairs = originalColumns.map(originalCol => {
+          const correctedCol = correctedColumns.find(corrCol =>
+            corrCol === `${originalCol}_Corrected`
+          );
+          return {
+            element: originalCol,
+            originalColumn: originalCol,
+            correctedColumn: correctedCol
+          };
+        }).filter(pair => pair.correctedColumn);
+
+        const originalGraphData = elementPairs.map(pair => ({
+          element: pair.element,
+          data: rows.map(row => ({
+            timestamp: row.Timestamp || row.timestamp,
+            value: parseFloat(row[pair.originalColumn]) || 0
+          })).filter(point => !isNaN(point.value))
+        }));
+
+        const correctedGraphData = elementPairs.map(pair => ({
+          element: pair.element,
+          data: rows.map(row => ({
+            timestamp: row.Timestamp || row.timestamp,
+            value: parseFloat(row[pair.correctedColumn]) || 0
+          })).filter(point => !isNaN(point.value))
+        }));
+
+        resolve({
+          originalData: originalGraphData,
+          correctedData: correctedGraphData,
+          elements: elementPairs.map(pair => pair.element)
+        });
+      });
+    });
+  }
+
+
   static async getAllSolutionLabels(fileId) {
     return new Promise((resolve, reject) => {
       const db = new sqlite3.Database(dbPath);

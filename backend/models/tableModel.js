@@ -45,7 +45,19 @@ class TableModel {
         };
 
         // Get all element columns (exclude metadata)
-        const excludeColumns = ['id', 'Timestamp', 'Solution Label', 'file_id', 'filename', 'uploaded_at'];
+        const excludeColumns = [
+          'id',
+          'Timestamp',
+          'Solution Label',
+          'file_id',
+          'filename',
+          'uploaded_at',
+          'Sample',
+          'Data File',
+          'Acq. Date-Time',
+          'Total Dil.',
+          'Vial Number'
+        ];
         const allColumns = Object.keys(rows[0]).filter(key => 
           !excludeColumns.some(excluded => 
             excluded.toLowerCase() === key.toLowerCase()
@@ -86,10 +98,19 @@ class TableModel {
           // Calculate RSD (Relative Standard Deviation) as percentage
           const rsd = average !== 0 ? (stdDev / average) * 100 : 0;
 
-          // Calculate error percentage (assuming corrected values are the "true" values)
-          const errorPercentage = correctedAverage !== null && correctedAverage !== 0 
-            ? Math.abs((average - correctedAverage) / correctedAverage) * 100 
-            : 0;
+          // Determine error factor based on the solution label
+          const errorFactor = this.getErrorFactorForLabel(solutionLabel);
+
+          // Calculate error percentage only if a valid factor exists
+          const errorPercentage =
+            errorFactor !== null && originalValues.length > 0
+              ?
+                originalValues.reduce(
+                    (sum, val) =>
+                      sum + (Math.abs(val - errorFactor) / errorFactor) * 100,
+                    0
+                  ) / originalValues.length
+              : null;
 
           // Determine units
           let units = this.determineUnits(elementCol);
@@ -109,12 +130,13 @@ class TableModel {
             correctedValueAvg: correctedAverage ? parseFloat(correctedAverage.toFixed(3)) : null,
             standardDeviation: parseFloat(stdDev.toFixed(3)),
             rsd: parseFloat(rsd.toFixed(2)), // RSD as percentage
-            errorPercentage: parseFloat(errorPercentage.toFixed(2)),
+            errorPercentage: errorPercentage !== null ? parseFloat(errorPercentage.toFixed(2)) : null,
+            errorFactor: errorFactor,
             errorTolerance: errorTolerance,
             sampleCount: originalValues.length,
             minValue: parseFloat(minValue.toFixed(3)),
             maxValue: parseFloat(maxValue.toFixed(3)),
-            isWithinTolerance: errorPercentage <= errorTolerance,
+            isWithinTolerance: errorPercentage !== null ? errorPercentage <= errorTolerance : null,
             distributionData: this.calculateDistribution(originalValues),
             qualityStatus: this.determineQualityStatus(rsd, errorPercentage, errorTolerance)
           };
@@ -317,9 +339,17 @@ class TableModel {
           const stdDev = Math.sqrt(variance);
           const rsd = average !== 0 ? (stdDev / average) * 100 : 0;
 
-          const errorPercentage = correctedAverage !== null && correctedAverage !== 0 
-            ? Math.abs((average - correctedAverage) / correctedAverage) * 100 
-            : 0;
+          const errorFactor = this.getErrorFactorForLabel(solutionLabel);
+
+          const errorPercentage =
+            errorFactor !== null && originalValues.length > 0
+              ?
+                originalValues.reduce(
+                    (sum, val) =>
+                      sum + (Math.abs(val - errorFactor) / errorFactor) * 100,
+                    0
+                  ) / originalValues.length
+              : null;
 
           const errorTolerance = this.getErrorTolerance(elementCol);
 
@@ -331,10 +361,11 @@ class TableModel {
             correctedValueAvg: correctedAverage ? parseFloat(correctedAverage.toFixed(3)) : null,
             standardDeviation: parseFloat(stdDev.toFixed(3)),
             rsd: parseFloat(rsd.toFixed(2)),
-            errorPercentage: parseFloat(errorPercentage.toFixed(2)),
+            errorPercentage: errorPercentage !== null ? parseFloat(errorPercentage.toFixed(2)) : null,
+            errorFactor: errorFactor,
             errorTolerance: errorTolerance,
             sampleCount: originalValues.length,
-            isWithinTolerance: errorPercentage <= errorTolerance,
+            isWithinTolerance: errorPercentage !== null ? errorPercentage <= errorTolerance : null,
             distributionData: this.calculateDistribution(originalValues),
             qualityStatus: this.determineQualityStatus(rsd, errorPercentage, errorTolerance)
           };
@@ -441,6 +472,15 @@ class TableModel {
     return 'ppm'; // default
   }
 
+  static getErrorFactorForLabel(solutionLabel) {
+    if (!solutionLabel) return null;
+    const clean = solutionLabel.replace(/[_\s]/g, '').toLowerCase();
+    if (clean.includes('qcmes5ppm')) return 5;
+    if (clean.includes('qcmes50ppb')) return 50;
+    return null;
+  }
+
+
   static getErrorTolerance(elementName) {
     // Define error tolerance thresholds for different elements
     const toleranceMap = {
@@ -463,6 +503,11 @@ class TableModel {
   }
 
   static determineQualityStatus(rsd, errorPercentage, errorTolerance) {
+
+    if (errorPercentage === null || errorPercentage === undefined) {
+      return 'N/A';
+    }
+
     if (rsd <= 5 && errorPercentage <= errorTolerance * 0.5) return 'Excellent';
     if (rsd <= 10 && errorPercentage <= errorTolerance) return 'Good';
     if (rsd <= 15 && errorPercentage <= errorTolerance * 1.5) return 'Acceptable';
