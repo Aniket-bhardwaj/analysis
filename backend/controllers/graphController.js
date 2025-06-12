@@ -160,7 +160,7 @@ class GraphController {
     }
   }
 
-  static async getGraphDataByDateRange(res, req){
+  static async getGraphDataByDateRange(req, res){
     try{
       const startDate = req.query.start_date;
       const endDate = req.query.end_date;

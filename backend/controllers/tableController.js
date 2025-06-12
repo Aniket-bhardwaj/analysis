@@ -47,9 +47,12 @@ class TableController {
           averageRSD: result.tableData.length > 0 
             ? parseFloat((result.tableData.reduce((sum, item) => sum + item.rsd, 0) / result.tableData.length).toFixed(2))
             : 0,
-          averageErrorPercentage: result.tableData.length > 0
-            ? parseFloat((result.tableData.reduce((sum, item) => sum + item.errorPercentage, 0) / result.tableData.length).toFixed(2))
-            : 0
+          averageErrorPercentage: (() => {
+            const valid = result.tableData.filter(item => typeof item.errorPercentage === 'number');
+            return valid.length > 0
+              ? parseFloat((valid.reduce((sum, item) => sum + item.errorPercentage, 0) / valid.length).toFixed(2))
+              : 0;
+          })()
         }
       });
 
@@ -170,9 +173,12 @@ class TableController {
           averageRSD: result.tableData.length > 0 
             ? parseFloat((result.tableData.reduce((sum, item) => sum + item.rsd, 0) / result.tableData.length).toFixed(2))
             : 0,
-          averageErrorPercentage: result.tableData.length > 0
-            ? parseFloat((result.tableData.reduce((sum, item) => sum + item.errorPercentage, 0) / result.tableData.length).toFixed(2))
-            : 0,
+          averageErrorPercentage: (() => {
+            const valid = result.tableData.filter(item => typeof item.errorPercentage === 'number');
+            return valid.length > 0
+              ? parseFloat((valid.reduce((sum, item) => sum + item.errorPercentage, 0) / valid.length).toFixed(2))
+              : 0;
+          })(),
           uniqueFilesCount: result.filesIncluded ? result.filesIncluded.length : 0
         }
       });
