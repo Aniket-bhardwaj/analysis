@@ -11,7 +11,7 @@ const hideRoutes = require('./routes/hide');
 const authRoutes = require('./routes/auth');
 const graphRoutes = require('./routes/graphRoutes');
 const tableRoutes = require('./routes/tables'); 
-const downloadRouter = require('./routes/download.js');
+const downloadRouter = require('./routes/download');
 
 const app = express();
 const PORT = process.env.PORT || 5000;

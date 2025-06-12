@@ -21,7 +21,7 @@ import {
     CircularProgress,
     Tooltip,
 } from '@mui/material'
-
+import DownloadIcon from '@mui/icons-material/Download';
 import {
     CloudUpload,
     Delete,
@@ -79,9 +79,9 @@ const DataManagerPage = () => {
         setUploadProgress(0);
 
         try {
-           
+
             const xhr = new XMLHttpRequest();
-            
+
             // Track upload progress
             xhr.upload.addEventListener('progress', (e) => {
                 if (e.lengthComputable) {
@@ -100,7 +100,7 @@ const DataManagerPage = () => {
                         reject(new Error(JSON.parse(xhr.responseText).error || 'Upload failed'));
                     }
                 };
-                
+
                 xhr.onerror = () => reject(new Error('Network error'));
             });
 
@@ -109,10 +109,10 @@ const DataManagerPage = () => {
             xhr.send(formData);
 
             const result = await uploadPromise;
-            
+
             alert('File uploaded successfully');
             fetchUploadedFiles();
-            
+
         } catch (err) {
             console.error('Error uploading file:', err);
             alert(err.message || 'Something went wrong');
@@ -147,7 +147,7 @@ const DataManagerPage = () => {
     };
 
     useEffect(() => {
-        fetchUploadedFiles(); 
+        fetchUploadedFiles();
     }, []);
 
     const handleFiles = (fileList) => {
@@ -175,9 +175,9 @@ const DataManagerPage = () => {
             const res = await fetch(`http://localhost:5000/hide-file/${id}`, {
                 method: 'POST',
             });
-    
+
             const data = await res.json();
-    
+
             if (res.ok && data.success) {
                 setFiles(prevFiles => prevFiles.filter(file => file.id !== id));
             } else {
@@ -188,6 +188,30 @@ const DataManagerPage = () => {
             alert('Something went wrong while trying to hide the file');
         }
     };
+
+    const handleDownload = async (fileId) => {
+        try {
+            const response = await fetch(`http://localhost:5000/download-file/${fileId}`, {
+                method: 'GET',
+            });
+    
+            if (!response.ok) throw new Error('Download failed');
+    
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+    
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `file_${fileId}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading file:', error);
+        }
+    };
+    
 
     // Function to render quality check status icon
     const renderQualityStatus = (status, filename) => {
@@ -223,17 +247,17 @@ const DataManagerPage = () => {
     const [selectedItem, setSelectedItem] = useState('Data Manager');
     const location = useLocation();
     const navigate = useNavigate();
-    
+
     return (
         <Box className="file-upload-container">
             <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
-            
+
             <Box className="main-content">
                 <Box className="header-section">
                     <Typography variant="h4" className="page-title">
                         Data Manager
                     </Typography>
-                    
+
                     <Stack direction="row" spacing={2} className="date-filters">
                         <TextField
                             type="date"
@@ -267,9 +291,9 @@ const DataManagerPage = () => {
                         >
                             {isUploading ? (
                                 <Box className="upload-progress-container">
-                                    <CircularProgress 
-                                        variant="determinate" 
-                                        value={uploadProgress} 
+                                    <CircularProgress
+                                        variant="determinate"
+                                        value={uploadProgress}
                                         size={70}
                                         thickness={4}
                                         className="upload-progress-circular"
@@ -333,8 +357,8 @@ const DataManagerPage = () => {
                                                 {renderQualityStatus(file.qualityStatus, file.name)}
                                             </TableCell>
                                             <TableCell className="table-cell">
-                                                <Chip 
-                                                    label={file.type} 
+                                                <Chip
+                                                    label={file.type}
                                                     className="file-type-chip"
                                                     size="small"
                                                 />
@@ -357,13 +381,23 @@ const DataManagerPage = () => {
                                                 </Typography>
                                             </TableCell>
                                             <TableCell className="table-cell">
-                                                <IconButton
-                                                    onClick={() => handleDelete(file.id)}
-                                                    className="delete-button"
-                                                    size="small"
-                                                >
-                                                    <Delete />
-                                                </IconButton>
+                                                <>
+                                                    <IconButton
+                                                        onClick={() => handleDownload(file.id)}
+                                                        className="download-button"
+                                                        size="small"
+                                                    >
+                                                        <DownloadIcon />
+                                                    </IconButton>
+
+                                                    <IconButton
+                                                        onClick={() => handleDelete(file.id)}
+                                                        className="delete-button"
+                                                        size="small"
+                                                    >
+                                                        <Delete />
+                                                    </IconButton>
+                                                </>
                                             </TableCell>
                                         </TableRow>
                                     ))}
