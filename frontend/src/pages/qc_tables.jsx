@@ -188,7 +188,7 @@ const QCTable = () => {
       setError(null);
       
       const response = await fetch(
-        `/table-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`,
+        `http://localhost:5000/table-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`,
         {
           method: 'GET',
           headers: {
@@ -230,7 +230,7 @@ const QCTable = () => {
     
     try {
       const response = await fetch(
-        `/table-solution-labels?file_id=${selectedFileId}`,
+        `http://localhost:5000/table-solution-labels?file_id=${selectedFileId}`,
         {
           method: 'GET',
           headers: {
