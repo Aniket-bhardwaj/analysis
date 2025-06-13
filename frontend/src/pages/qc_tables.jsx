@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation} from 'react-router-dom';
 import Navbar from '@/components/navbar';
 import {
   Box,
@@ -114,6 +114,39 @@ const QCTable = () => {
   const [error, setError] = useState(null);
   const [fileInfo, setFileInfo] = useState(null);
 
+
+   const computeSummary = (data) => {
+    const totalElements = data.length;
+    const elementsWithinTolerance = data.filter((d) => d.isWithinTolerance).length;
+    const averageRSD =
+      totalElements > 0
+        ? parseFloat((data.reduce((sum, d) => sum + (d.rsd || 0), 0) / totalElements).toFixed(2))
+        : 0;
+    const validErr = data.filter((d) => typeof d.errorPercentage === 'number');
+    const averageErrorPercentage =
+      validErr.length > 0
+        ? parseFloat(
+            (validErr.reduce((sum, d) => sum + d.errorPercentage, 0) / validErr.length).toFixed(2)
+          )
+        : 0;
+    return {
+      totalElements,
+      elementsWithinTolerance,
+      averageRSD,
+      averageErrorPercentage,
+    };
+  };
+
+  // Set selected file if passed through navigation state
+  useEffect(() => {
+    if (location.state && location.state.fileId) {
+      setSelectedFileId(location.state.fileId);
+      setSelectedSolutionLabel(null);
+    }
+  }, [location.state]);
+
+
+
   // Set selected file if passed through navigation state
   useEffect(() => {
     if (location.state && location.state.fileId) {
@@ -128,11 +161,20 @@ const QCTable = () => {
 
   // Fetch QC data when file or solution label changes
   useEffect(() => {
-    if (selectedFileId) {
+    if (selectedFileId && selectedSolutionLabel) {
       fetchQCData();
       fetchSolutionLabels();
     }
   }, [selectedFileId, selectedSolutionLabel]);
+
+
+  // Fetch available solution labels when file changes
+  useEffect(() => {
+    if (selectedFileId) {
+      fetchSolutionLabels();
+    }
+  }, [selectedFileId]);
+
 
   // API Functions
   const fetchUploadedFiles = async () => {
@@ -144,7 +186,7 @@ const QCTable = () => {
       const response = await fetch('http://localhost:5000/uploaded-files', {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
       
@@ -217,8 +259,11 @@ const QCTable = () => {
       const result = await response.json();
       
       if (result.success) {
-        setQcData(result.tableData || []);
-        setSummary(result.summary || null);
+        const filtered = (result.tableData || []).filter(
+          (row) => !(row.element && /(cps|c\/s)/i.test(row.element))
+        );
+        setQcData(filtered);
+        setSummary(computeSummary(filtered));
         setFileInfo(result.fileInfo || null);
       } else {
         throw new Error(result.message || 'Failed to load QC data');
@@ -260,9 +305,13 @@ const QCTable = () => {
       
       const result = await response.json();
       if (result.success && result.solutionLabels) {
-        setAvailableSolutionLabels(result.solutionLabels.qcLabels || ['QC_MES_5 ppm']);
+        const qcLabels = result.solutionLabels.qcLabels || ['QC_MES_5 ppm'];
+        setAvailableSolutionLabels(qcLabels);
+        const defaultLabel = qcLabels.find((l) => l.toLowerCase().startsWith('qc')) || qcLabels[0];
+        setSelectedSolutionLabel(defaultLabel);
       } else {
         setAvailableSolutionLabels(['QC_MES_5 ppm']);
+        setSelectedSolutionLabel('QC_MES_5 ppm');
       }
     } catch (err) {
       console.error('Error fetching solution labels:', err);
@@ -276,6 +325,7 @@ const QCTable = () => {
     setSelectedFileId(fileId);
     setQcData([]); // Clear previous data
     setSummary(null);
+    setSelectedSolutionLabel(null);
     setError(null);
   };
 
@@ -313,13 +363,13 @@ const QCTable = () => {
       return {
         icon: <CheckCircleIcon />,
         label: 'Pass',
-        color: 'success'
+        color: 'success',
       };
     } else {
       return {
         icon: <ErrorIcon />,
         label: 'Fail',
-        color: 'error'
+        color: 'error',
       };
     }
   };
@@ -331,7 +381,7 @@ const QCTable = () => {
     return [...qcData].sort((a, b) => {
       const aValue = a[sortConfig.key];
       const bValue = b[sortConfig.key];
-      
+
       if (aValue < bValue) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
@@ -346,14 +396,14 @@ const QCTable = () => {
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
       {/* Sidebar Navigation */}
       <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
-      
+
       <div style={{ flexGrow: 1, padding: '24px' }}>
         {/* Header with controls */}
         <Box sx={{ mb: 3 }}>
           <Typography variant="h4" sx={{ mb: 2, fontWeight: 600 }}>
             QC Tables
           </Typography>
-          
+
           <Grid container spacing={2} alignItems="center">
             {/* File Selection */}
             <Grid item xs={12} md={4}>
@@ -372,10 +422,9 @@ const QCTable = () => {
                           {file.filename || file.original_name || file.name}
                         </Typography>
                         <Typography variant="caption" color="textSecondary">
-                          {file.uploaded_at || file.created_at ? 
-                            new Date(file.uploaded_at || file.created_at).toLocaleDateString() : 
-                            'Unknown date'
-                          }
+                          {file.uploaded_at || file.created_at
+                            ? new Date(file.uploaded_at || file.created_at).toLocaleDateString()
+                            : 'Unknown date'}
                         </Typography>
                       </Box>
                     </MenuItem>
@@ -421,7 +470,7 @@ const QCTable = () => {
                 >
                   Table
                 </Button>
-                
+
                 <Button
                   variant={viewMode === 'graph' ? 'contained' : 'outlined'}
                   startIcon={<BarChartIcon />}
@@ -507,8 +556,8 @@ const QCTable = () => {
                   <Typography variant="subtitle1" color="textSecondary">
                     Within Tolerance
                   </Typography>
-                  <LinearProgress 
-                    variant="determinate" 
+                  <LinearProgress
+                    variant="determinate"
                     value={(summary.elementsWithinTolerance / summary.totalElements) * 100}
                     sx={{ mt: 1 }}
                   />
@@ -546,10 +595,8 @@ const QCTable = () => {
         {!loading && qcData.length > 0 && (
           <Card>
             <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-              <Typography variant="h6">
-                Quality Control Analysis
-              </Typography>
-              <Chip 
+              <Typography variant="h6">Quality Control Analysis</Typography>
+              <Chip
                 label={`Solution: ${selectedSolutionLabel}`}
                 variant="outlined"
                 size="small"
@@ -557,9 +604,16 @@ const QCTable = () => {
               />
             </Box>
 
-            <TableContainer>
-              <Table stickyHeader>
-                <TableHead>
+            <TableContainer sx={{ maxHeight: 500 }}>
+              <TableContainer sx={{ maxHeight: 500}}>
+                <TableHead
+                  sx={{
+                    position: 'sticky',
+                    top: 0,
+                    backgroundColor: 'background.paper',
+                    zIndex: 1,
+                  }}
+                >
                   <TableRow>
                     <TableCell>
                       <TableSortLabel
@@ -592,7 +646,9 @@ const QCTable = () => {
                     <TableCell>
                       <TableSortLabel
                         active={sortConfig.key === 'errorPercentage'}
-                        direction={sortConfig.key === 'errorPercentage' ? sortConfig.direction : 'asc'}
+                        direction={
+                          sortConfig.key === 'errorPercentage' ? sortConfig.direction : 'asc'
+                        }
                         onClick={() => handleSort('errorPercentage')}
                       >
                         Error%
@@ -606,7 +662,7 @@ const QCTable = () => {
                   {sortedData.map((row, index) => {
                     const statusInfo = getStatusInfo(row.isWithinTolerance, row.errorPercentage);
                     const isExpanded = expandedRows.has(row.element);
-                    
+
                     return (
                       <React.Fragment key={row.element || index}>
                         <TableRow hover>
@@ -624,27 +680,27 @@ const QCTable = () => {
                             </Box>
                           </TableCell>
                           <TableCell>
-                            <Chip 
-                              label={row.units} 
-                              size="small" 
-                              variant="outlined"
-                            />
+                            <Chip label={row.units} size="small" variant="outlined" />
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2">
-                              {row.valueAvg}
-                            </Typography>
+                            <Typography variant="body2">{row.valueAvg}</Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography 
+                            <Typography
                               variant="body2"
-                              color={row.rsd > 10 ? 'error' : row.rsd > 5 ? 'warning.main' : 'success.main'}
+                              color={
+                                row.rsd > 10
+                                  ? 'error'
+                                  : row.rsd > 5
+                                    ? 'warning.main'
+                                    : 'success.main'
+                              }
                             >
                               {row.rsd}%
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography 
+                            <Typography
                               variant="body2"
                               color={statusInfo.color === 'error' ? 'error' : 'success.main'}
                             >
@@ -668,7 +724,7 @@ const QCTable = () => {
                             />
                           </TableCell>
                         </TableRow>
-                        
+
                         {/* Expanded Row Content */}
                         <TableRow>
                           <TableCell colSpan={7} sx={{ py: 0 }}>
@@ -688,7 +744,8 @@ const QCTable = () => {
                                           <strong>Sample Count:</strong> {row.sampleCount}
                                         </Typography>
                                         <Typography variant="body2">
-                                          <strong>Standard Deviation:</strong> {row.standardDeviation}
+                                          <strong>Standard Deviation:</strong>{' '}
+                                          {row.standardDeviation}
                                         </Typography>
                                         <Typography variant="body2">
                                           <strong>Min Value:</strong> {row.minValue}
@@ -712,11 +769,13 @@ const QCTable = () => {
                                           <strong>Error Tolerance:</strong> {row.errorTolerance}%
                                         </Typography>
                                         <Typography variant="body2">
-                                          <strong>Within Tolerance:</strong> {row.isWithinTolerance ? 'Yes' : 'No'}
+                                          <strong>Within Tolerance:</strong>{' '}
+                                          {row.isWithinTolerance ? 'Yes' : 'No'}
                                         </Typography>
                                         {row.correctedValueAvg && (
                                           <Typography variant="body2">
-                                            <strong>Corrected Average:</strong> {row.correctedValueAvg}
+                                            <strong>Corrected Average:</strong>{' '}
+                                            {row.correctedValueAvg}
                                           </Typography>
                                         )}
                                       </Stack>
@@ -731,7 +790,7 @@ const QCTable = () => {
                     );
                   })}
                 </TableBody>
-              </Table>
+              </TableContainer>
             </TableContainer>
           </Card>
         )}
