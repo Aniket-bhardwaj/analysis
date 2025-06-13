@@ -4,11 +4,11 @@ const db = require('../initialize_db');
 // ==========================
 // 1. Insert a New File
 // ==========================
-function insertFile(filename, filePath) {
-  const sql = `INSERT INTO uploaded_files (filename, path) VALUES (?, ?)`;
+function insertFile(filename, filePath, csvType) {
+  const sql = `INSERT INTO uploaded_files (filename, path, type) VALUES (?, ?, ?)`;
 
   return new Promise((resolve, reject) => {
-    db.run(sql, [filename, filePath], function (err) {
+    db.run(sql, [filename, filePath, csvType], function (err) {
       if (err) return reject(err);
 
       const selectSql = `SELECT * FROM uploaded_files WHERE id = ?`;

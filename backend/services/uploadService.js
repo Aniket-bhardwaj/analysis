@@ -74,7 +74,7 @@ async function insertAllData(originalName, savedFilePath, samples, qc, csvType) 
 
   // Step 1: Insert file info
   try {
-    const fileRow = await fileModel.insertFile(originalName, savedFilePath);
+    const fileRow = await fileModel.insertFile(originalName, savedFilePath, csvType);
     fileId = fileRow.id;
   } catch (err) {
     return { error: 'Failed to insert file metadata: ' + err.message, fileId: null };
