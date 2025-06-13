@@ -9,7 +9,7 @@ const listRoutes = require('./routes/list');
 const previewRoutes = require('./routes/preview');
 const hideRoutes = require('./routes/hide');
 const authRoutes = require('./routes/auth');
-const graphRoutes = require('./routes/graphRoutes');
+const graphRoutes = require('./routes/graph');
 const tableRoutes = require('./routes/tables'); 
 const downloadRouter = require('./routes/download');
 

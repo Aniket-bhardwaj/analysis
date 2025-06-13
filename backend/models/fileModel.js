@@ -98,7 +98,6 @@ function getFileById(fileId, callback) {
 // ==========================
 module.exports = {
   insertFile,
-  getAllFiles,
   getVisibleFiles,
   hideFileById,
   getFileByName,
