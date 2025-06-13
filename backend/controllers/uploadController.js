@@ -98,26 +98,4 @@ const uploadFile = async (req, res) => {
   });
 };
 
-
-//new method to get list of uploaded fileMore actions
-const getUploadedFiles = async (req, res) => {
-  try {
-    const files = await fileModel.getAllFiles();
-
-    res.status(200).json({
-      success: true,
-      data: files.map(file => ({
-        id: file.id,
-        filename: file.filename,
-        filepath: file.filepath,
-        uploaded_at: file.uploaded_at
-      })),
-      error: null
-    });
-  } catch (err) {
-    console.error('Error fetching uploaded files:', err);
-    res.status(500).json({ error: 'Failed to fetch uploaded files', message: err.message });
-  }
-};
-
-module.exports = { uploadFile,getUploadedFiles };
+module.exports = { uploadFile };

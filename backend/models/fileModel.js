@@ -20,23 +20,6 @@ function insertFile(filename, filePath, csvType) {
   });
 }
 
-// ==========================
-// #. Get All Files
-// ==========================
-function getAllFiles() {
-  const sql = `SELECT * FROM uploaded_files ORDER BY uploaded_at DESC`;
-  
-  return new Promise((resolve, reject) => {
-    db.all(sql, [], (err, rows) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(rows);
-      }
-    });
-  });
-}
-
 
 // ==========================
 // 2. Get All Visible Files
