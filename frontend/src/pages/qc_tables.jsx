@@ -101,6 +101,7 @@ const QCTable = () => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [filterSidebarOpen, setFilterSidebarOpen] = useState(false);
+  const location = useLocation();
   
   // New state for file selection and data
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -112,6 +113,13 @@ const QCTable = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fileInfo, setFileInfo] = useState(null);
+
+  // Set selected file if passed through navigation state
+  useEffect(() => {
+    if (location.state && location.state.fileId) {
+      setSelectedFileId(location.state.fileId);
+    }
+  }, [location.state]);
 
   // Fetch uploaded files on component mount
   useEffect(() => {

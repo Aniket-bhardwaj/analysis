@@ -214,7 +214,7 @@ const DataManagerPage = () => {
     
 
     // Function to render quality check status icon
-    const renderQualityStatus = (status, filename) => {
+    const renderQualityStatus = (status, filename, fileId) => {
         const statusConfig = {
             success: {
                 icon: <CheckCircle sx={{ color: '#4caf50', fontSize: 20 }} />,
@@ -237,7 +237,10 @@ const DataManagerPage = () => {
 
         return (
             <Tooltip title={config.tooltip} arrow>
-                <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <Box
+                    sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                    onClick={() => navigate('/qc-checks', { state: { fileId } })}
+                >
                     {config.icon}
                 </Box>
             </Tooltip>
@@ -354,7 +357,7 @@ const DataManagerPage = () => {
                                                 </Typography>
                                             </TableCell>
                                             <TableCell className="table-cell">
-                                                {renderQualityStatus(file.qualityStatus, file.name)}
+                                                {renderQualityStatus(file.qualityStatus, file.name, file.id)}
                                             </TableCell>
                                             <TableCell className="table-cell">
                                                 <Chip
