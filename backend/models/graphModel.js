@@ -1,169 +1,59 @@
-// models/graphModel.js
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const dbPath = path.join(__dirname, '../database.sqlite');
+const { MEconc, TEconc } = require('../colHeaders');
 
-class GraphModel {
-  static getGraphDataByFileId(fileId, solutionLabel = 'QC_MES_5 ppm') {
-    return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(dbPath);
-      
-      const query = `
-        SELECT * FROM data
-        WHERE "Solution Label" = ? AND file_id = ?
-        ORDER BY Timestamp ASC
-      `;
+const VALID_LABELS = {
+  1: 'QC MES 5 ppm',
+  2: 'QC MES 50 ppb',
+};
 
-      db.all(query, [solutionLabel, fileId], (err, rows) => {
-        db.close();
-        
-        if (err) {
-          console.error('Database error:', err);
-          return reject(err);
-        }
+const ELEMENT_TABLES = {
+  1: MEconc,
+  2: TEconc,
+};
 
-        if (rows.length === 0) {
-          return resolve({ originalData: [], correctedData: [], elements: [] });
-        }
+exports.fetchGraphData = (fileId) => {
+  return new Promise((resolve, reject) => {
+    const db = new sqlite3.Database(dbPath);
+    console.log('Fetching file with id:', fileId);
 
-        // Get all column names except metadata columns
-        const excludeColumns = ['Timestamp', 'Solution Label', 'file_id'];
-        const allColumns = Object.keys(rows[0]).filter(key => 
-          !excludeColumns.some(excluded => 
-            excluded.toLowerCase() === key.toLowerCase()
-          )
-        );
+    db.get('SELECT type FROM uploaded_files WHERE id = ?', [fileId], (err, fileRow) => {
+      if (err) return reject(err);
+      if (!fileRow) return reject(new Error('File not found'));
 
-        // Separate original and corrected columns
-        const originalColumns = allColumns.filter(col => !col.includes('_Corrected'));
-        const correctedColumns = allColumns.filter(col => col.includes('_Corrected'));
+      const fileType = fileRow.type;
+      const qcLabel = VALID_LABELS[fileType];
+      const elementNames = ELEMENT_TABLES[fileType];
 
-        // Create element pairs (original -> corrected mapping)
-        const elementPairs = originalColumns.map(originalCol => {
-          const correctedCol = correctedColumns.find(corrCol => 
-            corrCol === `${originalCol}_Corrected`
-          );
-          return {
-            element: originalCol,
-            originalColumn: originalCol,
-            correctedColumn: correctedCol
-          };
-        }).filter(pair => pair.correctedColumn); // Only include pairs that have both original and corrected
+      if (!qcLabel || !Array.isArray(elementNames) || elementNames.length === 0) {
+        return reject(new Error('Invalid file type or element list'));
+      }
 
-        // Transform data for original values
-        const originalGraphData = elementPairs.map(pair => ({
-          element: pair.element,
-          data: rows.map(row => ({
-            timestamp: row.Timestamp || row.timestamp,
-            value: parseFloat(row[pair.originalColumn]) || 0
-          })).filter(point => !isNaN(point.value))
-        }));
-
-        // Transform data for corrected values
-        const correctedGraphData = elementPairs.map(pair => ({
-          element: pair.element, // Use same element name for consistency
-          data: rows.map(row => ({
-            timestamp: row.Timestamp || row.timestamp,
-            value: parseFloat(row[pair.correctedColumn]) || 0
-          })).filter(point => !isNaN(point.value))
-        }));
-
-        resolve({ 
-          originalData: originalGraphData,
-          correctedData: correctedGraphData,
-          elements: elementPairs.map(pair => pair.element)
-        });
-      });
-    });
-  }
-
- static getGraphDataByDateRange(startDate, endDate, solutionLabel = 'QC_MES_5 ppm') {
-    return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(dbPath);
+      // Use different timestamp column based on file type
+      const timeColumn = fileType === 2 ? `"Acq. Date-Time"` : `"Timestamp"`;
 
       const query = `
-        SELECT * FROM data
-        WHERE "Solution Label" = ? AND date(Timestamp) BETWEEN ? AND ?
-        ORDER BY Timestamp ASC
+        SELECT ${timeColumn} AS timestamp, ${elementNames.map(el => `"${el}"`).join(', ')}
+        FROM qc_data
+        WHERE file_id = ? AND "Solution Label" = ?
+        ORDER BY ${timeColumn} ASC
       `;
 
-      db.all(query, [solutionLabel, startDate, endDate], (err, rows) => {
-        db.close();
-
-        if (err) {
-          console.error('Database error:', err);
-          return reject(err);
-        }
-
-        if (rows.length === 0) {
-          return resolve({ originalData: [], correctedData: [], elements: [] });
-        }
-
-        const excludeColumns = ['Timestamp', 'Solution Label', 'file_id'];
-        const allColumns = Object.keys(rows[0]).filter(key =>
-          !excludeColumns.some(excluded =>
-            excluded.toLowerCase() === key.toLowerCase()
-          )
-        );
-
-        const originalColumns = allColumns.filter(col => !col.includes('_Corrected'));
-        const correctedColumns = allColumns.filter(col => col.includes('_Corrected'));
-
-        const elementPairs = originalColumns.map(originalCol => {
-          const correctedCol = correctedColumns.find(corrCol =>
-            corrCol === `${originalCol}_Corrected`
-          );
-          return {
-            element: originalCol,
-            originalColumn: originalCol,
-            correctedColumn: correctedCol
-          };
-        }).filter(pair => pair.correctedColumn);
-
-        const originalGraphData = elementPairs.map(pair => ({
-          element: pair.element,
-          data: rows.map(row => ({
-            timestamp: row.Timestamp || row.timestamp,
-            value: parseFloat(row[pair.originalColumn]) || 0
-          })).filter(point => !isNaN(point.value))
-        }));
-
-        const correctedGraphData = elementPairs.map(pair => ({
-          element: pair.element,
-          data: rows.map(row => ({
-            timestamp: row.Timestamp || row.timestamp,
-            value: parseFloat(row[pair.correctedColumn]) || 0
-          })).filter(point => !isNaN(point.value))
-        }));
-
-        resolve({
-          originalData: originalGraphData,
-          correctedData: correctedGraphData,
-          elements: elementPairs.map(pair => pair.element)
-        });
-      });
-    });
-  }
-
-
-  static async getAllSolutionLabels(fileId) {
-    return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(dbPath);
-      
-      const query = `
-        SELECT DISTINCT "Solution Label" as label
-        FROM data
-        WHERE file_id = ?
-        ORDER BY "Solution Label"
-      `;
-
-      db.all(query, [fileId], (err, rows) => {
+      db.all(query, [fileId, qcLabel], (err, rows) => {
         db.close();
         if (err) return reject(err);
-        resolve(rows.map(row => row.label));
+
+        const graphData = elementNames.map(element => ({
+          element,
+          data: rows.map(row => ({
+            timestamp: row.timestamp,
+            value: parseFloat(row[element])
+          })).filter(point => !isNaN(point.value))
+        }));
+
+        resolve({ elements: elementNames, data: graphData });
       });
     });
-  }
-}
-
-module.exports = GraphModel;
+  });
+};
