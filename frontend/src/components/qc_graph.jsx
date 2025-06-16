@@ -60,7 +60,7 @@ const QCGraph = ({
       setError(null);
       try {
         const res = await fetch(
-          `http://localhost:5000/graph-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`
+          `${import.meta.env.VITE_API_URL}/graph-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`
         );
 
         if (!res.ok) {

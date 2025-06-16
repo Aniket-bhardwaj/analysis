@@ -38,7 +38,7 @@ const QCTable = ({ selectedFileId, selectedSolutionLabel }) => {
   useEffect(() => {
     const fetchQCData = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/table-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/table-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`);
         const result = await res.json();
         if (result.success) {
           setQcData(result.tableData || []);

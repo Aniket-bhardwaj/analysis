@@ -24,7 +24,7 @@ const QCChecks = () => {
   useEffect(() => {
     const fetchFiles = async () => {
         try {
-          const response = await fetch('http://localhost:5000/uploaded-files');
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`);
           const data = await response.json();
       
           setUploadedFiles(data);
@@ -43,7 +43,7 @@ const QCChecks = () => {
     const fetchLabels = async () => {
       if (!selectedFileId) return;
       try {
-        const res = await fetch(`http://localhost:5000/table-solution-labels?file_id=${selectedFileId}`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/table-solution-labels?file_id=${selectedFileId}`);
         const result = await res.json();
         if (result.success && result.solutionLabels) {
           setAvailableSolutionLabels(result.solutionLabels.qcLabels || []);
