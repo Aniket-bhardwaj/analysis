@@ -1,3 +1,5 @@
+console.log('✅ tables.js route file loaded');
+
 // routes/tableRoutes.js
 const express = require('express');
 const router = express.Router();
@@ -14,5 +16,8 @@ router.get('/table-solution-labels', TableController.getSolutionLabelsForTable);
 
 // Get detailed element statistics
 router.get('/element-details', TableController.getElementDetails);
+
+router.get('/element-mini-table', TableController.getMiniTableData);
+
 
 module.exports = router;
