@@ -18,7 +18,7 @@ import {
   Button,
   Stack,
   Alert,
-  CircularProgress
+  CircularProgress, Autocomplete, TextField
 } from '@mui/material';
 
 ChartJS.register(
@@ -62,11 +62,11 @@ const QCGraph = ({
         const res = await fetch(
           `http://localhost:5000/graph-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`
         );
-        
+
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
-        
+
         const result = await res.json();
         console.log("GRAPH RESULT:", result); // Add this line
 
@@ -85,7 +85,7 @@ const QCGraph = ({
 
         setRawData(transformedData);
         setElements(Object.keys(result.graphData));
-        
+
         // Auto-select first element if available
         if (Object.keys(result.graphData).length > 0) {
           setSelectedElement(Object.keys(result.graphData)[0]);
@@ -250,32 +250,27 @@ const QCGraph = ({
   return (
     <Card>
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <Typography variant="h5" gutterBottom>
           Quality Control Graph
         </Typography>
 
         {/* Element Selection Buttons */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Select Element:
-          </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            {elements.map((el) => (
-              <Button
-                key={el}
-                variant={selectedElement === el ? 'contained' : 'outlined'}
-                size="small"
-                onClick={() => handleElementClick(el)}
-                sx={{
-                  minWidth: 'auto',
-                  textTransform: 'none',
-                  fontWeight: selectedElement === el ? 600 : 400,
-                }}
-              >
-                {el}
-              </Button>
-            ))}
-          </Stack>
+        <Box sx={{ mb: 2, mt: -4, display: 'flex', justifyContent: 'flex-end' }}>
+          <Autocomplete
+            size="small"
+            options={elements}
+            value={selectedElement}
+            onChange={(event, newValue) => setSelectedElement(newValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Select Element"
+                variant="outlined"
+                sx={{ minWidth: 220 }}
+              />
+            )}
+            sx={{ width: 250 }}
+          />
         </Box>
 
         {/* Chart Container */}
@@ -283,10 +278,10 @@ const QCGraph = ({
           {selectedElement && chartData() ? (
             <Line data={chartData()} options={chartOptions} />
           ) : (
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
               height: '100%',
               backgroundColor: '#f5f5f5',
               borderRadius: 1
