@@ -60,7 +60,7 @@ const QCGraph = ({
       setError(null);
       try {
         const res = await fetch(
-          `http://localhost:5000/graph-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`
+          `${import.meta.env.VITE_API_URL}/graph-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`
         );
 
         if (!res.ok) {
@@ -107,20 +107,20 @@ const QCGraph = ({
 
   const chartData = () => {
     if (!selectedElement) return null;
-
+  
     const elementData = rawData.find((d) => d.element === selectedElement);
     if (!elementData) return null;
-
+  
     const timestamps = elementData.data.map((point) => point.timestamp);
     const values = elementData.data.map((point) => point.value);
-    const color = generateColors()[0];
-
+  
+    // Determine range
     const is50ppb = Math.abs(values[0] - 50) < 10;
     const is5ppm = Math.abs(values[0] - 5) < 2;
-
+  
     let target = null;
     let error = null;
-
+  
     if (is5ppm) {
       target = 5;
       error = 0.5;
@@ -128,24 +128,37 @@ const QCGraph = ({
       target = 50;
       error = 5;
     }
-
+  
+    const lowerLimit = target - error;
+    const upperLimit = target + error;
+  
+    const modernGreen = '#00c04b';
+    const modernRed = '#fb3b1e';
+    const modernBlue = '#575757';
+  
     const datasets = [
       {
         label: selectedElement,
         data: values,
         fill: false,
-        borderColor: color,
-        backgroundColor: color + '20',
+        borderColor: modernBlue,     // blue line
+        borderWidth: 1.5,              // thinner line
         tension: 0.2,
-        pointRadius: 3,
-        pointHoverRadius: 5,
+        pointRadius: 5,
+        pointHoverRadius: 5.5,
+        pointBackgroundColor: values.map(val =>
+          val < lowerLimit || val > upperLimit ? modernRed : modernGreen
+        ),
+        pointBorderColor: 'transparent', // no point border
+        pointBorderWidth: 0,             // disable outline
+        segment: {
+          borderColor: () => modernBlue, // neutral line color
+        },
       },
     ];
-
+  
+    // Dashed reference lines
     if (target && error) {
-      const errorMin = target - error;
-      const errorMax = target + error;
-
       const refLine = (value, label, color) => ({
         label,
         data: Array(timestamps.length).fill(value),
@@ -155,17 +168,18 @@ const QCGraph = ({
         pointRadius: 0,
         fill: false,
       });
-
+  
       datasets.push(refLine(target, `Target ${target}`, 'rgba(0,0,0,0.4)'));
-      datasets.push(refLine(errorMin, `-10%`, 'rgba(255,0,0,0.3)'));
-      datasets.push(refLine(errorMax, `+10%`, 'rgba(255,0,0,0.3)'));
+      datasets.push(refLine(lowerLimit, `-Range`, 'rgba(255, 0, 0, 0.42)'));
+      datasets.push(refLine(upperLimit, `+Range`, 'rgba(255, 0, 0, 0.42)'));
     }
-
+  
     return {
       labels: timestamps,
       datasets,
     };
   };
+  
 
   const getYAxisRange = () => {
     if (!selectedElement) return {};
@@ -255,7 +269,7 @@ const QCGraph = ({
         </Typography>
 
         {/* Element Selection Buttons */}
-        <Box sx={{ mb: 2, mt: -4, display: 'flex', justifyContent: 'flex-end' }}>
+        <Box sx={{ mb: 2, mt: -2, display: 'flex', justifyContent: 'flex-end' }}>
           <Autocomplete
             size="small"
             options={elements}
