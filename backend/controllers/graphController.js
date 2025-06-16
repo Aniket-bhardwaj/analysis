@@ -1,15 +1,17 @@
 const graphModel = require('../models/graphModel');
 
 exports.getGraphData = async (req, res) => {
-  const { id } = req.params;
-  console.log('Controller received fileId:', id);
+  const { file_id, solution_label } = req.query;
 
+  if (!file_id || !solution_label) {
+    return res.status(400).json({ success: false, message: 'Missing file_id or solution_label' });
+  }
 
   try {
-    const graphData = await graphModel.fetchGraphData(parseInt(id));
-    res.json(graphData);
-  } catch (err) {
-    console.error('Error fetching graph data:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    const result = await graphModel.fetchGraphData(file_id);
+    res.json(result);
+  } catch (error) {
+    console.error('Error in graphController:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
