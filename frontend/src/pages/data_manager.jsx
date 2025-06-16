@@ -105,7 +105,7 @@ const DataManagerPage = () => {
             });
 
             // Send the request
-            xhr.open('POST', '${import.meta.env.VITE_API_URL}/upload-csv');
+            xhr.open('POST', `${import.meta.env.VITE_API_URL}/upload-csv`);
             xhr.send(formData);
 
             const result = await uploadPromise;
@@ -132,7 +132,7 @@ const DataManagerPage = () => {
 
     const fetchUploadedFiles = async () => {
         try {
-            const res = await fetch('${import.meta.env.VITE_API_URL}/uploaded-files');
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`);
             const data = await res.json();
             // Add quality check status to each file
             const filesWithStatus = data.map(file => ({

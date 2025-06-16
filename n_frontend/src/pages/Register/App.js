@@ -7,7 +7,7 @@ function App() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    fetch('${import.meta.env.VITE_API_URL}/uploaded-files')
+    fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`)
       .then(res => res.json())
       .then(data => {
         const formatted = data.map(file => {
@@ -39,7 +39,7 @@ function App() {
     formData.append('file', selectedFile);
 
     try {
-      const response = await fetch('${import.meta.env.VITE_API_URL}/upload-csv', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/upload-csv`, {
         method: 'POST',
         body: formData,
       });

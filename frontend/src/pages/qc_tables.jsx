@@ -183,7 +183,7 @@ const QCTable = () => {
       setError(null);
       
       // Updated API endpoint to match your backend route
-      const response = await fetch('${import.meta.env.VITE_API_URL}/uploaded-files', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`, {
         method: 'GET',
         headers: {
           Accept: 'application/json',

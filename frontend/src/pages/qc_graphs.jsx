@@ -63,7 +63,7 @@ const QualityCheck = () => {
     const fetchUploadedFiles = async () => {
       try {
       
-        const response = await fetch('${import.meta.env.VITE_API_URL}/uploaded-files');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`);
         if(response.ok){
           const data = await response.json();
           if (data.success && data.files) {
