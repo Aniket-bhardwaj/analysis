@@ -5,8 +5,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import RegisterPage from './pages/login';
 import DashboardPage from './pages/homepage';
 import DataManagerPage from './pages/data_manager';
-import QualityCheck from './pages/qc_graphs';
-import QCTable from './pages/qc_tables';
+// import QualityCheck from './pages/qc_graphs';
+// import QCTable from './pages/qc_tables';
+import QCChecks from './pages/qc_checks';
 
 
 const AppRoutes = () => {
@@ -16,7 +17,7 @@ const AppRoutes = () => {
         <Route path="/" element={<RegisterPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/data-manager" element={<DataManagerPage />} />
-        <Route path= "/qc-checks" element={<QCTable />} />
+        <Route path= "/qc-checks" element={<QCChecks />} />
       </Routes>
     </Router>
   );
