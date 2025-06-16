@@ -30,7 +30,6 @@ exports.fetchGraphData = (fileId) => {
         return reject(new Error('Invalid file type or element list'));
       }
 
-      // Use different timestamp column based on file type
       const timeColumn = fileType === 2 ? `"Acq. Date-Time"` : `"Timestamp"`;
 
       const query = `
@@ -44,15 +43,21 @@ exports.fetchGraphData = (fileId) => {
         db.close();
         if (err) return reject(err);
 
-        const graphData = elementNames.map(element => ({
-          element,
-          data: rows.map(row => ({
-            timestamp: row.timestamp,
-            value: parseFloat(row[element])
-          })).filter(point => !isNaN(point.value))
-        }));
+        const graphData = {};
 
-        resolve({ elements: elementNames, data: graphData });
+        elementNames.forEach(element => {
+          graphData[element] = rows
+            .map(row => ({
+              sample: row.timestamp,
+              value: parseFloat(row[element])
+            }))
+            .filter(point => !isNaN(point.value));
+        });
+
+        resolve({
+          success: true,
+          graphData
+        });
       });
     });
   });
