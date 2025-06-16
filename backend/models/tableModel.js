@@ -1,157 +1,81 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const dbPath = path.join(__dirname, '../database.sqlite');
+const {TEconc , MEconc} = require('../colHeaders');
 
 class TableModel {
-  /**
-   * Get QC table data for a specific file with element statistics
-   * @param {number} fileId - The uploaded file ID
-   * @param {string} solutionLabel - Solution label to filter by (default: 'QC_MES_5 ppm')
-   * @returns {Promise} Table data with element statistics
-   */
-  static async getQCTableData(fileId, solutionLabel = 'QC_MES_5 ppm') {
+  static async getMiniTableRaw(fileId, solutionLabel, element) {
+  return new Promise((resolve, reject) => {
+    const db = new sqlite3.Database(dbPath);
+
+    const cleanElement = element.replace(/"/g, '""'); // prevent SQL injection via column name
+    const query = `
+      SELECT "${cleanElement}" AS value, 
+             COALESCE("Timestamp", "Acq. Date-Time") AS timestamp
+      FROM qc_data
+      WHERE file_id = ? AND "Solution Label" = ?
+      ORDER BY timestamp ASC
+    `;
+
+    db.all(query, [fileId, solutionLabel], (err, rows) => {
+      db.close();
+      if (err) {
+        console.error('❌ getMiniTableRaw DB error:', err);
+        return reject(err);
+      }
+      console.log("✅ Raw mini table rows:", rows);
+
+      resolve(rows);
+    });
+  });
+}
+static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
     return new Promise((resolve, reject) => {
       const db = new sqlite3.Database(dbPath);
-      
+
+      // Sanitize and quote each column
+      const safeColumns = elementColumns
+        .map(col => `"${col.replace(/"/g, '""')}"`)
+        .join(', ');
+
       const query = `
-        SELECT qc.*, uf.filename, uf.uploaded_at
-        FROM qc_data qc
-        JOIN uploaded_files uf ON qc.file_id = uf.id
-        WHERE qc."Solution Label" = ? AND qc.file_id = ? AND uf.hidden = 0
-        ORDER BY qc.Timestamp ASC
+        SELECT ${safeColumns}
+        FROM qc_data
+        WHERE file_id = ? AND "Solution Label" = ?
       `;
 
-      db.all(query, [solutionLabel, fileId], (err, rows) => {
+      db.all(query, [fileId, solutionLabel], (err, rows) => {
         db.close();
-        
-        if (err) {
-          console.error('Database error:', err);
-          return reject(err);
-        }
-
-        if (rows.length === 0) {
-          return resolve({ 
-            tableData: [], 
-            elements: [], 
-            fileInfo: null,
-            message: 'No QC data found for this file and solution label'
-          });
-        }
-
-        const fileInfo = {
-          filename: rows[0].filename,
-          uploadedAt: rows[0].uploaded_at,
-          fileId: fileId
-        };
-
-        // Get all element columns (exclude metadata)
-        const excludeColumns = [
-          'id',
-          'Timestamp',
-          'Solution Label',
-          'file_id',
-          'filename',
-          'uploaded_at',
-          'Sample',
-          'Data File',
-          'Acq. Date-Time',
-          'Total Dil.',
-          'Vial Number'
-        ];
-        const allColumns = Object.keys(rows[0]).filter(key => 
-          !excludeColumns.some(excluded => 
-            excluded.toLowerCase() === key.toLowerCase()
-          )
-        );
-
-        // Separate original and corrected columns
-        const originalColumns = allColumns.filter(col => !col.includes('_Corrected'));
-        const correctedColumns = allColumns.filter(col => col.includes('_Corrected'));
-
-        // Calculate statistics for each element
-        const tableData = originalColumns.map(elementCol => {
-          const correctedCol = correctedColumns.find(col => 
-            col === `${elementCol}_Corrected`
-          );
-
-          // Extract values for calculations
-          const originalValues = rows
-            .map(row => parseFloat(row[elementCol]))
-            .filter(val => !isNaN(val) && val !== null);
-          
-          const correctedValues = correctedCol ? rows
-            .map(row => parseFloat(row[correctedCol]))
-            .filter(val => !isNaN(val) && val !== null) : [];
-
-          if (originalValues.length === 0) return null;
-
-          // Calculate statistics
-          const average = originalValues.reduce((sum, val) => sum + val, 0) / originalValues.length;
-          const correctedAverage = correctedValues.length > 0 
-            ? correctedValues.reduce((sum, val) => sum + val, 0) / correctedValues.length 
-            : null;
-
-          // Calculate standard deviation
-          const variance = originalValues.reduce((sum, val) => sum + Math.pow(val - average, 2), 0) / originalValues.length;
-          const stdDev = Math.sqrt(variance);
-          
-          // Calculate RSD (Relative Standard Deviation) as percentage
-          const rsd = average !== 0 ? (stdDev / average) * 100 : 0;
-
-          // Determine error factor based on the solution label
-          const errorFactor = this.getErrorFactorForLabel(solutionLabel);
-
-          // Calculate error percentage only if a valid factor exists
-          const errorPercentage =
-            errorFactor !== null && originalValues.length > 0
-              ?
-                originalValues.reduce(
-                    (sum, val) =>
-                      sum + (Math.abs(val - errorFactor) / errorFactor) * 100,
-                    0
-                  ) / originalValues.length
-              : null;
-
-          // Determine units
-          let units = this.determineUnits(elementCol);
-
-          // Determine acceptable error tolerance
-          const errorTolerance = this.getErrorTolerance(elementCol);
-
-          // Calculate min/max values
-          const minValue = Math.min(...originalValues);
-          const maxValue = Math.max(...originalValues);
-
-          return {
-            element: elementCol.replace(/[_-].*$/, ''), // Clean element name
-            fullColumnName: elementCol,
-            units: units,
-            valueAvg: parseFloat(average.toFixed(3)),
-            correctedValueAvg: correctedAverage ? parseFloat(correctedAverage.toFixed(3)) : null,
-            standardDeviation: parseFloat(stdDev.toFixed(3)),
-            rsd: parseFloat(rsd.toFixed(2)), // RSD as percentage
-            errorPercentage: errorPercentage !== null ? parseFloat(errorPercentage.toFixed(2)) : null,
-            errorFactor: errorFactor,
-            errorTolerance: errorTolerance,
-            sampleCount: originalValues.length,
-            minValue: parseFloat(minValue.toFixed(3)),
-            maxValue: parseFloat(maxValue.toFixed(3)),
-            isWithinTolerance: errorPercentage !== null ? errorPercentage <= errorTolerance : null,
-            distributionData: this.calculateDistribution(originalValues),
-            qualityStatus: this.determineQualityStatus(rsd, errorPercentage, errorTolerance)
-          };
-        }).filter(item => item !== null);
-
-        resolve({ 
-          tableData: tableData,
-          elements: originalColumns,
-          solutionLabel: solutionLabel,
-          totalSamples: rows.length,
-          fileInfo: fileInfo
-        });
+        if (err) return reject(err);
+        resolve(rows);
       });
     });
   }
+
+  
+    static getRawQCTableRows(fileId, solutionLabel, elementColumns) {
+    return new Promise((resolve, reject) => {
+    const db = new sqlite3.Database(dbPath);
+
+    const safeColumns = elementColumns
+      .map(col => `"${col.replace(/"/g, '""')}"`)
+      .join(', ');
+
+    const query = `
+      SELECT ${safeColumns}
+      FROM qc_data
+      WHERE "Solution Label" = ? AND file_id = ?
+    `;
+
+    db.all(query, [solutionLabel, fileId], (err, rows) => {
+      db.close();
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+}
+
+
 
   /**
    * Get sample data statistics for a specific file (works with your existing data model)

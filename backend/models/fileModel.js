@@ -94,6 +94,19 @@ function getFileById(fileId, callback) {
 }
 
 // ==========================
+// 7. Get type of file by ID
+// ==========================
+function getTypeById(fileId) {
+  return new Promise((resolve, reject) => {
+    db.get("SELECT type FROM uploaded_files WHERE id = ?", [fileId], (err, row) => {
+      if (err) return reject(err);
+      resolve(row?.type ?? null);
+    });
+  });
+}
+
+
+// ==========================
 // Exports
 // ==========================
 module.exports = {
@@ -102,5 +115,6 @@ module.exports = {
   hideFileById,
   getFileByName,
   fileExists,
-  getFileById
+  getFileById,
+  getTypeById
 };
