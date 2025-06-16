@@ -183,7 +183,7 @@ const QCTable = () => {
       setError(null);
       
       // Updated API endpoint to match your backend route
-      const response = await fetch('http://localhost:5000/uploaded-files', {
+      const response = await fetch('${import.meta.env.VITE_API_URL}/uploaded-files', {
         method: 'GET',
         headers: {
           Accept: 'application/json',
@@ -238,7 +238,7 @@ const QCTable = () => {
       setError(null);
       
       const response = await fetch(
-        `http://localhost:5000/table-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`,
+        `${import.meta.env.VITE_API_URL}/table-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`,
         {
           method: 'GET',
           headers: {
@@ -283,7 +283,7 @@ const QCTable = () => {
     
     try {
       const response = await fetch(
-        `http://localhost:5000/table-solution-labels?file_id=${selectedFileId}`,
+        `${import.meta.env.VITE_API_URL}/table-solution-labels?file_id=${selectedFileId}`,
         {
           method: 'GET',
           headers: {

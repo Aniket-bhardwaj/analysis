@@ -63,7 +63,7 @@ const QualityCheck = () => {
     const fetchUploadedFiles = async () => {
       try {
       
-        const response = await fetch('http://localhost:5000/uploaded-files');
+        const response = await fetch('${import.meta.env.VITE_API_URL}/uploaded-files');
         if(response.ok){
           const data = await response.json();
           if (data.success && data.files) {
@@ -94,7 +94,7 @@ const QualityCheck = () => {
       if (!fileId) return;
       
       try {
-        const response = await fetch(`http://localhost:5000/solution-labels?file_id=${fileId}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/solution-labels?file_id=${fileId}`);
         if (response.ok) {
           const data = await response.json();
           setSolutionLabels(data.solutionLabels || []);
@@ -117,7 +117,7 @@ const QualityCheck = () => {
       try {
         // Get solution labels from the first file as a reference
         // In a real application, you might want to get all unique solution labels across all files
-        const response = await fetch(`http://localhost:5000/solution-labels?file_id=${availableFiles[0].id}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/solution-labels?file_id=${availableFiles[0].id}`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.solutionLabels) {
@@ -153,9 +153,9 @@ const QualityCheck = () => {
 
       let url;
       if(selectionMode === 'file'){
-        url = `http://localhost:5000/graph-data?file_id=${fileId}&solution_label=${encodeURIComponent(solutionLabel)}`;
+        url = `${import.meta.env.VITE_API_URL}/graph-data?file_id=${fileId}&solution_label=${encodeURIComponent(solutionLabel)}`;
       } else {
-       url = `http://localhost:5000/graph-data-by-date?start_date=${startDate}&end_date=${endDate}&solution_label=${encodeURIComponent(solutionLabel)}`;
+       url = `${import.meta.env.VITE_API_URL}/graph-data-by-date?start_date=${startDate}&end_date=${endDate}&solution_label=${encodeURIComponent(solutionLabel)}`;
       }
       console.log('Fetching data from:', url);
       const response = await fetch(url);
