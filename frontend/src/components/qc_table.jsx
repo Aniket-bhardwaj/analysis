@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import {
-  Box, Card, CardContent, Chip, Collapse, IconButton, Paper, Stack,
+  Box, Card, Chip, Collapse, IconButton,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  TableSortLabel, Tooltip, Typography
+  TableSortLabel, Typography
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -47,6 +47,7 @@ const QCTable = ({ selectedFileId, selectedSolutionLabel }) => {
   const [sortConfig, setSortConfig] = useState({ key: '', direction: 'asc' });
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [miniTables, setMiniTables] = useState({});
+  const [miniSortConfig, setMiniSortConfig] = useState({});
 
   useEffect(() => {
     if (selectedFileId && selectedSolutionLabel) fetchQCData();
@@ -105,6 +106,20 @@ const QCTable = ({ selectedFileId, selectedSolutionLabel }) => {
     });
   }, [qcData, sortConfig]);
 
+  const sortMiniTable = (element, key) => {
+    const current = miniSortConfig[element] || { key: '', direction: 'asc' };
+    const direction = current.key === key && current.direction === 'asc' ? 'desc' : 'asc';
+    const sorted = [...(miniTables[element] || [])].sort((a, b) => {
+      const aVal = a[key];
+      const bVal = b[key];
+      if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    setMiniTables(prev => ({ ...prev, [element]: sorted }));
+    setMiniSortConfig(prev => ({ ...prev, [element]: { key, direction } }));
+  };
+
   return (
     <Card>
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
@@ -126,17 +141,29 @@ const QCTable = ({ selectedFileId, selectedSolutionLabel }) => {
                 </TableSortLabel>
               </TableCell>
               <TableCell>
-                <TableSortLabel active={sortConfig.key === 'valueAvg'} direction={sortConfig.key === 'valueAvg' ? sortConfig.direction : 'asc'} onClick={() => handleSort('valueAvg')}>
+                <TableSortLabel
+                  active={sortConfig.key === 'valueAvg'}
+                  direction={sortConfig.key === 'valueAvg' ? sortConfig.direction : 'asc'}
+                  onClick={() => handleSort('valueAvg')}
+                >
                   Value (avg)
                 </TableSortLabel>
               </TableCell>
               <TableCell>
-                <TableSortLabel active={sortConfig.key === 'rsd'} direction={sortConfig.key === 'rsd' ? sortConfig.direction : 'asc'} onClick={() => handleSort('rsd')}>
+                <TableSortLabel
+                  active={sortConfig.key === 'rsd'}
+                  direction={sortConfig.key === 'rsd' ? sortConfig.direction : 'asc'}
+                  onClick={() => handleSort('rsd')}
+                >
                   RSD%
                 </TableSortLabel>
               </TableCell>
               <TableCell>
-                <TableSortLabel active={sortConfig.key === 'errorPercentage'} direction={sortConfig.key === 'errorPercentage' ? sortConfig.direction : 'asc'} onClick={() => handleSort('errorPercentage')}>
+                <TableSortLabel
+                  active={sortConfig.key === 'errorPercentage'}
+                  direction={sortConfig.key === 'errorPercentage' ? sortConfig.direction : 'asc'}
+                  onClick={() => handleSort('errorPercentage')}
+                >
                   Error%
                 </TableSortLabel>
               </TableCell>
@@ -188,12 +215,36 @@ const QCTable = ({ selectedFileId, selectedSolutionLabel }) => {
                             Measurements for <strong>{row.element}</strong>
                           </Typography>
 
-                          <Table size="small">
+                          <Table size="small" stickyHeader>
                             <TableHead>
                               <TableRow>
-                                <TableCell>Timestamp</TableCell>
-                                <TableCell>Value</TableCell>
-                                <TableCell>Error%</TableCell>
+                                <TableCell>
+                                  <TableSortLabel
+                                    active={miniSortConfig[row.element]?.key === 'timestamp'}
+                                    direction={miniSortConfig[row.element]?.direction || 'asc'}
+                                    onClick={() => sortMiniTable(row.element, 'timestamp')}
+                                  >
+                                    Timestamp
+                                  </TableSortLabel>
+                                </TableCell>
+                                <TableCell>
+                                  <TableSortLabel
+                                    active={miniSortConfig[row.element]?.key === 'value'}
+                                    direction={miniSortConfig[row.element]?.direction || 'asc'}
+                                    onClick={() => sortMiniTable(row.element, 'value')}
+                                  >
+                                    Value
+                                  </TableSortLabel>
+                                </TableCell>
+                                <TableCell>
+                                  <TableSortLabel
+                                    active={miniSortConfig[row.element]?.key === 'errorPercentage'}
+                                    direction={miniSortConfig[row.element]?.direction || 'asc'}
+                                    onClick={() => sortMiniTable(row.element, 'errorPercentage')}
+                                  >
+                                    Error%
+                                  </TableSortLabel>
+                                </TableCell>
                                 <TableCell>Status</TableCell>
                               </TableRow>
                             </TableHead>
