@@ -28,7 +28,8 @@ class QcCheckController {
 
   static async getSummary(req, res) {
     try {
-      const { file_id, solution_label } = req.query;
+      const { file_id } = req.query;
+      const solution_label =  await QcCheckService.getSolutionLabelsForFile(file_id);
 
       if (!file_id || !solution_label) {
         return res.status(400).json({ success: false, message: 'file_id and solution_label are required' });
