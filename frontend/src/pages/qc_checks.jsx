@@ -19,7 +19,6 @@ import {
   CircularProgress,
 } from '@mui/material';
 import {
-  Refresh as RefreshIcon,
   Folder as FolderIcon,
   TableChart as TableChartIcon,
   BarChart as BarChartIcon,
@@ -191,15 +190,7 @@ const QCChecks = () => {
                 size="small"
               >
                 Graph
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={fetchUploadedFiles}
-                startIcon={<RefreshIcon />}
-                size="small"
-              >
-                Refresh
-              </Button>
+              </Button>              
             </Stack>
           </Grid>
         </Grid>
