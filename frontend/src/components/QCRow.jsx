@@ -1,17 +1,37 @@
 import React from 'react';
 import {
-  Box, Chip, Collapse, IconButton, Table, TableBody, TableCell, TableHead, TableRow,
-  TableSortLabel, Typography
+  Box,
+  Chip,
+  Collapse,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  Typography,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   ExpandLess as ExpandLessIcon,
-  ExpandMore as ExpandMoreIcon
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import MiniChart from './MiniChart';
 
-const QCRow = ({ row, isExpanded, toggleRowExpansion, miniTables, miniSortConfig, sortMiniTable }) => {
+const QCRow = ({
+
+  row,
+  isExpanded,
+  toggleRowExpansion,
+  miniTables,
+  miniSortConfig,
+  sortMiniTable,
+}) => {
+
+  console.log("QCRow - row:", row);
+
   const statusInfo = row.isWithinTolerance
     ? { icon: <CheckCircleIcon />, label: 'Pass', color: 'success' }
     : { icon: <ErrorIcon />, label: 'Fail', color: 'error' };
@@ -30,15 +50,23 @@ const QCRow = ({ row, isExpanded, toggleRowExpansion, miniTables, miniSortConfig
             <IconButton size="small" onClick={() => toggleRowExpansion(row.element)}>
               {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </IconButton>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{row.element}</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              {row.element}
+            </Typography>
           </Box>
         </TableCell>
         <TableCell>{row.valueAvg}</TableCell>
         <TableCell>
-          <Typography color={row.rsd > 10 ? 'error' : row.rsd > 5 ? 'warning.main' : 'success.main'}>{row.rsd}%</Typography>
+          <Typography
+            color={row.rsd > 10 ? 'error' : row.rsd > 5 ? 'warning.main' : 'success.main'}
+          >
+            {row.rsd}%
+          </Typography>
         </TableCell>
         <TableCell>
-          <Typography color={row.errorPercentage > 10 ? 'error' : 'success.main'}>{row.errorPercentage}%</Typography>
+          <Typography color={row.errorPercentage > 10 ? 'error' : 'success.main'}>
+            {row.errorPercentage}%
+          </Typography>
         </TableCell>
         <TableCell>
           {row.distributionData && row.distributionData.length > 0 ? (
@@ -48,21 +76,28 @@ const QCRow = ({ row, isExpanded, toggleRowExpansion, miniTables, miniSortConfig
           )}
         </TableCell>
         <TableCell>
-          <Chip icon={statusInfo.icon} label={statusInfo.label} color={statusInfo.color} size="small" variant="outlined" />
+          <Chip
+            icon={statusInfo.icon}
+            label={statusInfo.label}
+            color={statusInfo.color}
+            size="small"
+            variant="outlined"
+          />
         </TableCell>
       </TableRow>
 
       <TableRow>
         <TableCell colSpan={6} sx={{ py: 0 }}>
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-            <Box sx={{ px: 4, py: 2 }}>
+            <Box sx={{ px: 4, py: 2, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
               <Typography variant="subtitle1" sx={{ mb: 1 }}>
                 Measurements for <strong>{row.element}</strong>
               </Typography>
+
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell>
+                    <TableCell sx={{ backgroundColor: '#f0f0f0', fontWeight: 600 }}>
                       <TableSortLabel
                         active={miniSortConfig[row.element]?.key === 'timestamp'}
                         direction={miniSortConfig[row.element]?.direction || 'asc'}
@@ -71,7 +106,7 @@ const QCRow = ({ row, isExpanded, toggleRowExpansion, miniTables, miniSortConfig
                         Timestamp
                       </TableSortLabel>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ backgroundColor: '#f0f0f0', fontWeight: 600 }}>
                       <TableSortLabel
                         active={miniSortConfig[row.element]?.key === 'value'}
                         direction={miniSortConfig[row.element]?.direction || 'asc'}
@@ -80,7 +115,7 @@ const QCRow = ({ row, isExpanded, toggleRowExpansion, miniTables, miniSortConfig
                         Value
                       </TableSortLabel>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ backgroundColor: '#f0f0f0', fontWeight: 600 }}>
                       <TableSortLabel
                         active={miniSortConfig[row.element]?.key === 'errorPercentage'}
                         direction={miniSortConfig[row.element]?.direction || 'asc'}
@@ -89,20 +124,34 @@ const QCRow = ({ row, isExpanded, toggleRowExpansion, miniTables, miniSortConfig
                         Error%
                       </TableSortLabel>
                     </TableCell>
-                    <TableCell>Status</TableCell>
+                    <TableCell sx={{ backgroundColor: '#f0f0f0', fontWeight: 600 }}>
+                      Status
+                    </TableCell>
                   </TableRow>
                 </TableHead>
 
                 <TableBody>
                   {(miniTables[row.element] || []).map((entry, i) => {
-                    const { icon, label, color } = miniStatusIcon(entry.status);
+                    const miniStatus =
+                      entry.status === 'Pass'
+                        ? { icon: <CheckCircleIcon />, label: 'Pass', color: 'success' }
+                        : entry.status === 'Fail'
+                          ? { icon: <ErrorIcon />, label: 'Fail', color: 'error' }
+                          : { icon: null, label: 'N/A', color: 'default' };
+
                     return (
                       <TableRow key={i}>
                         <TableCell>{entry.timestamp}</TableCell>
                         <TableCell>{entry.value}</TableCell>
                         <TableCell>{entry.errorPercentage}</TableCell>
                         <TableCell>
-                          <Chip icon={icon} label={label} color={color} size="small" variant="outlined" />
+                          <Chip
+                            icon={miniStatus.icon}
+                            label={miniStatus.label}
+                            color={miniStatus.color}
+                            size="small"
+                            variant="outlined"
+                          />
                         </TableCell>
                       </TableRow>
                     );
