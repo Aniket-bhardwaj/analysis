@@ -9,6 +9,7 @@ class TableService {
 
     // Step 2: Decide which columns to use
     const elementColumns = csvType === 1 ? MEconc : TEconc;
+    
 
     // Step 3: Get rows for selected columns
     const rows = await TableModel.getRawQCTableRows(fileId, solutionLabel, elementColumns);
