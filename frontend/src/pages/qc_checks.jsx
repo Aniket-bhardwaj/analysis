@@ -1,12 +1,10 @@
-// This file is now renamed to qc_checks.jsx and includes only inputs + summary
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom'; // CHANGED
 import {
   Box,
   Button,
   Card,
   CardContent,
-  Chip,
   Grid,
   LinearProgress,
   Stack,
@@ -16,45 +14,61 @@ import {
   FormControl,
   InputLabel,
   Alert,
-  CircularProgress,
 } from '@mui/material';
 import {
   Folder as FolderIcon,
   TableChart as TableChartIcon,
   BarChart as BarChartIcon,
 } from '@mui/icons-material';
+
 import Navbar from '@/components/navbar';
-import QCTable from '../components/qc_table';
+import QCTable from '@/components/qc_table';
+import SJS_Table from '@/components/sjs_table';
 import QCGraph from '@/components/qc_graph';
 
 const QCChecks = () => {
-  const location = useLocation();
+  const { section } = useParams(); // CHANGED
   const [selectedItem, setSelectedItem] = useState('qc-tables');
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [selectedFileId, setSelectedFileId] = useState('');
-  const [selectedSolutionLabel, setSelectedSolutionLabel] = useState('QC_MES_5 ppm');
-  const [availableSolutionLabels, setAvailableSolutionLabels] = useState([]);
   const [summary, setSummary] = useState(null);
   const [viewMode, setViewMode] = useState('table');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const qcTableRef = useRef(null);
+  const sjsTableRef = useRef(null);
+
   useEffect(() => {
-    if (location.state?.fileId) setSelectedFileId(location.state.fileId);
-  }, [location.state]);
+    if (section && uploadedFiles.length > 0 && !selectedFileId) {
+      const defaultId = uploadedFiles[0].id || uploadedFiles[0].file_id;
+      setSelectedFileId(defaultId);
+    }
+  }, [section, uploadedFiles, selectedFileId]);
+  
+  useEffect(() => {
+    if (!selectedFileId || !section) return;
+  
+    const scrollTarget =
+      section === 'lab-standards' ? qcTableRef :
+      section === 'sjs-standards' ? sjsTableRef : null;
+  
+    if (scrollTarget?.current) {
+      setTimeout(() => {
+        scrollTarget.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100); // Small delay ensures DOM renders
+    }
+  }, [selectedFileId, section]);
+  
 
   useEffect(() => {
     fetchUploadedFiles();
   }, []);
 
-  useEffect(() => {
-    if (selectedFileId) fetchSolutionLabels();
-  }, [selectedFileId]);
-
   const fetchUploadedFiles = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`);
+      const response = await fetch(`http://localhost:5000/uploaded-files`);
       const data = await response.json();
       const files = data.files || data.data || Array.isArray(data) ? data : [];
       setUploadedFiles(files);
@@ -69,26 +83,8 @@ const QCChecks = () => {
     }
   };
 
-  const fetchSolutionLabels = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/solution-labels?file_id=${selectedFileId}`
-      );
-      const result = await response.json();
-      const labels = result.solutionLabels || [];
-      setAvailableSolutionLabels(labels);
-      const defaultLabel = labels.find((l) => l.toLowerCase().startsWith('qc')) || labels[0];
-      setSelectedSolutionLabel(defaultLabel);
-    } catch (err) {
-      console.error('Error fetching solution labels:', err);
-      setAvailableSolutionLabels([]);
-      setSelectedSolutionLabel('');
-    }
-  };
-
   const handleFileChange = (e) => {
     setSelectedFileId(e.target.value);
-    setSelectedSolutionLabel(null);
     setSummary(null);
     setError(null);
   };
@@ -96,17 +92,15 @@ const QCChecks = () => {
   const fetchSummaryData = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/summary?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`
+        `http://localhost:5000/summary?file_id=${selectedFileId}`
       );
       const result = await response.json();
-
       const summary = result.summary || {
         totalElements: 0,
         elementsWithinTolerance: 0,
         averageRSD: 0,
-        averageErrorPercentage: 0
+        averageErrorPercentage: 0,
       };
-
       setSummary(summary);
     } catch (err) {
       console.error('Error fetching summary:', err);
@@ -115,12 +109,8 @@ const QCChecks = () => {
   };
 
   useEffect(() => {
-    if (selectedFileId && selectedSolutionLabel) fetchSummaryData();
-  }, [selectedFileId, selectedSolutionLabel]);
-
-  const handleSolutionLabelChange = (e) => setSelectedSolutionLabel(e.target.value);
-
-  console.log('✅ Rendering QCTable with:', selectedFileId, selectedSolutionLabel);
+    if (selectedFileId) fetchSummaryData();
+  }, [selectedFileId]);
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
@@ -156,24 +146,7 @@ const QCChecks = () => {
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Solution Label</InputLabel>
-              <Select
-                value={selectedSolutionLabel || ''}
-                onChange={handleSolutionLabelChange}
-                label="Solution Label"
-              >
-                {availableSolutionLabels.map((label) => (
-                  <MenuItem key={label} value={label}>
-                    {label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          <Grid item xs={12} md={5}>
+          <Grid item xs={12} md={8}>
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button
                 variant={viewMode === 'table' ? 'contained' : 'outlined'}
@@ -190,7 +163,7 @@ const QCChecks = () => {
                 size="small"
               >
                 Graph
-              </Button>              
+              </Button>
             </Stack>
           </Grid>
         </Grid>
@@ -259,18 +232,19 @@ const QCChecks = () => {
           </Grid>
         )}
 
-        {selectedFileId && selectedSolutionLabel && viewMode === 'table' && (
-          <QCTable
-            selectedFileId={selectedFileId}
-            selectedSolutionLabel={selectedSolutionLabel}
-          />
+        {selectedFileId && viewMode === 'table' && (
+          <>
+            <div ref={qcTableRef}>
+              <QCTable selectedFileId={selectedFileId} />
+            </div>
+            <Box mt={4} ref={sjsTableRef}>
+              <SJS_Table selectedFileId={selectedFileId} />
+            </Box>
+          </>
         )}
 
-        {selectedFileId && selectedSolutionLabel && viewMode === 'graph' && (
-          <QCGraph
-            selectedFileId={selectedFileId}
-            selectedSolutionLabel={selectedSolutionLabel}
-          />
+        {selectedFileId && viewMode === 'graph' && (
+          <QCGraph selectedFileId={selectedFileId} />
         )}
 
         {!selectedFileId && !loading && (
