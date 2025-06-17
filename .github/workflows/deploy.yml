@@ -14,16 +14,12 @@ jobs:
               uses: actions/checkout@v3     #pulls latest code from GitHub
 
             - name: Set up SSH
-              uses: webfactory/ssh-agent@v0.7.0
-              with:
-                  ssh-private-key: ${secrets.-----BEGIN OPENSSH PRIVATE KEY-----
-                                        b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
-                                        QyNTUxOQAAACDfphmqFbZkPDXz6nARrpioxZF4qDLJIkcKG4SRMXJB1QAAAJhqcS2nanEt
-                                        pwAAAAtzc2gtZWQyNTUxOQAAACDfphmqFbZkPDXz6nARrpioxZF4qDLJIkcKG4SRMXJB1Q
-                                        AAAEBAPiSGG5+n60JFbQsk16hgwSdx+XP2psLTNborevGCPd+mGaoVtmQ8NfPqcBGumKjF
-                                        kXioMskiRwobhJExckHVAAAADmdpdGh1Yi1hY3Rpb25zAQIDBAUGBw==
-                                        -----END OPENSSH PRIVATE KEY----- }}  #SSH key to access the V
-            
+              run: |
+                    mkdir -p ~/.ssh
+                    echo "${{ secrets.ACTIONS_SECRET_KEY }}" > ~/.ssh/id_rsa
+                    chmod 600 ~/.ssh/id_rsa
+                    ssh-keyscan -H 172.27.26.225 >> ~/.ssh/known_hosts
+                
             - name: Deploy Backedn and Frontend
               run: |
                     ssh -o StrictHostKeyChecking=no ubuntu@172.27.26.225 << 'EOF'
@@ -36,4 +32,4 @@ jobs:
                     npm install &&
                     pm2 start "npm start" --name frontend || pm2 restart frontend
                     EOF
-                    
+
