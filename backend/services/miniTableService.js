@@ -13,7 +13,8 @@ const miniTableService = {
 
       if (!rows || rows.length === 0) return [];
 
-      const errorFactor = tableUtils.getErrorFactorForLabel(solutionLabel); // this can stay for now
+      const match = solutionLabel.match(/[\d.]+/);
+      const errorFactor = match ? parseFloat(match[0]) : 1;
       const errorTolerance = 10.0;
 
       const miniTableData = rows
