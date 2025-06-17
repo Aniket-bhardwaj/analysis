@@ -1,10 +1,10 @@
 const graphModel = require('../models/graphModel');
 
 exports.getGraphData = async (req, res) => {
-  const { file_id, solution_label } = req.query;
+  const { file_id } = req.query;
 
-  if (!file_id || !solution_label) {
-    return res.status(400).json({ success: false, message: 'Missing file_id or solution_label' });
+  if (!file_id) {
+    return res.status(400).json({ success: false, message: 'Missing file_id' });
   }
 
   try {
