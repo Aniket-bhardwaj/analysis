@@ -1,6 +1,5 @@
 const TableModel = require("../models/tableModel");
 const fileModel = require("../models/fileModel");
-const tableUtils = require("../utils/tableUtils"); // optional helper split if needed
 
 const miniTableService = {
   async getMiniTableForElement(fileId, solutionLabel, element) {
