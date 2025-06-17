@@ -110,7 +110,6 @@ const DataManagerPage = () => {
 
             const result = await uploadPromise;
 
-            alert('File uploaded successfully');
             fetchUploadedFiles();
 
         } catch (err) {
@@ -194,12 +193,12 @@ const DataManagerPage = () => {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/download-file/${fileId}`, {
                 method: 'GET',
             });
-    
+
             if (!response.ok) throw new Error('Download failed');
-    
+
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
-    
+
             const a = document.createElement('a');
             a.href = url;
             a.download = `file_${fileId}.csv`;
@@ -211,7 +210,7 @@ const DataManagerPage = () => {
             console.error('Error downloading file:', error);
         }
     };
-    
+
 
     // Function to render quality check status icon
     const renderQualityStatus = (status, filename, fileId) => {
@@ -394,7 +393,14 @@ const DataManagerPage = () => {
                                                     </IconButton>
 
                                                     <IconButton
-                                                        onClick={() => handleDelete(file.id)}
+                                                        onClick={() => {
+                                                            const confirmDelete = window.confirm(
+                                                                'Are you sure you want to delete this file?'
+                                                            );
+                                                            if (confirmDelete) {
+                                                                handleDelete(file.id);
+                                                            }
+                                                        }}
                                                         className="delete-button"
                                                         size="small"
                                                     >
