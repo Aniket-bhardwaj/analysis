@@ -1,0 +1,39 @@
+name: Deploy to VM
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3     #pulls latest code from GitHub
+
+            - name: Set up SSH
+              uses: webfactory/ssh-agent@v0.7.0
+              with:
+                  ssh-private-key: ${secrets.-----BEGIN OPENSSH PRIVATE KEY-----
+                                        b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+                                        QyNTUxOQAAACDfphmqFbZkPDXz6nARrpioxZF4qDLJIkcKG4SRMXJB1QAAAJhqcS2nanEt
+                                        pwAAAAtzc2gtZWQyNTUxOQAAACDfphmqFbZkPDXz6nARrpioxZF4qDLJIkcKG4SRMXJB1Q
+                                        AAAEBAPiSGG5+n60JFbQsk16hgwSdx+XP2psLTNborevGCPd+mGaoVtmQ8NfPqcBGumKjF
+                                        kXioMskiRwobhJExckHVAAAADmdpdGh1Yi1hY3Rpb25zAQIDBAUGBw==
+                                        -----END OPENSSH PRIVATE KEY----- }}  #SSH key to access the V
+            
+            - name: Deploy Backedn and Frontend
+              run: |
+                    ssh -o StrictHostKeyChecking=no ubuntu@172.27.26.225 << 'EOF'
+                    cd /home/ubuntu/carbon-data-analysis &&
+                    git pull &&
+                    cd backend &&
+                    npm install &&
+                    pm2 start app.js --name backend || pm2 restart backend &&
+                    cd ../frontend &&
+                    npm install &&
+                    pm2 start "npm start" --name frontend || pm2 restart frontend
+                    EOF
+                    
