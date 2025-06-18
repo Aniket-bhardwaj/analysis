@@ -1,147 +1,169 @@
-const db = require('../config/database'); // Assuming you have a database config
+const db = require('../initialize_db');// Assuming you have a database config
 
-const dashboardModel = {
-  /**
-   * Get total count of uploaded files
-   */
-  async getTotalFilesCount() {
-    try {
-      const query = `SELECT COUNT(*) as count FROM files`;
-      const result = await db.query(query);
-      return result[0]?.count || 0;
-    } catch (err) {
-      console.error('Error getting total files count:', err);
-      throw err;
-    }
-  },
+// ==========================
+// 1. Total Uploaded Files Count
+// ==========================
+function getTotalFilesCount() {
+  const sql = `SELECT COUNT(*) AS count FROM uploaded_files WHERE hidden = 0`;
+  return new Promise((resolve, reject) => {
+    db.get(sql, [], (err, row) => {
+      if (err) {
+        console.error('Error getting total files count:', err);
+        return reject(err);
+      }
+      resolve(row?.count || 0);
+    });
+  });
+}
 
-  /**
-   * Get total count of samples
-   */
-  async getTotalSamplesCount() {
-    try {
-      const query = `SELECT COUNT(*) as count FROM sample_data`;
-      const result = await db.query(query);
-      return result[0]?.count || 0;
-    } catch (err) {
-      console.error('Error getting total samples count:', err);
-      throw err;
-    }
-  },
+// ==========================
+// 2. Total Samples Count
+// ==========================
+function getTotalSamplesCount() {
+  const sql = `SELECT COUNT(*) AS count FROM sample_data`;
+  return new Promise((resolve, reject) => {
+    db.get(sql, [], (err, row) => {
+      if (err) {
+        console.error('Error getting total samples count:', err);
+        return reject(err);
+      }
+      resolve(row?.count || 0);
+    });
+  });
+}
 
-  /**
-   * Get files uploaded in the past week
-   */
-  async getFilesUploadedThisWeek() {
-    try {
-      const query = `
-        SELECT COUNT(*) as count 
-        FROM files 
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-      `;
-      const result = await db.query(query);
-      return result[0]?.count || 0;
-    } catch (err) {
-      console.error('Error getting files uploaded this week:', err);
-      throw err;
-    }
-  },
+// ==========================
+// 3. Files Uploaded in Past 7 Days
+// ==========================
+function getFilesUploadedThisWeek() {
+  const sql = `
+    SELECT COUNT(*) AS count
+    FROM uploaded_files
+    WHERE hidden = 0 AND DATE(uploaded_at) >= DATE('now', '-7 days')
+  `;
+  return new Promise((resolve, reject) => {
+    db.get(sql, [], (err, row) => {
+      if (err) {
+        console.error('Error getting files uploaded this week:', err);
+        return reject(err);
+      }
+      resolve(row?.count || 0);
+    });
+  });
+}
 
-  /**
-   * Get QC data for the past week for charting
-   */
-  async getQCDataPastWeek() {
-    try {
-      const query = `
-        SELECT 
-          DATE(qc_data.created_at) as date,
-          qc_data.file_id,
-          qc_data.\`Solution Label\` as solution_label,
-          files.type as file_type,
-          qc_data.created_at
-        FROM qc_data 
-        JOIN files ON qc_data.file_id = files.id
-        WHERE qc_data.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-          AND qc_data.\`Solution Label\` LIKE '%QC MES%'
-        ORDER BY qc_data.created_at ASC
-      `;
-      const result = await db.query(query);
-      return result || [];
-    } catch (err) {
-      console.error('Error getting QC data for past week:', err);
-      throw err;
-    }
-  },
+// ==========================
+// 4. QC Data for Past Week
+// ==========================
+function getQCDataPastWeek() {
+  const sql = `
+    SELECT 
+      DATE(qc_data.created_at) AS date,
+      qc_data.file_id,
+      qc_data."Solution Label" AS solution_label,
+      uploaded_files.type AS file_type,
+      qc_data.created_at
+    FROM qc_data
+    JOIN uploaded_files ON qc_data.file_id = uploaded_files.id
+    WHERE qc_data.created_at >= DATE('now', '-7 days')
+      AND qc_data."Solution Label" LIKE '%QC MES%'
+    ORDER BY qc_data.created_at ASC
+  `;
+  return new Promise((resolve, reject) => {
+    db.all(sql, [], (err, rows) => {
+      if (err) {
+        console.error('Error getting QC data for past week:', err);
+        return reject(err);
+      }
+      resolve(rows || []);
+    });
+  });
+}
 
-  /**
-   * Get QC pass/fail statistics for the past week
-   */
-  async getQCStatsForWeek() {
-    try {
-      const query = `
-        SELECT 
-          DATE(qc_data.created_at) as date,
-          COUNT(*) as total_qc_runs,
-          files.type as file_type
-        FROM qc_data 
-        JOIN files ON qc_data.file_id = files.id
-        WHERE qc_data.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-          AND qc_data.\`Solution Label\` LIKE '%QC MES%'
-        GROUP BY DATE(qc_data.created_at), files.type
-        ORDER BY date ASC
-      `;
-      const result = await db.query(query);
-      return result || [];
-    } catch (err) {
-      console.error('Error getting QC stats for week:', err);
-      throw err;
-    }
-  },
+// ==========================
+// 5. QC Stats for Past Week
+// ==========================
+function getQCStatsForWeek() {
+  const sql = `
+    SELECT 
+      DATE(qc_data.created_at) AS date,
+      COUNT(*) AS total_qc_runs,
+      uploaded_files.type AS file_type
+    FROM qc_data
+    JOIN uploaded_files ON qc_data.file_id = uploaded_files.id
+    WHERE qc_data.created_at >= DATE('now', '-7 days')
+      AND qc_data."Solution Label" LIKE '%QC MES%'
+    GROUP BY DATE(qc_data.created_at), uploaded_files.type
+    ORDER BY date ASC
+  `;
+  return new Promise((resolve, reject) => {
+    db.all(sql, [], (err, rows) => {
+      if (err) {
+        console.error('Error getting QC stats for week:', err);
+        return reject(err);
+      }
+      resolve(rows || []);
+    });
+  });
+}
 
-  /**
-   * Get recent file uploads with basic info
-   */
-  async getRecentFiles(limit = 5) {
-    try {
-      const query = `
-        SELECT 
-          id,
-          original_name,
-          type,
-          created_at
-        FROM files 
-        ORDER BY created_at DESC 
-        LIMIT ?
-      `;
-      const result = await db.query(query, [limit]);
-      return result || [];
-    } catch (err) {
-      console.error('Error getting recent files:', err);
-      throw err;
-    }
-  },
+// ==========================
+// 6. Recent Files (Limited)
+// ==========================
+function getRecentFiles(limit = 5) {
+  const sql = `
+    SELECT 
+      id,
+      filename AS original_name,
+      type,
+      uploaded_at AS created_at
+    FROM uploaded_files
+    WHERE hidden = 0
+    ORDER BY uploaded_at DESC
+    LIMIT ?
+  `;
+  return new Promise((resolve, reject) => {
+    db.all(sql, [limit], (err, rows) => {
+      if (err) {
+        console.error('Error getting recent files:', err);
+        return reject(err);
+      }
+      resolve(rows || []);
+    });
+  });
+}
 
-  /**
-   * Get dashboard summary statistics
-   */
-  async getDashboardSummary() {
-    try {
-      const [totalFiles, totalSamples, weeklyFiles] = await Promise.all([
-        this.getTotalFilesCount(),
-        this.getTotalSamplesCount(),
-        this.getFilesUploadedThisWeek()
-      ]);
+// ==========================
+// 7. Dashboard Summary
+// ==========================
+async function getDashboardSummary() {
+  try {
+    const [totalFiles, totalSamples, weeklyFiles] = await Promise.all([
+      getTotalFilesCount(),
+      getTotalSamplesCount(),
+      getFilesUploadedThisWeek()
+    ]);
 
-      return {
-        totalFiles,
-        totalSamples,
-        weeklyFiles
-      };
-    } catch (err) {
-      console.error('Error getting dashboard summary:', err);
-      throw err;
-    }
+    return {
+      totalFiles,
+      totalSamples,
+      weeklyFiles
+    };
+  } catch (err) {
+    console.error('Error getting dashboard summary:', err);
+    throw err;
   }
-};
+}
 
-module.exports = dashboardModel;
+// ==========================
+// Export
+// ==========================
+module.exports = {
+  getTotalFilesCount,
+  getTotalSamplesCount,
+  getFilesUploadedThisWeek,
+  getQCDataPastWeek,
+  getQCStatsForWeek,
+  getRecentFiles,
+  getDashboardSummary
+};

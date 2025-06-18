@@ -34,7 +34,7 @@ const downloadRoutes  = require('./routes/download');
 const qcCheckRoutes   = require('./routes/qcCheck');
 const dashboardRoutes = require('./routes/dashboard');
 
-// 🔗 Mount all app routes at `/` (except auth)
+//  Mount all app routes at `/` (except auth)
 app.use('/', uploadRoutes);
 app.use('/', listRoutes);
 app.use('/', previewRoutes);
