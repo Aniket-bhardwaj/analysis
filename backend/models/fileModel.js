@@ -39,11 +39,11 @@ function getVisibleFiles() {
 // ==========================
 // 3. Soft Delete (Hide) a File
 // ==========================
-function hideFileById(id) {
-  const sql = `UPDATE uploaded_files SET hidden = 1 WHERE id = ?`;
+function hideFileById(id, name) {
+  const sql = `UPDATE uploaded_files SET hidden = 1, filename = ? WHERE id = ?`;
 
   return new Promise((resolve, reject) => {
-    db.run(sql, [id], function (err) {
+    db.run(sql, [name, id], function (err) {
       if (err) reject(err);
       else resolve({ success: true });
     });
@@ -84,13 +84,18 @@ function fileExists(filename) {
 // ==========================
 // 6. Get file by ID
 // ==========================
-function getFileById(fileId, callback) {
+function getFileById(fileId) {
   const sql = `
     SELECT filename, path
     FROM uploaded_files
     WHERE id = ?
   `;
-  db.get(sql, [fileId], callback);
+  return new Promise((resolve, reject) => {
+    db.get(sql, [fileId], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
 }
 
 // ==========================
