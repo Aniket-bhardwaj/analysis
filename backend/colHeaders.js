@@ -122,6 +122,9 @@ const rest_dataHeaders = normalizeHeaders(O1n2).filter(
 const OTstdcleaned = normalizeHeaders(OTstd);
 const OMstdcleaned = normalizeHeaders(OMstd);
 
+const TsjsC = compHeaders(OTstdcleaned);
+const MsjsC = compHeaders(OMstdcleaned);
+ 
 
 // ==========================
 // Exports
@@ -140,5 +143,7 @@ module.exports = {
   nonConc2,
   rest_dataHeaders,
   OTstdcleaned,
-  OMstdcleaned
+  OMstdcleaned,
+  TsjsC,
+  MsjsC
 };
