@@ -15,9 +15,14 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.ACTIONS_SECRET_KEY }}" > ~/.ssh/github-actions
+          chmod 700 ~/.ssh
           chmod 600 ~/.ssh/github-actions
-          ssh-keyscan -H 172.27.26.225 >> ~/.ssh/known_hosts
+          ssh-keyscan -H 172.27.26.225 >> ~/.ssh/known_hosts || echo "Keyscan failed, proceeding without adding host key."
 
+      - name: Test Host Connectivity
+        run: |
+          ping -c 3 172.27.26.225 || echo "Unable to reach host, please check connectivity."
+          
       - name: Deploy to VM
         run: |
           ssh -i ~/.ssh/github-actions -o StrictHostKeyChecking=no ubuntu@172.27.26.225 << 'EOF'
