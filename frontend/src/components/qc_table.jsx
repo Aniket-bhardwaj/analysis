@@ -1,13 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
-  Box, Card, Chip, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, TableSortLabel, Typography
+  Box, Typography
 } from '@mui/material';
 import QCRow from './QCRow';
 
 const QCTable = ({ selectedFileId }) => {
   const [qcData, setQcData] = useState([]);
-  const [sortConfig, setSortConfig] = useState({ key: '', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [miniTables, setMiniTables] = useState({});
   const [miniSortConfig, setMiniSortConfig] = useState({});
@@ -28,8 +27,15 @@ const QCTable = ({ selectedFileId }) => {
   };
 
   const handleSort = (key) => {
-    const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
-    setSortConfig({ key, direction });
+    if (sortConfig.key !== key) {
+      setSortConfig({ key, direction: 'asc' });
+    } else if (sortConfig.direction === 'asc') {
+      setSortConfig({ key, direction: 'desc' });
+    } else if (sortConfig.direction === 'desc') {
+      setSortConfig({ key: '', direction: '' });
+    } else {
+      setSortConfig({ key, direction: 'asc' });
+    }
   };
 
   const fetchMiniTableData = async (element) => {
@@ -39,7 +45,7 @@ const QCTable = ({ selectedFileId }) => {
       const json = await res.json();
       setMiniTables(prev => ({ ...prev, [element]: json.miniTable || [] }));
     } catch (err) {
-      console.error("❌ [Frontend] Error fetching mini table:", err);
+      console.error("\u274C [Frontend] Error fetching mini table:", err);
     }
   };
 
@@ -69,7 +75,7 @@ const QCTable = ({ selectedFileId }) => {
   };
 
   const sortedData = useMemo(() => {
-    if (!sortConfig.key) return qcData;
+    if (!sortConfig.key || !sortConfig.direction) return qcData;
     return [...qcData].sort((a, b) => {
       const aVal = Number(a[sortConfig.key]);
       const bVal = Number(b[sortConfig.key]);
@@ -79,74 +85,113 @@ const QCTable = ({ selectedFileId }) => {
     });
   }, [qcData, sortConfig]);
 
+  const sortableKeys = ['element', 'valueAvg', 'rsd', 'errorPercentage'];
+
   return (
-    <Card>
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6">Quality Control Analysis</Typography>
-        <Chip label={`File ID: ${selectedFileId}`} variant="outlined" size="small" sx={{ mt: 1 }} />
+    <Box sx={{ px: 2, pt: 2 }}>
+      <Box
+        sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          backgroundColor: '#f5f5f5',
+          borderBottom: '1px solid #ddd',
+          py: 1
+        }}
+      >
+        <Typography variant="h6" sx={{ pl: 1 }}>
+          Quality Control Analysis
+        </Typography>
       </Box>
 
-      <TableContainer sx={{ maxHeight: 500 }}>
-        <Table stickyHeader>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ pl: 8 }}>
-                <TableSortLabel
-                  active={sortConfig.key === 'element'}
-                  direction={sortConfig.key === 'element' ? sortConfig.direction : 'asc'}
-                  onClick={() => handleSort('element')}
-                >
-                  Element
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel
-                  active={sortConfig.key === 'valueAvg'}
-                  direction={sortConfig.key === 'valueAvg' ? sortConfig.direction : 'asc'}
-                  onClick={() => handleSort('valueAvg')}
-                >
-                  Value (avg)
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel
-                  active={sortConfig.key === 'rsd'}
-                  direction={sortConfig.key === 'rsd' ? sortConfig.direction : 'asc'}
-                  onClick={() => handleSort('rsd')}
-                >
-                  RSD%
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel
-                  active={sortConfig.key === 'errorPercentage'}
-                  direction={sortConfig.key === 'errorPercentage' ? sortConfig.direction : 'asc'}
-                  onClick={() => handleSort('errorPercentage')}
-                >
-                  Error%
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>Distribution</TableCell>
-              <TableCell>Status</TableCell>
-            </TableRow>
-          </TableHead>
+      <table
+        style={{
+          width: '100%',
+          borderCollapse: 'collapse',
+          marginTop: 0,
+          fontSize: '0.95rem'
+        }}
+      >
+        <thead>
+          <tr>
+            {[{ key: 'element', label: 'Element' },
+              { key: 'valueAvg', label: 'Value (avg)' },
+              { key: 'rsd', label: 'RSD%' },
+              { key: 'errorPercentage', label: 'Error%' },
+              { key: null, label: 'Distribution' },
+              { key: null, label: 'Status' }
+            ].map((col, idx) => {
+              const isSortable = sortableKeys.includes(col.key);
+              const isActive = sortConfig.key === col.key;
 
-          <TableBody>
-            {sortedData.map((row, index) => (
-              <QCRow
-                key={row.element || index}
-                row={row}
-                isExpanded={expandedRows.has(row.element)}
-                toggleRowExpansion={toggleRowExpansion}
-                miniTables={miniTables}
-                miniSortConfig={miniSortConfig}
-                sortMiniTable={sortMiniTable}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Card>
+              const displayArrow = isActive
+                ? sortConfig.direction === 'asc' ? '▲' : '▼'
+                : '⇅';
+
+              return (
+                <th
+                  key={idx}
+                  onClick={() => isSortable && handleSort(col.key)}
+                  style={{
+                    position: 'sticky',
+                    top: 48, // matches heading height
+                    background: '#f8f9fb',
+                    zIndex: 50,
+                    textAlign: 'left',
+                    padding: '10px 16px',
+                    fontWeight: 450,
+                    borderBottom: '1px solid #ccc',
+                    cursor: isSortable ? 'pointer' : 'default',
+                    userSelect: 'none',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      '&:hover .hoverArrow': {
+                        visibility: 'visible'
+                      }
+                    }}
+                  >
+                    {col.label}
+                    {isSortable && (
+                      <Box
+                        className="hoverArrow"
+                        component="span"
+                        sx={{
+                          fontSize: '0.75rem',
+                          color: '#888',
+                          visibility: isActive ? 'visible' : 'hidden'
+                        }}
+                      >
+                        {displayArrow}
+                      </Box>
+                    )}
+                  </Box>
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+
+        <tbody>
+          {sortedData.map((row, index) => (
+            <QCRow
+              key={row.element || index}
+              row={row}
+              isExpanded={expandedRows.has(row.element)}
+              toggleRowExpansion={toggleRowExpansion}
+              miniTables={miniTables}
+              miniSortConfig={miniSortConfig}
+              sortMiniTable={sortMiniTable}
+            />
+          ))}
+        </tbody>
+      </table>
+    </Box>
   );
 };
 

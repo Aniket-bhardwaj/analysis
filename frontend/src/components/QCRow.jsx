@@ -21,7 +21,6 @@ import {
 import MiniChart from './MiniChart';
 
 const QCRow = ({
-
   row,
   isExpanded,
   toggleRowExpansion,
@@ -29,9 +28,6 @@ const QCRow = ({
   miniSortConfig,
   sortMiniTable,
 }) => {
-
-  console.log("QCRow - row:", row);
-
   const statusInfo = row.isWithinTolerance
     ? { icon: <CheckCircleIcon />, label: 'Pass', color: 'success' }
     : { icon: <ErrorIcon />, label: 'Fail', color: 'error' };
@@ -43,7 +39,7 @@ const QCRow = ({
   };
 
   return (
-    <React.Fragment>
+    <>
       <TableRow hover>
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -89,80 +85,78 @@ const QCRow = ({
       <TableRow>
         <TableCell colSpan={6} sx={{ py: 0 }}>
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-            <Box sx={{ px: 4, py: 2, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
-              <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                Measurements for <strong>{row.element}</strong>
-              </Typography>
+            <Box sx={{ px: 4, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
+              <Box sx={{ maxHeight: 300, overflowY: 'auto', position: 'relative' }}>
+                <Table size="small">
+                  <TableHead sx={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: '#f0f0f0' }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600 }}>
+                        <TableSortLabel
+                          active={miniSortConfig[row.element]?.key === 'timestamp'}
+                          direction={miniSortConfig[row.element]?.direction || 'asc'}
+                          onClick={() => sortMiniTable(row.element, 'timestamp')}
+                        >
+                          Timestamp
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>
+                        <TableSortLabel
+                          active={miniSortConfig[row.element]?.key === 'value'}
+                          direction={miniSortConfig[row.element]?.direction || 'asc'}
+                          onClick={() => sortMiniTable(row.element, 'value')}
+                        >
+                          Value
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>
+                        <TableSortLabel
+                          active={miniSortConfig[row.element]?.key === 'errorPercentage'}
+                          direction={miniSortConfig[row.element]?.direction || 'asc'}
+                          onClick={() => sortMiniTable(row.element, 'errorPercentage')}
+                        >
+                          Error%
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>
+                        Status
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
 
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ backgroundColor: '#f0f0f0', fontWeight: 600 }}>
-                      <TableSortLabel
-                        active={miniSortConfig[row.element]?.key === 'timestamp'}
-                        direction={miniSortConfig[row.element]?.direction || 'asc'}
-                        onClick={() => sortMiniTable(row.element, 'timestamp')}
-                      >
-                        Timestamp
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell sx={{ backgroundColor: '#f0f0f0', fontWeight: 600 }}>
-                      <TableSortLabel
-                        active={miniSortConfig[row.element]?.key === 'value'}
-                        direction={miniSortConfig[row.element]?.direction || 'asc'}
-                        onClick={() => sortMiniTable(row.element, 'value')}
-                      >
-                        Value
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell sx={{ backgroundColor: '#f0f0f0', fontWeight: 600 }}>
-                      <TableSortLabel
-                        active={miniSortConfig[row.element]?.key === 'errorPercentage'}
-                        direction={miniSortConfig[row.element]?.direction || 'asc'}
-                        onClick={() => sortMiniTable(row.element, 'errorPercentage')}
-                      >
-                        Error%
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell sx={{ backgroundColor: '#f0f0f0', fontWeight: 600 }}>
-                      Status
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {(miniTables[row.element] || []).map((entry, i) => {
-                    const miniStatus =
-                      entry.status === 'Pass'
-                        ? { icon: <CheckCircleIcon />, label: 'Pass', color: 'success' }
-                        : entry.status === 'Fail'
+                  <TableBody>
+                    {(miniTables[row.element] || []).map((entry, i) => {
+                      const miniStatus =
+                        entry.status === 'Pass'
+                          ? { icon: <CheckCircleIcon />, label: 'Pass', color: 'success' }
+                          : entry.status === 'Fail'
                           ? { icon: <ErrorIcon />, label: 'Fail', color: 'error' }
                           : { icon: null, label: 'N/A', color: 'default' };
 
-                    return (
-                      <TableRow key={i}>
-                        <TableCell>{entry.timestamp}</TableCell>
-                        <TableCell>{entry.value}</TableCell>
-                        <TableCell>{entry.errorPercentage}</TableCell>
-                        <TableCell>
-                          <Chip
-                            icon={miniStatus.icon}
-                            label={miniStatus.label}
-                            color={miniStatus.color}
-                            size="small"
-                            variant="outlined"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                      return (
+                        <TableRow key={i}>
+                          <TableCell>{entry.timestamp}</TableCell>
+                          <TableCell>{entry.value}</TableCell>
+                          <TableCell>{entry.errorPercentage}</TableCell>
+                          <TableCell>
+                            <Chip
+                              icon={miniStatus.icon}
+                              label={miniStatus.label}
+                              color={miniStatus.color}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </Box>
             </Box>
           </Collapse>
         </TableCell>
       </TableRow>
-    </React.Fragment>
+    </>
   );
 };
 
