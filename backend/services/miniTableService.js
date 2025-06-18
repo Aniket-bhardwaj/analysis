@@ -1,6 +1,5 @@
 const TableModel = require("../models/tableModel");
 const fileModel = require("../models/fileModel");
-const tableUtils = require("../utils/tableUtils"); // optional helper split if needed
 
 const miniTableService = {
   async getMiniTableForElement(fileId, solutionLabel, element) {
@@ -40,11 +39,11 @@ const miniTableService = {
           };
         })
         .filter((row) => row.timestamp && row.value !== null);
-        console.log("📦 Final mini table data:", miniTableData);
+        console.log("Final mini table data:", miniTableData);
 
       return miniTableData;
     } catch (err) {
-      console.error("❌ miniTableService error:", err);
+      console.error("miniTableService error:", err);
       throw err;
     }
   },

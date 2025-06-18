@@ -1,35 +1,11 @@
-name: Deploy to VM
+name: Manual Trigger Workflow
 
 on:
-    push:
-        branches:
-            - main
+  workflow_dispatch:
 
 jobs:
-    deploy:
-        runs-on: ubuntu-latest
-
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v3     #pulls latest code from GitHub
-
-            - name: Set up SSH
-              run: |
-                    mkdir -p ~/.ssh
-                    echo "${{ secrets.ACTIONS_SECRET_KEY }}" > ~/.ssh/id_rsa
-                    chmod 600 ~/.ssh/id_rsa
-                    ssh-keyscan -H 172.27.26.225 >> ~/.ssh/known_hosts
-                
-            - name: Deploy Backedn and Frontend
-              run: |
-                    ssh -o StrictHostKeyChecking=no ubuntu@172.27.26.225 << 'EOF'
-                    cd /home/ubuntu/carbon-data-analysis &&
-                    git pull &&
-                    cd backend &&
-                    npm install &&
-                    pm2 start app.js --name backend || pm2 restart backend &&
-                    cd ../frontend &&
-                    npm install &&
-                    pm2 start "npm start" --name frontend || pm2 restart frontend
-                    EOF
-
+  say_hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print message
+        run: echo "Hello! This workflow was triggered manually."
