@@ -37,6 +37,15 @@ const compHeaders = (headers) => {
   return cleaned;
 };
 
+const corrHeaders = (headers) => {
+  const cleaned = [];
+  headers.forEach((col) => {
+    if (col.match(/(nm\s*ppm|Conc\.)/i)) {
+      cleaned.push(`${col}_Corrected`);
+    }
+  });
+  return cleaned;
+};
 
 // ==========================
 // 2. Cleaned & Complete Headers
@@ -67,8 +76,7 @@ const filterConcColumns = (columns) =>
 const filterNmPpmColumns = (columns) =>
   columns.filter(col => col.includes('nm ppm'));
 
-const filter1nonC = (columns) =>
-  columns.filter(col => !col.includes('nm ppm'));
+
 // Normalize and then filter for TE / ME concentrations
 const normalizedO1n2 = normalizeHeaders(O1n2);
 const TEconc = filterConcColumns(normalizedO1n2);
@@ -119,11 +127,12 @@ const rest_dataHeaders = normalizeHeaders(O1n2).filter(
   h => !MEconc.includes(h) && !TEconc.includes(h)
 );
 
-const OTstdcleaned = normalizeHeaders(OTstd);
-const OMstdcleaned = normalizeHeaders(OMstd);
+const Tcor = corrHeaders(OTstd);
+const Mcor = corrHeaders(OMstd);
+const OTstdcleaned = normalizeHeaders(Tcor);
+const OMstdcleaned = normalizeHeaders(Mcor);
 
-const TsjsC = compHeaders(OTstdcleaned);
-const MsjsC = compHeaders(OMstdcleaned);
+
  
 
 // ==========================
@@ -144,6 +153,5 @@ module.exports = {
   rest_dataHeaders,
   OTstdcleaned,
   OMstdcleaned,
-  TsjsC,
-  MsjsC
+  
 };

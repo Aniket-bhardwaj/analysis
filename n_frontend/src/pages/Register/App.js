@@ -7,7 +7,7 @@ function App() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`)
+    fetch(`http://localhost:5000/uploaded-files`)
       .then(res => res.json())
       .then(data => {
         const formatted = data.map(file => {
@@ -39,7 +39,7 @@ function App() {
     formData.append('file', selectedFile);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/upload-csv`, {
+      const response = await fetch(`http://localhost:5000/upload-csv`, {
         method: 'POST',
         body: formData,
       });
@@ -76,7 +76,7 @@ function App() {
         fileInputRef.current.value = null;
       }
 
-      fetch(`${import.meta.env.VITE_API_URL}/preview/${data.stored_name}`)
+      fetch(`http://localhost:5000/preview/${data.stored_name}`)
         .then(res => res.json())
         .then(preview => setPreviewData(preview))
         .catch(err => console.error('Preview error:', err));
@@ -88,7 +88,7 @@ function App() {
   };
 
   const handleFileClick = (file) => {
-    fetch(`${import.meta.env.VITE_API_URL}/preview/${file.stored_name}`)
+    fetch(`http://localhost:5000/preview/${file.stored_name}`)
       .then(res => res.json())
       .then(preview => setPreviewData(preview))
       .catch(err => console.error('Preview error:', err));
@@ -98,7 +98,7 @@ function App() {
     const confirmDelete = window.confirm("Do you want to remove this file from the list?");
     if (confirmDelete) {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/hide-file/${id}`, { method: 'POST' });
+        const res = await fetch(`http://localhost:5000/hide-file/${id}`, { method: 'POST' });
         const result = await res.json();
         if (result.success) {
           setUploadedFiles(prev => prev.filter(file => file.id !== id));

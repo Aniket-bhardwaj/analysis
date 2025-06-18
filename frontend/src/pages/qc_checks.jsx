@@ -25,6 +25,7 @@ import Navbar from '@/components/navbar';
 import QCTable from '@/components/qc_table';
 import SJS_Table from '@/components/sjs_table';
 import QCGraph from '@/components/qc_graph';
+import SJS_Graph from '@/components/sjs_graph';
 
 const QCChecks = () => {
   const { section } = useParams(); // CHANGED
@@ -45,21 +46,21 @@ const QCChecks = () => {
       setSelectedFileId(defaultId);
     }
   }, [section, uploadedFiles, selectedFileId]);
-  
+
   useEffect(() => {
     if (!selectedFileId || !section) return;
-  
+
     const scrollTarget =
       section === 'lab-standards' ? qcTableRef :
-      section === 'sjs-standards' ? sjsTableRef : null;
-  
+        section === 'sjs-standards' ? sjsTableRef : null;
+
     if (scrollTarget?.current) {
       setTimeout(() => {
         scrollTarget.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100); // Small delay ensures DOM renders
     }
   }, [selectedFileId, section]);
-  
+
 
   useEffect(() => {
     fetchUploadedFiles();
@@ -69,6 +70,9 @@ const QCChecks = () => {
     try {
       setLoading(true);
       const response = await fetch(`http://localhost:5000/uploaded-files`);
+        // .then((res) => res.json())
+        // .then((data) => setGraphData(data))
+        // .catch((err) => console.error("SJS Graph Error:", err));
       const data = await response.json();
       const files = data.files || data.data || Array.isArray(data) ? data : [];
       setUploadedFiles(files);
@@ -244,9 +248,13 @@ const QCChecks = () => {
         )}
 
         {selectedFileId && viewMode === 'graph' && (
-          <QCGraph selectedFileId={selectedFileId} />
+          <>
+            <QCGraph selectedFileId={selectedFileId} />
+            <Box mt={4}>
+              <SJS_Graph selectedFileId={selectedFileId} />
+            </Box>
+          </>
         )}
-
         {!selectedFileId && !loading && (
           <Card>
             <CardContent sx={{ textAlign: 'center', py: 6 }}>
