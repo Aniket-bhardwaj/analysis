@@ -1,4 +1,4 @@
-const { Oheaders1, Oheaders2, O1n2 } = require('./Oheaders');
+const { Oheaders1, Oheaders2, O1n2, OTstd } = require('./Oheaders');
 
 
 // ==========================
@@ -119,6 +119,8 @@ const rest_dataHeaders = normalizeHeaders(O1n2).filter(
   h => !MEconc.includes(h) && !TEconc.includes(h)
 );
 
+const OTstdcleaned = normalizeHeaders(OTstd);
+
 // ==========================
 // Exports
 // ==========================
@@ -134,5 +136,6 @@ module.exports = {
   qcHeaders,
   nonConc1,
   nonConc2,
-  rest_dataHeaders
+  rest_dataHeaders,
+  OTstdcleaned
 };

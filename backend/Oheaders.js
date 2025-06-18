@@ -632,13 +632,102 @@ const O1n2 = [
   "103  Rh ( ISTD )  [ He ] ISTD Recovery %"
 ];
 
-const nonEcols = [
+const OTstd = 
+  [
+  "45 Sc [ No Gas ] Conc. [ ppb ]",
+  "45 Sc [ He ] Conc. [ ppb ]",
+  "51 V [ No Gas ] Conc. [ ppb ]",
+  "51 V [ He ] Conc. [ ppb ]",
+  "52 Cr [ No Gas ] Conc. [ ppb ]",
+  "52 Cr [ He ] Conc. [ ppb ]",
+  "59 Co [ No Gas ] Conc. [ ppb ]",
+  "59 Co [ He ] Conc. [ ppb ]",
+  "60 Ni [ No Gas ] Conc. [ ppb ]",
+  "60 Ni [ He ] Conc. [ ppb ]",
+  "63 Cu [ No Gas ] Conc. [ ppb ]",
+  "63 Cu [ He ] Conc. [ ppb ]",
+  "66 Zn [ No Gas ] Conc. [ ppb ]",
+  "66 Zn [ He ] Conc. [ ppb ]",
+  "85 Rb [ No Gas ] Conc. [ ppb ]",
+  "85 Rb [ He ] Conc. [ ppb ]",
+  "88 Sr [ No Gas ] Conc. [ ppb ]",
+  "88 Sr [ He ] Conc. [ ppb ]",
+  "90 Zr [ No Gas ] Conc. [ ppb ]",
+  "90 Zr [ He ] Conc. [ ppb ]",
+  "111 Cd [ No Gas ] Conc. [ ppb ]",
+  "111 Cd [ He ] Conc. [ ppb ]",
+  "133 Cs [ No Gas ] Conc. [ ppb ]",
+  "133 Cs [ He ] Conc. [ ppb ]",
+  "137 Ba [ No Gas ] Conc. [ ppb ]",
+  "137 Ba [ He ] Conc. [ ppb ]",
+  "138 Ba [ He ] Conc. [ ppb ]",
+  "139 La [ No Gas ] Conc. [ ppb ]",
+  "139 La [ He ] Conc. [ ppb ]",
+  "140 Ce [ No Gas ] Conc. [ ppb ]",
+  "140 Ce [ He ] Conc. [ ppb ]",
+  "146 Nd [ No Gas ] Conc. [ ppb ]",
+  "146 Nd [ He ] Conc. [ ppb ]",
+  "147 Sm [ No Gas ] Conc. [ ppb ]",
+  "147 Sm [ He ] Conc. [ ppb ]",
+  "153 Eu [ No Gas ] Conc. [ ppb ]",
+  "153 Eu [ He ] Conc. [ ppb ]",
+  "157 Gd [ No Gas ] Conc. [ ppb ]",
+  "157 Gd [ He ] Conc. [ ppb ]",
+  "159 Tb [ No Gas ] Conc. [ ppb ]",
+  "159 Tb [ He ] Conc. [ ppb ]",
+  "163 Dy [ No Gas ] Conc. [ ppb ]",
+  "163 Dy [ He ] Conc. [ ppb ]",
+  "172 Yb [ No Gas ] Conc. [ ppb ]",
+  "172 Yb [ He ] Conc. [ ppb ]",
+  "175 Lu [ No Gas ] Conc. [ ppb ]",
+  "175 Lu [ He ] Conc. [ ppb ]",
+  "178 Hf [ No Gas ] Conc. [ ppb ]",
+  "178 Hf [ He ] Conc. [ ppb ]",
+  "181 Ta [ No Gas ] Conc. [ ppb ]",
+  "181 Ta [ He ] Conc. [ ppb ]",
+  "205 Tl [ No Gas ] Conc. [ ppb ]",
+  "205 Tl [ He ] Conc. [ ppb ]",
+  "206 [Pb] [ He ] Conc. [ ppb ]",
+  "207 [Pb] [ He ] Conc. [ ppb ]",
+  "208 Pb [ No Gas ] Conc. [ ppb ]",
+  "208 Pb [ He ] Conc. [ ppb ]",
+  "232 Th [ No Gas ] Conc. [ ppb ]",
+  "232 Th [ He ] Conc. [ ppb ]",
+  "238 U [ No Gas ] Conc. [ ppb ]",
+  "238 U [ He ] Conc. [ ppb ]"
+]
 
-];
+const Tval =[
+
+  11100.0, 11100.0, 110000.0, 110000.0, 130000.0, 130000.0, 12800.0, 12800.0,
+  85000.0, 85000.0, 33900.0, 33900.0, 103000.0, 103000.0, 99000.0, 99000.0,
+  239000.0, 239000.0, 195000.0, 195000.0, 371.0, 371.0, 5000.0, 5000.0,
+  979000.0, 979000.0, 979000.0, 21700.0, 21700.0, 42000.0, 42000.0,
+  17000.0, 17000.0, 4000.0, 4000.0, 830.0, 830.0, 3000.0, 3000.0,
+  500.0, 500.0, 3000.0, 3000.0, 2000.0, 2000.0, 300.0, 300.0,
+  4000.0, 4000.0, 700.0, 700.0, 580.0, 580.0, 17300.0, 17300.0,
+  17300.0, 17300.0, 10900.0, 10900.0, 3150.0, 3150.0
+]
+
+const Terr = [
+
+  100.0, 100.0, 11000.0, 11000.0, 9000.0, 9000.0, 200.0, 200.0,
+  2000.0, 2000.0, 500.0, 500.0, 4000.0, 4000.0, 3000.0, 3000.0,
+  6000.0, 6000.0, 46000.0, 46000.0, 2.0, 2.0, 100.0, 100.0,
+  28000.0, 28000.0, 28000.0, 400.0, 400.0, 1000.0, 1000.0,
+  0.0, 0.0, 0.0, 0.0, 20.0, 20.0, 100.0, 100.0,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 10.0, 10.0, 100.0, 100.0,
+  100.0, 100.0, 200.0, 200.0, 50.0, 50.0
+]
+
 
 
 module.exports = {
   Oheaders2,
   Oheaders1,
-  O1n2
+  O1n2,
+  OTstd,
+  Terr,
+  Tval
 };
