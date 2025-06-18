@@ -17,7 +17,8 @@ const AppRoutes = () => {
         <Route path="/" element={<RegisterPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/data-manager" element={<DataManagerPage />} />
-        <Route path= "/qc-checks" element={<QCChecks />} />
+        <Route path="/qc-checks/:section?" element={<QCChecks />} />
+
       </Routes>
     </Router>
   );

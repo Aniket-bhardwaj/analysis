@@ -23,7 +23,7 @@ class TableModel {
         console.error('❌ getMiniTableRaw DB error:', err);
         return reject(err);
       }
-      console.log("✅ Raw mini table rows:", rows);
+      // console.log("✅ Raw mini table rows:", rows);
 
       resolve(rows);
     });

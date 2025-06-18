@@ -3,99 +3,102 @@ const TableModel = require('../models/tableModel');
 const fileModel = require('../models/fileModel');
 const miniTableService = require('../services/miniTableService');
 const tableService = require('../services/tableService');
-const qcCheckService = require('../services/qcCheckService');
-
-
+const QcCheckService = require('../services/qcCheckService');
 
 
 
 class TableController {
 
 
-static async getMiniTableData(req, res) {
-  console.log('dsvhsduiahlv');
-  try {
-    const { file_id, solution_label, element } = req.query;
+  static async getMiniTableData(req, res) {
+    console.log('dsvhsduiahlv');
+    try {
+      const { file_id, element } = req.query;
+      const solution_label= await QcCheckService.getSolutionLabelsForFile(file_id);
 
-    if (!file_id || !solution_label || !element) {
-      return res.status(400).json({
+
+      if (!file_id || !solution_label || !element) {
+        return res.status(400).json({
+          success: false,
+          message: 'file_id, solution_label, and element are required'
+        });
+      }
+
+      const data = await miniTableService.getMiniTableForElement(
+        parseInt(file_id),
+        solution_label,
+        element
+      );
+      // console.log("🚀 Sending mini table response:", data);
+
+      return res.json({
+        success: true,
+        miniTable: data
+      });
+
+    } catch (error) {
+      console.error('[TableController] Error in getMiniTableData:', error);
+      res.status(500).json({
         success: false,
-        message: 'file_id, solution_label, and element are required'
+        message: 'Failed to get mini table data',
+        error: error.message
       });
     }
-
-    const data = await miniTableService.getMiniTableForElement(
-      parseInt(file_id),
-      solution_label,
-      element
-    );
-      console.log("🚀 Sending mini table response:", data);
-
-    return res.json({
-      success: true,
-      miniTable: data
-    });
-
-  } catch (error) {
-    console.error('[TableController] Error in getMiniTableData:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get mini table data',
-      error: error.message
-    });
   }
-}
 
 
   // Get QC table data by file ID
- static async getTableDataByFile(req, res) {
-  try {
-    const { file_id, solution_label } = req.query;
+  static async getTableDataByFile(req, res) {
+    try {
+      const { file_id } = req.query;
 
-    if (!file_id) {
-      return res.status(400).json({
-        success: false,
-        message: 'file_id is required'
-      });
-    }
+      const solution_label= await QcCheckService.getSolutionLabelsForFile(file_id);
 
-    const solutionLabel = solution_label || 'QC MES 5 ppm';
 
-    const result = await tableService.getQCTableData(parseInt(file_id), solutionLabel);
+      if (!file_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'file_id is required'
+        });
+      }
 
-    if (!result.tableData || result.tableData.length === 0) {
-      return res.json({
+      const solutionLabel = solution_label || 'QC MES 5 ppm';
+
+      const result = await tableService.getQCTableData(parseInt(file_id), solutionLabel);
+
+      if (!result.tableData || result.tableData.length === 0) {
+        return res.json({
+          success: true,
+          message: result.message || 'No data found',
+          tableData: [],
+          elements: [],
+          solutionLabel: result.solutionLabel
+        });
+      }
+
+      res.json({
         success: true,
-        message: result.message || 'No data found',
-        tableData: [],
-        elements: [],
+        tableData: result.tableData,
+        elements: result.elements,
         solutionLabel: result.solutionLabel
       });
+
+    } catch (error) {
+      console.error('[TableController] Error fetching QC table data:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch QC table data',
+        error: error.message
+      });
     }
-
-    res.json({
-      success: true,
-      tableData: result.tableData,
-      elements: result.elements,
-      solutionLabel: result.solutionLabel
-    });
-
-  } catch (error) {
-    console.error('[TableController] Error fetching QC table data:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch QC table data',
-      error: error.message
-    });
   }
-}
 
 
   // Get sample table data by file ID
   // static async getSampleTableDataByFile(req, res) {
   //   try {
   //     const { file_id } = req.query;
-      
+
   //     if (!file_id) {
   //       return res.status(400).json({
   //         success: false,
@@ -104,9 +107,9 @@ static async getMiniTableData(req, res) {
   //     }
 
   //     console.log(`[TableController] Fetching sample table data for file_id: ${file_id}`);
-      
+
   //     const result = await TableModel.getSampleTableData(parseInt(file_id));
-      
+
   //     if (!result.tableData || result.tableData.length === 0) {
   //       return res.json({
   //         success: true,
@@ -155,7 +158,7 @@ static async getMiniTableData(req, res) {
   static async getTableDataByDateRange(req, res) {
     try {
       const { start_date, end_date, solution_label } = req.query;
-      
+
       if (!start_date || !end_date) {
         return res.status(400).json({
           success: false,
@@ -164,11 +167,11 @@ static async getMiniTableData(req, res) {
       }
 
       const solutionLabel = solution_label || 'QC_MES_5 ppm';
-      
+
       console.log(`[TableController] Fetching table data for date range: ${start_date} to ${end_date}, solution_label: ${solutionLabel}`);
-      
+
       const result = await TableModel.getQCTableDataByDateRange(start_date, end_date, solutionLabel);
-      
+
       if (!result.tableData || result.tableData.length === 0) {
         return res.json({
           success: true,
@@ -195,7 +198,7 @@ static async getMiniTableData(req, res) {
           elementsWithinTolerance: result.tableData.filter(item => item.isWithinTolerance).length,
           elementsExcellentQuality: result.tableData.filter(item => item.qualityStatus === 'Excellent').length,
           elementsGoodQuality: result.tableData.filter(item => item.qualityStatus === 'Good').length,
-          averageRSD: result.tableData.length > 0 
+          averageRSD: result.tableData.length > 0
             ? parseFloat((result.tableData.reduce((sum, item) => sum + item.rsd, 0) / result.tableData.length).toFixed(2))
             : 0,
           averageErrorPercentage: (() => {
@@ -219,47 +222,47 @@ static async getMiniTableData(req, res) {
   }
 
   // Get available solution labels for dropdown
-// Get available solution labels for dropdown
+  // Get available solution labels for dropdown
 
-static async getSolutionLabelsForTable(req, res) {
-  try {
-    const { file_id } = req.query;
+  static async getSolutionLabelsForTable(req, res) {
+    try {
+      const { file_id } = req.query;
 
-    if (!file_id) {
-      return res.status(400).json({
+      if (!file_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'file_id is required'
+        });
+      }
+
+      console.log(`[TableController] Fetching solution labels for file_id: ${file_id}`);
+
+      const result = await qcCheckService.getSolutionLabelsForFile(file_id);
+
+      console.log('✅ Returning allowedLabels:', result.solutionLabels);
+
+      return res.json({
+        success: true,
+        solutionLabels: result.solutionLabels,
+        summary: result.summary
+      });
+
+    } catch (error) {
+      console.error('[TableController] Error fetching solution labels:', error);
+      res.status(500).json({
         success: false,
-        message: 'file_id is required'
+        message: 'Failed to fetch solution labels',
+        error: error.message
       });
     }
-
-    console.log(`[TableController] Fetching solution labels for file_id: ${file_id}`);
-
-    const result = await qcCheckService.getSolutionLabelsForFile(file_id);
-
-    console.log('✅ Returning allowedLabels:', result.solutionLabels);
-
-    return res.json({
-      success: true,
-      solutionLabels: result.solutionLabels,
-      summary: result.summary
-    });
-
-  } catch (error) {
-    console.error('[TableController] Error fetching solution labels:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch solution labels',
-      error: error.message
-    });
   }
-}
 
 
   // Get comprehensive file summary
   static async getFileSummary(req, res) {
     try {
       const { file_id } = req.query;
-      
+
       if (!file_id) {
         return res.status(400).json({
           success: false,
@@ -270,7 +273,7 @@ static async getSolutionLabelsForTable(req, res) {
       console.log(`[TableController] Fetching file summary for file_id: ${file_id}`);
 
       const result = await TableModel.getFileSummary(parseInt(file_id));
-      
+
       res.json({
         success: true,
         ...result,
@@ -291,7 +294,7 @@ static async getSolutionLabelsForTable(req, res) {
   static async getElementDetails(req, res) {
     try {
       const { file_id, element_name, solution_label, data_type } = req.query;
-      
+
       if (!file_id || !element_name) {
         return res.status(400).json({
           success: false,
@@ -301,7 +304,7 @@ static async getSolutionLabelsForTable(req, res) {
 
       const solutionLabel = solution_label || 'QC_MES_5 ppm';
       const dataType = data_type || 'qc'; // 'qc' or 'sample'
-      
+
       console.log(`[TableController] Fetching element details for element: ${element_name}, file_id: ${file_id}, data_type: ${dataType}`);
 
       // Get the appropriate data based on type
@@ -313,7 +316,7 @@ static async getSolutionLabelsForTable(req, res) {
       }
 
       // Find the specific element data
-      const elementData = result.tableData.find(item => 
+      const elementData = result.tableData.find(item =>
         item.element === element_name || item.fullColumnName === element_name
       );
 

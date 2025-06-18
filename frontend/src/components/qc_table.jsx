@@ -1,10 +1,11 @@
-// This file is now cleaned and modularized
-
 import React, { useEffect, useState, useMemo } from 'react';
-import { Box, Card, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, Typography } from '@mui/material';
+import {
+  Box, Card, Chip, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, TableSortLabel, Typography
+} from '@mui/material';
 import QCRow from './QCRow';
 
-const QCTable = ({ selectedFileId, selectedSolutionLabel }) => {
+const QCTable = ({ selectedFileId }) => {
   const [qcData, setQcData] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: '', direction: 'asc' });
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -12,12 +13,12 @@ const QCTable = ({ selectedFileId, selectedSolutionLabel }) => {
   const [miniSortConfig, setMiniSortConfig] = useState({});
 
   useEffect(() => {
-    if (selectedFileId && selectedSolutionLabel) fetchQCData();
-  }, [selectedFileId, selectedSolutionLabel]);
+    if (selectedFileId) fetchQCData();
+  }, [selectedFileId]);
 
   const fetchQCData = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/table-data?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}`);
+      const response = await fetch(`http://localhost:5000/table-data?file_id=${selectedFileId}`);
       const result = await response.json();
       setQcData(result.tableData || []);
     } catch (err) {
@@ -33,7 +34,7 @@ const QCTable = ({ selectedFileId, selectedSolutionLabel }) => {
 
   const fetchMiniTableData = async (element) => {
     try {
-      const url = `${import.meta.env.VITE_API_URL}/element-mini-table?file_id=${selectedFileId}&solution_label=${encodeURIComponent(selectedSolutionLabel)}&element=${encodeURIComponent(element)}`;
+      const url = `http://localhost:5000/element-mini-table?file_id=${selectedFileId}&element=${encodeURIComponent(element)}`;
       const res = await fetch(url);
       const json = await res.json();
       setMiniTables(prev => ({ ...prev, [element]: json.miniTable || [] }));
@@ -82,7 +83,7 @@ const QCTable = ({ selectedFileId, selectedSolutionLabel }) => {
     <Card>
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
         <Typography variant="h6">Quality Control Analysis</Typography>
-        <Chip label={`Solution: ${selectedSolutionLabel}`} variant="outlined" size="small" sx={{ mt: 1 }} />
+        <Chip label={`File ID: ${selectedFileId}`} variant="outlined" size="small" sx={{ mt: 1 }} />
       </Box>
 
       <TableContainer sx={{ maxHeight: 500 }}>

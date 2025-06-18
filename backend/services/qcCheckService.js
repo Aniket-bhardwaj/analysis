@@ -4,24 +4,24 @@ const { TEconc, MEconc } = require('../colHeaders');
 
 class QcCheckService {
   static async getSolutionLabelsForFile(fileId) {
-    const fileType = await fileModel.getTypeById(fileId);
-
-    let allowedLabels = [];
-    if (fileType === 1) {
-      allowedLabels = ["QC MES 5 ppm", "SJS-Std"];
-    } else if (fileType === 2) {
-      allowedLabels = ["QC MES 50 ppb", "SJS-Std"];
-    }
-
-    return {
-      solutionLabels: allowedLabels,
-      summary: {
-        from: 'static array only',
-        type: fileType
+    return new Promise(async (resolve, reject) => {
+      try {
+        const fileType = await fileModel.getTypeById(fileId);
+  
+        let qclabel;
+        if (fileType === 1) {
+          qclabel = "QC MES 5 ppm";
+        } else if (fileType === 2) {
+          qclabel = "QC MES 50 ppb";
+        }
+  
+        resolve(qclabel || null);
+      } catch (err) {
+        reject(err);
       }
-    };
+    });
   }
-
+  
   static async getSummaryForQC(fileId, solutionLabel) {
     const fileType = await fileModel.getTypeById(fileId);
     const elementColumns = fileType === 2 ? TEconc : MEconc;
