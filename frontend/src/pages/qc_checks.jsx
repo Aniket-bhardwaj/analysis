@@ -150,22 +150,38 @@ const QCChecks = () => {
             QC Checks
           </Typography>
 
-          {/* This Grid container now aligns its content to the right */}
-          <Grid container spacing={2} alignItems="center" justifyContent="flex-end" sx={{ mb: 2 }}>
-            {/* The filter drawer can take less space if needed, or stick to md=4 */}
-            <Grid item xs={12} sm={6} md={4}>
+          <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
+            <Grid item xs={12} md={4}>
               <NestedFilterDrawer
                 uploadedFiles={uploadedFiles}
                 onApplyFilter={handleApplyFilter}
               />
             </Grid>
-            {/* The buttons will naturally follow the filter drawer to the right */}
-            <Grid item xs={12} sm={6} md={4}> {/* Changed md={8} to md={4} to match filter drawer width, or adjust as needed */}
+            <Grid item xs={12} md={8}>
               <Stack direction="row" spacing={1} justifyContent="flex-end">
                 <Button
                   variant={viewMode === 'table' ? 'contained' : 'outlined'}
                   onClick={() => setViewMode('table')}
                   startIcon={<TableChartIcon />}
+                  // Add sx prop for styling
+                  sx={{
+                    // When selected (contained variant)
+                    ...(viewMode === 'table' && {
+                      backgroundColor: 'black', // Black background for contained
+                      color: 'white', // White text for contained
+                      '&:hover': {
+                        backgroundColor: '#333', // Slightly lighter black on hover
+                      },
+                    }),
+                    // When not selected (outlined variant)
+                    ...(viewMode !== 'table' && {
+                      borderColor: 'black', // Black border for outlined
+                      color: 'black', // Black text for outlined
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)', // Light hover effect
+                      },
+                    }),
+                  }}
                 >
                   Table
                 </Button>
@@ -173,6 +189,25 @@ const QCChecks = () => {
                   variant={viewMode === 'graph' ? 'contained' : 'outlined'}
                   onClick={() => setViewMode('graph')}
                   startIcon={<BarChartIcon />}
+                  // Add sx prop for styling
+                  sx={{
+                    // When selected (contained variant)
+                    ...(viewMode === 'graph' && {
+                      backgroundColor: 'black', // Black background for contained
+                      color: 'white', // White text for contained
+                      '&:hover': {
+                        backgroundColor: '#333', // Slightly lighter black on hover
+                      },
+                    }),
+                    // When not selected (outlined variant)
+                    ...(viewMode !== 'graph' && {
+                      borderColor: 'black', // Black border for outlined
+                      color: 'black', // Black text for outlined
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)', // Light hover effect
+                      },
+                    }),
+                  }}
                 >
                   Graph
                 </Button>
@@ -184,9 +219,9 @@ const QCChecks = () => {
           {loading && <LinearProgress sx={{ mb: 3 }} />}
 
           {summary && (
-            <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid container spacing={3} sx={{ mb: 3 }}> {/* Grid container spacing applied */}
               {/* Card 1: Total Elements */}
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={3}> {/* Responsive: 1 per row on xs, 2 per row on sm, 4 per row on md+ */}
                 <Card
                   elevation={2}
                   sx={{
@@ -217,11 +252,11 @@ const QCChecks = () => {
                       <Calculator size={24} color="#1976d2" />
                     </Box>
                     <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="summaryValue" sx={{ color: '#1976d2', textAlign: 'left' }}>
-                        {summary.totalElements}
-                      </Typography>
-                      <Typography variant="summaryLabel" sx={{ textAlign: 'left', mt: -0.5 }}>
+                      <Typography variant="summaryLabel" sx={{ mb: 0.5 }}>
                         Total Elements
+                      </Typography>
+                      <Typography variant="summaryValue" sx={{ color: '#1976d2' }}>
+                        {summary.totalElements}
                       </Typography>
                     </Box>
                   </CardContent>
@@ -260,11 +295,11 @@ const QCChecks = () => {
                       <CheckSquare size={24} color="#4caf50" />
                     </Box>
                     <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="summaryValue" sx={{ color: '#4caf50', textAlign: 'left' }}>
-                        {summary.elementsWithinTolerance}
-                      </Typography>
-                      <Typography variant="summaryLabel" sx={{ textAlign: 'left', mt: -0.5 }}>
+                      <Typography variant="summaryLabel" sx={{ mb: 0.5 }}>
                         Within Tolerance
+                      </Typography>
+                      <Typography variant="summaryValue" sx={{ color: '#4caf50' }}>
+                        {summary.elementsWithinTolerance}
                       </Typography>
                       <LinearProgress
                         variant="determinate"
@@ -308,10 +343,10 @@ const QCChecks = () => {
                       <Activity size={24} color="#ff9800" />
                     </Box>
                     <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="summaryLabel" sx={{ textAlign: 'left', mt: -0.5 }}>
+                      <Typography variant="summaryLabel" sx={{ mb: 0.5 }}>
                         Average RSD
                       </Typography>
-                      <Typography variant="summaryValue" sx={{ color: '#ff9800', textAlign: 'left' }}>
+                      <Typography variant="summaryValue" sx={{ color: '#ff9800' }}>
                         {summary.averageRSD}%
                       </Typography>
                     </Box>
@@ -351,10 +386,10 @@ const QCChecks = () => {
                       <AlertTriangle size={24} color="#9c27b0" />
                     </Box>
                     <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="summaryLabel" sx={{ textAlign: 'left', mt: -0.5 }}>
+                      <Typography variant="summaryLabel" sx={{ mb: 0.5 }}>
                         Average Error
                       </Typography>
-                      <Typography variant="summaryValue" sx={{ color: '#9c27b0', textAlign: 'left' }}>
+                      <Typography variant="summaryValue" sx={{ color: '#9c27b0' }}>
                         {summary.averageErrorPercentage}%
                       </Typography>
                     </Box>
