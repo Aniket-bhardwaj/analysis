@@ -2,23 +2,23 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const dbPath = path.join(__dirname, '../database.sqlite');
 const {TEconc , MEconc} = require('../colHeaders');
+const db = new sqlite3.Database(dbPath);
+
 
 class TableModel {
   static async getMiniTableRaw(fileId, solutionLabel, element) {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(dbPath);
 
     const cleanElement = element.replace(/"/g, '""'); // prevent SQL injection via column name
     const query = `
       SELECT "${cleanElement}" AS value, 
-             COALESCE("Timestamp", "Acq. Date-Time") AS timestamp
+      COALESCE("Timestamp", "Acq. Date-Time") AS timestamp
       FROM qc_data
       WHERE file_id = ? AND "Solution Label" = ?
       ORDER BY timestamp ASC
     `;
 
     db.all(query, [fileId, solutionLabel], (err, rows) => {
-      db.close();
       if (err) {
         console.error('❌ getMiniTableRaw DB error:', err);
         return reject(err);
@@ -31,7 +31,6 @@ class TableModel {
 }
 static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
     return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(dbPath);
 
       // Sanitize and quote each column
       const safeColumns = elementColumns
@@ -45,7 +44,6 @@ static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
       `;
 
       db.all(query, [fileId, solutionLabel], (err, rows) => {
-        db.close();
         if (err) return reject(err);
         resolve(rows);
       });
@@ -55,7 +53,6 @@ static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
   
     static getRawQCTableRows(fileId, solutionLabel, elementColumns) {
     return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(dbPath);
 
     const safeColumns = elementColumns
       .map(col => `"${col.replace(/"/g, '""')}"`)
@@ -68,12 +65,27 @@ static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
     `;
 
     db.all(query, [solutionLabel, fileId], (err, rows) => {
-      db.close();
       if (err) return reject(err);
       resolve(rows);
     });
   });
 }
+
+static async getSJSRows(elementColumns) {
+  return new Promise((resolve, reject) => {
+    const columnsToSelect = elementColumns.map(col => `"${col}"`).join(', ');
+    const query = `SELECT ${columnsToSelect} FROM sjs`;
+
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        console.error("Error fetching SJS rows:", err);
+        return reject(err);
+      }
+      resolve(rows); // rows[0] = SJS-Std, rows[1] = Error
+    });
+  });
+}
+
 
 
 
@@ -84,7 +96,6 @@ static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
    */
   static async getSampleTableData(fileId) {
     return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(dbPath);
       
       const query = `
         SELECT sd.*, uf.filename, uf.uploaded_at
@@ -96,7 +107,6 @@ static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
       `;
 
       db.all(query, [fileId], (err, rows) => {
-        db.close();
         
         if (err) {
           console.error('Database error:', err);
@@ -198,7 +208,6 @@ static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
    */
   static async getQCTableDataByDateRange(startDate, endDate, solutionLabel = 'QC_MES_5 ppm') {
     return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(dbPath);
       
       const query = `
         SELECT qc.*, uf.filename, uf.uploaded_at
@@ -211,7 +220,6 @@ static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
       `;
 
       db.all(query, [solutionLabel, startDate, endDate], (err, rows) => {
-        db.close();
         
         if (err) {
           console.error('Database error:', err);
@@ -314,7 +322,6 @@ static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
    */
   static async getAllSolutionLabelsForTable(fileId) {
     return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(dbPath);
       
       const qcQuery = `
         SELECT DISTINCT "Solution Label" as label, 'qc_data' as source, COUNT(*) as count
@@ -334,7 +341,6 @@ static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
       const combinedQuery = `${qcQuery} UNION ALL ${sampleQuery} ORDER BY label`;
 
       db.all(combinedQuery, [fileId, fileId], (err, rows) => {
-        db.close();
         if (err) return reject(err);
         
         const labels = {

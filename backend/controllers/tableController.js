@@ -46,6 +46,41 @@ class TableController {
     }
   }
 
+  static async getSJSMiniTableData(req, res) {
+  try {
+    const { file_id, element } = req.query;
+
+    if (!file_id || !element) {
+      return res.status(400).json({
+        success: false,
+        message: 'file_id and element are required'
+      });
+    }
+
+    const solutionLabel = 'SJS-Std';
+
+    const data = await miniTableService.getSJSMiniTableForElement(
+      parseInt(file_id),
+      solutionLabel,
+      element
+    );
+
+    return res.json({
+      success: true,
+      miniTable: data
+    });
+
+  } catch (error) {
+    console.error('[TableController] Error in getSJSMiniTableData:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get mini table data',
+      error: error.message
+    });
+  }
+}
+
+
 
   // Get QC table data by file ID
   static async getTableDataByFile(req, res) {
@@ -92,6 +127,48 @@ class TableController {
       });
     }
   }
+
+    static async getSJSTableDataByFile(req, res) {
+  try {
+    const { file_id } = req.query;
+
+    if (!file_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'file_id is required'
+      });
+    }
+
+    const solutionlabel = 'SJS-Std';
+
+    const result = await tableService.getSJSTableData(parseInt(file_id),solutionlabel);
+
+    if (!result.tableData || result.tableData.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No data found',
+        tableData: [],
+        elements: [],
+        solutionLabel: result.solutionLabel || null
+      });
+    }
+
+    return res.json({
+      success: true,
+      tableData: result.tableData,
+      elements: result.elements,
+      solutionLabel: result.solutionLabel || null
+    });
+
+  } catch (error) {
+    console.error('[TableController] Error fetching SJS table data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch SJS table data',
+      error: error.message
+    });
+  }
+}
 
 
   // Get sample table data by file ID
