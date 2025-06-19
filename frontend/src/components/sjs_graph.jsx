@@ -55,7 +55,7 @@ const SJS_Graph = ({ selectedFileId }) => {
     datasets: [
         // Lower bound (plotted first)
         {
-          label: 'Error Lower',
+          label: 'Lower Limit',
           data: elementData[selectedElement]?.map(d => ({ x: d.x, y: d.lower })) || [],
           fill: false,
           borderWidth: 0,
@@ -64,10 +64,10 @@ const SJS_Graph = ({ selectedFileId }) => {
         },
         // Upper bound (fills to previous lower line)
         {
-          label: 'Error Range',
+          label: 'Upper Limit',
           data: elementData[selectedElement]?.map(d => ({ x: d.x, y: d.upper })) || [],
           fill: '-1', // fill to previous dataset (lower)
-          backgroundColor: 'rgba(173, 216, 230, 0.4)',
+          backgroundColor: 'rgba(173, 230, 189, 0.3)',
           borderWidth: 0,
           pointRadius: 0,
           tension: 0,
@@ -75,14 +75,19 @@ const SJS_Graph = ({ selectedFileId }) => {
         // Actual concentration
         {
           label: selectedElement,
-          data: elementData[selectedElement]?.map(d => ({ x: d.x, y: d.y })) || [],
-          fill: false,
-          borderColor: '#00bcd4',
-          backgroundColor: '#00bcd4',
+          data: elementData[selectedElement]?.map(d => d.y || d.value) || [],
+          pointBackgroundColor: elementData[selectedElement]?.map(d =>
+            d.y < d.lower || d.y > d.upper ? '#f44336' : '#4caf50' // red or green
+          ),
+          pointBorderColor: 'transparent', // no border
+          pointRadius: 5,
+          pointHoverRadius: 6,
           tension: 0.3,
-          pointRadius: 4,
-          pointHoverRadius: 5,
-          borderWidth: 2,
+          borderWidth: 1.5,
+          borderColor: '#444444', // dark gray line for all segments
+          segment: {
+            borderColor: '#444444', // force dark gray for all segments
+          },
         },
         // Midline (dashed)
         {
@@ -143,7 +148,7 @@ const SJS_Graph = ({ selectedFileId }) => {
     <Card sx={{ mt: 4 }}>
       <CardContent>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">SJS-Std Graph</Typography>
+          <Typography variant="h5">SJS-Std Graph</Typography>
           <Autocomplete
             size="small"
             options={availableElements}

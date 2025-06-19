@@ -9,6 +9,7 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
 } from 'chart.js';
 import {
   Box,
@@ -28,7 +29,8 @@ ChartJS.register(
   PointElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 const QCGraph = ({ selectedFileId }) => {
@@ -132,6 +134,28 @@ const QCGraph = ({ selectedFileId }) => {
     ];
 
     if (target && error) {
+      // Add envelope
+      datasets.push({
+        label: 'Upper Limit',
+        data: timestamps.map(() => upperLimit),
+        borderWidth: 0,
+        backgroundColor: 'rgba(255, 0, 0, 0.05)',
+        fill: false,
+        pointRadius: 0,
+        tension: 0.3,
+      });
+
+      datasets.push({
+        label: 'Error Range',
+        data: timestamps.map(() => lowerLimit),
+        borderWidth: 0,
+        backgroundColor: 'rgba(173, 230, 189, 0.3)',
+        fill: '-1',
+        pointRadius: 0,
+        tension: 0.3,
+      });
+
+      // Add target and limits as dashed lines
       const refLine = (value, label, color) => ({
         label,
         data: Array(timestamps.length).fill(value),
@@ -143,8 +167,8 @@ const QCGraph = ({ selectedFileId }) => {
       });
 
       datasets.push(refLine(target, `Target ${target}`, 'rgba(0,0,0,0.4)'));
-      datasets.push(refLine(lowerLimit, `-Range`, 'rgba(255, 0, 0, 0.42)'));
-      datasets.push(refLine(upperLimit, `+Range`, 'rgba(255, 0, 0, 0.42)'));
+      // datasets.push(refLine(lowerLimit, `Lower Limit`, 'rgba(255, 0, 0, 0.42)'));
+      // datasets.push(refLine(upperLimit, `Upper Limit`, 'rgba(255, 0, 0, 0.42)'));
     }
 
     return {
