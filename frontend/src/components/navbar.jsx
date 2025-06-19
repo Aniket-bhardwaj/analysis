@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Drawer,
   List,
@@ -9,7 +9,6 @@ import {
   ListItemText,
   Collapse,
   Box,
-  IconButton,
 } from '@mui/material';
 
 import {
@@ -24,16 +23,24 @@ import {
 
 const Navbar = ({ selectedItem, setSelectedItem }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [openQCSubMenu, setOpenQCSubMenu] = useState(false);
+
+  useEffect(() => {
+    // Automatically expand submenu if current route is under /qc-checks
+    if (location.pathname.startsWith('/qc-checks')) {
+      setOpenQCSubMenu(true);
+      if (!['Lab Standards', 'SJS Standards'].includes(selectedItem)) {
+        setSelectedItem('QC Checks');
+      }
+    } else {
+      setOpenQCSubMenu(false);
+    }
+  }, [location.pathname]);
 
   const handleItemClick = (itemText, route) => {
     setSelectedItem(itemText);
     if (route) navigate(route);
-  };
-
-  const handleQCToggle = (e) => {
-    e.stopPropagation(); // Prevents navigation on icon click
-    setOpenQCSubMenu(!openQCSubMenu);
   };
 
   return (
@@ -74,9 +81,7 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
                 primary="QC Checks"
                 primaryTypographyProps={{ className: selectedItem === 'QC Checks' ? 'menu-text-selected' : 'menu-text-default' }}
               />
-              <IconButton edge="end" onClick={handleQCToggle} size="small">
-                {openQCSubMenu ? <ExpandLess /> : <ExpandMore />}
-              </IconButton>
+              {openQCSubMenu ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
             </ListItemButton>
           </ListItem>
 
