@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom'; // CHANGED
+import { useParams } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 
 import {
@@ -11,16 +11,13 @@ import {
   LinearProgress,
   Stack,
   Typography,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Alert,
 } from '@mui/material';
 import {
   Folder as FolderIcon,
   TableChart as TableChartIcon,
   BarChart as BarChartIcon,
+  FilterList as FilterListIcon,
 } from '@mui/icons-material';
 
 import Navbar from '@/components/navbar';
@@ -28,9 +25,12 @@ import QCTable from '@/components/qc_table';
 import SJS_Table from '@/components/sjs_table';
 import QCGraph from '@/components/qc_graph';
 import SJS_Graph from '@/components/sjs_graph';
+import NestedFilterDrawer from '@/components/common/Filter';
 
 const QCChecks = () => {
-  const { section } = useParams(); // CHANGED
+  const { section } = useParams();
+
+
   const location = useLocation();
   const preselectedFileId = location.state?.fileId;
 
@@ -42,49 +42,50 @@ const QCChecks = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+
   const qcTableRef = useRef(null);
   const sjsTableRef = useRef(null);
 
   useEffect(() => {
-    if (section && uploadedFiles.length > 0 && !selectedFileId) {
-      const defaultId = uploadedFiles[0].id || uploadedFiles[0].file_id;
-      setSelectedFileId(defaultId);
-    }
-  }, [section, uploadedFiles, selectedFileId]);
-
-  useEffect(() => {
     if (!selectedFileId || !section) return;
-
     const scrollTarget =
       section === 'lab-standards' ? qcTableRef :
-        section === 'sjs-standards' ? sjsTableRef : null;
+      section === 'sjs-standards' ? sjsTableRef : null;
 
     if (scrollTarget?.current) {
       setTimeout(() => {
         scrollTarget.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100); // Small delay ensures DOM renders
+      }, 100);
     }
   }, [selectedFileId, section]);
 
+  const fetchUploadedFiles = async (filters) => {
+    setLoading(true);
+    setError(null);
+    let url = `http://localhost:5000/uploaded-files`;
 
-  useEffect(() => {
-    fetchUploadedFiles();
-  }, []);
+    if (filters?.startDate && filters?.endDate) {
+      const params = new URLSearchParams({
+        start_date: filters.startDate,
+        end_date: filters.endDate,
+      });
+      url += `?${params.toString()}`;
+    }
 
-  const fetchUploadedFiles = async () => {
     try {
-      setLoading(true);
-      const response = await fetch(`http://localhost:5000/uploaded-files`);
-        // .then((res) => res.json())
-        // .then((data) => setGraphData(data))
-        // .catch((err) => console.error("SJS Graph Error:", err));
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
-      const files = data.files || data.data || Array.isArray(data) ? data : [];
+      const files = data.files || data.data || (Array.isArray(data) ? data : []);
       setUploadedFiles(files);
+
       if (files.length > 0 && !selectedFileId) {
         const defaultId = preselectedFileId || files[0].id || files[0].file_id;
         setSelectedFileId(defaultId);
       }
+
     } catch (err) {
       console.error('Error fetching files:', err);
       setError(`Failed to load files: ${err.message}`);
@@ -93,11 +94,9 @@ const QCChecks = () => {
     }
   };
 
-  const handleFileChange = (e) => {
-    setSelectedFileId(e.target.value);
-    setSummary(null);
-    setError(null);
-  };
+  useEffect(() => {
+    fetchUploadedFiles();
+  }, []);
 
   const fetchSummaryData = async () => {
     try {
@@ -105,13 +104,13 @@ const QCChecks = () => {
         `http://localhost:5000/summary?file_id=${selectedFileId}`
       );
       const result = await response.json();
-      const summary = result.summary || {
+      const summaryData = result.summary || {
         totalElements: 0,
         elementsWithinTolerance: 0,
         averageRSD: 0,
         averageErrorPercentage: 0,
       };
-      setSummary(summary);
+      setSummary(summaryData);
     } catch (err) {
       console.error('Error fetching summary:', err);
       setSummary(null);
@@ -119,50 +118,48 @@ const QCChecks = () => {
   };
 
   useEffect(() => {
-    if (selectedFileId) fetchSummaryData();
+    if (selectedFileId) {
+      fetchSummaryData();
+    } else {
+      setSummary(null);
+    }
   }, [selectedFileId]);
+
+  const handleApplyFilter = (filterData) => {
+    setError(null);
+    if (filterData.type === 'clear') {
+      setSelectedFileId('');
+      fetchUploadedFiles();
+    } else if (filterData.type === 'date') {
+      setSelectedFileId('');
+      fetchUploadedFiles({ startDate: filterData.startDate, endDate: filterData.endDate });
+    } else if (filterData.type === 'file') {
+      const fileId = filterData.file.id || filterData.file.file_id;
+      setSelectedFileId(fileId);
+    }
+  };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
       <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
       <div style={{ flexGrow: 1, padding: '24px' }}>
         <Typography variant="h4" sx={{ mb: 2, fontWeight: 600 }}>
-          QC Tables
+          QC Checks
         </Typography>
 
         <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
           <Grid item xs={12} md={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Select File</InputLabel>
-              <Select
-                value={selectedFileId || ''}
-                onChange={handleFileChange}
-                label="Select File"
-                startAdornment={<FolderIcon sx={{ mr: 1, color: 'action.active' }} />}
-              >
-                {uploadedFiles.map((file) => (
-                  <MenuItem key={file.id || file.file_id} value={file.id || file.file_id}>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {file.filename || file.original_name || file.name}
-                    </Typography>
-                  </MenuItem>
-                ))}
-                {uploadedFiles.length === 0 && (
-                  <MenuItem disabled>
-                    {loading ? 'Loading files...' : 'No files available'}
-                  </MenuItem>
-                )}
-              </Select>
-            </FormControl>
+            <NestedFilterDrawer
+              uploadedFiles={uploadedFiles}
+              onApplyFilter={handleApplyFilter}
+            />
           </Grid>
-
           <Grid item xs={12} md={8}>
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button
                 variant={viewMode === 'table' ? 'contained' : 'outlined'}
                 onClick={() => setViewMode('table')}
                 startIcon={<TableChartIcon />}
-                size="small"
               >
                 Table
               </Button>
@@ -170,7 +167,6 @@ const QCChecks = () => {
                 variant={viewMode === 'graph' ? 'contained' : 'outlined'}
                 onClick={() => setViewMode('graph')}
                 startIcon={<BarChartIcon />}
-                size="small"
               >
                 Graph
               </Button>
@@ -178,11 +174,8 @@ const QCChecks = () => {
           </Grid>
         </Grid>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
+        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+        {loading && <LinearProgress sx={{ mb: 3 }} />}
 
         {summary && (
           <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -209,7 +202,7 @@ const QCChecks = () => {
                   </Typography>
                   <LinearProgress
                     variant="determinate"
-                    value={(summary.elementsWithinTolerance / summary.totalElements) * 100}
+                    value={summary.totalElements > 0 ? (summary.elementsWithinTolerance / summary.totalElements) * 100 : 0}
                     sx={{ mt: 1 }}
                   />
                 </CardContent>
@@ -261,15 +254,16 @@ const QCChecks = () => {
             </Box>
           </>
         )}
+
         {!selectedFileId && !loading && (
           <Card>
             <CardContent sx={{ textAlign: 'center', py: 6 }}>
-              <FolderIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+              <FilterListIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="textSecondary">
-                Select a File to View QC Data
+                Apply a Filter to Begin
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Choose a file from dropdown above to begin QC analysis.
+                Use the filter to select a specific file or narrow down the file list by date.
               </Typography>
             </CardContent>
           </Card>
