@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom'; // CHANGED
+import { useLocation } from 'react-router-dom';
+
 import {
   Box,
   Button,
@@ -29,6 +31,9 @@ import SJS_Graph from '@/components/sjs_graph';
 
 const QCChecks = () => {
   const { section } = useParams(); // CHANGED
+  const location = useLocation();
+  const preselectedFileId = location.state?.fileId;
+
   const [selectedItem, setSelectedItem] = useState('qc-tables');
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [selectedFileId, setSelectedFileId] = useState('');
@@ -77,7 +82,8 @@ const QCChecks = () => {
       const files = data.files || data.data || Array.isArray(data) ? data : [];
       setUploadedFiles(files);
       if (files.length > 0 && !selectedFileId) {
-        setSelectedFileId(files[0].id || files[0].file_id);
+        const defaultId = preselectedFileId || files[0].id || files[0].file_id;
+        setSelectedFileId(defaultId);
       }
     } catch (err) {
       console.error('Error fetching files:', err);
