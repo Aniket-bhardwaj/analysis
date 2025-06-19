@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Startup log
-console.log("BACKEND STARTED FROM THIS FOLDER: carbon-data-analysis/backend");
+console.log("Starting backend server...");
 
 // Ensure uploads folder exists
 const uploadDir = path.join(__dirname, 'uploads');
