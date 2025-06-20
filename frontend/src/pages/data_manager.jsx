@@ -131,19 +131,45 @@ const DataManagerPage = () => {
 
     const fetchUploadedFiles = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/uploaded-files`);
-            const data = await res.json();
-            // Add quality check status to each file
-            const filesWithStatus = data.map(file => ({
+          const res = await fetch(`http://localhost:5000/uploaded-files`);
+          const data = await res.json();
+          const files = data.files || data.data || data; // fallback for various response shapes
+      
+          const filesWithStatus = await Promise.all(
+            files.map(async (file) => {
+              const fileId = file.id || file.file_id;
+              let qualityStatus = 'error'; // default to fail
+      
+              try {
+                const summaryRes = await fetch(`http://localhost:5000/summary?file_id=${fileId}`);
+                if (!summaryRes.ok) throw new Error('Summary fetch failed');
+      
+                const result = await summaryRes.json();
+                const summary = result.summary || {};
+                const total = summary.totalElements || 0;
+                const within = summary.elementsWithinTolerance || 0;
+      
+                if (total > 0 && total === within) {
+                  qualityStatus = 'success';
+                }
+      
+              } catch (err) {
+                console.error(`❌ Failed to fetch summary for file ${fileId}:`, err.message);
+              }
+      
+              return {
                 ...file,
-                qualityStatus: getQualityCheckStatus(file)
-            }));
-            setFiles(filesWithStatus);
+                qualityStatus
+              };
+            })
+          );
+      
+          setFiles(filesWithStatus);
+        } catch (err) {
+          console.error('❌ Failed to fetch uploaded files:', err.message);
         }
-        catch (err) {
-            console.error('Failed to fetch uploaded files:', err);
-        }
-    };
+      };
+      
 
     useEffect(() => {
         fetchUploadedFiles();
