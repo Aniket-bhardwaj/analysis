@@ -254,7 +254,8 @@ const QCGraph = ({ selectedFileId }) => {
   return (
     <Card>
       <CardContent>
-        <Typography variant="h5" gutterBottom>
+        <Typography variant="h5"  gutterBottom 
+      sx={{ textAlign: 'left' }}>
           Quality Control Graph
         </Typography>
 

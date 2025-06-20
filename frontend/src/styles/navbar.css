@@ -1,0 +1,4 @@
+.menu-button-selected {
+    background-color: rgba(25, 118, 210, 0.08) !important; /* Slight blue tint */
+    color: #1976d2 !important; /* MUI primary blue for icon/text */
+  }

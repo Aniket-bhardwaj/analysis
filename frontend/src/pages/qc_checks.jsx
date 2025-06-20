@@ -55,7 +55,7 @@ const QCChecks = () => {
 
     if (scrollTarget?.current) {
       setTimeout(() => {
-        scrollTarget.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        scrollTarget.current.scrollIntoView({ behavior: 'auto', block: 'start' });
       }, 100);
     }
   }, [selectedFileId, section]);

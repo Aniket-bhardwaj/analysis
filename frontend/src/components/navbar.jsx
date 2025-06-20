@@ -10,6 +10,7 @@ import {
   Collapse,
   Box,
 } from '@mui/material';
+import '../styles/navbar.css';
 
 import {
   Dashboard as DashboardIcon,
@@ -51,7 +52,7 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
     >
       <Box className="logo-container">
         <img
-          src="/images/bluelogoiitk.png"
+          src="/images/img_mati_carbon_logo_black_1.png"
           alt="Mati Logo"
           className="logo-image"
         />
