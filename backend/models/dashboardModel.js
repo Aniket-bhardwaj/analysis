@@ -58,16 +58,16 @@ function getFilesUploadedThisWeek() {
 function getQCDataPastWeek() {
   const sql = `
     SELECT 
-      DATE(qc_data.created_at) AS date,
+      DATE(uploaded_files.uploaded_at) AS date,
       qc_data.file_id,
       qc_data."Solution Label" AS solution_label,
       uploaded_files.type AS file_type,
-      qc_data.created_at
+      uploaded_files.uploaded_at
     FROM qc_data
     JOIN uploaded_files ON qc_data.file_id = uploaded_files.id
-    WHERE qc_data.created_at >= DATE('now', '-7 days')
+    WHERE uploaded_files.uploaded_at >= DATE('now', '-7 days')
       AND qc_data."Solution Label" LIKE '%QC MES%'
-    ORDER BY qc_data.created_at ASC
+    ORDER BY uploaded_files.uploaded_at ASC
   `;
   return new Promise((resolve, reject) => {
     db.all(sql, [], (err, rows) => {
@@ -86,14 +86,14 @@ function getQCDataPastWeek() {
 function getQCStatsForWeek() {
   const sql = `
     SELECT 
-      DATE(qc_data.created_at) AS date,
+      DATE(uploaded_files.uploaded_at) AS date,
       COUNT(*) AS total_qc_runs,
       uploaded_files.type AS file_type
     FROM qc_data
     JOIN uploaded_files ON qc_data.file_id = uploaded_files.id
-    WHERE qc_data.created_at >= DATE('now', '-7 days')
+    WHERE uploaded_files.uploaded_at >= DATE('now', '-7 days')
       AND qc_data."Solution Label" LIKE '%QC MES%'
-    GROUP BY DATE(qc_data.created_at), uploaded_files.type
+    GROUP BY DATE(uploaded_files.uploaded_at), uploaded_files.type
     ORDER BY date ASC
   `;
   return new Promise((resolve, reject) => {
