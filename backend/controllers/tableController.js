@@ -79,6 +79,52 @@ class TableController {
   }
 }
 
+  // Get QC table data by file ID
+  static async getTableDataByFile(req, res) {
+    try {
+      const { file_id } = req.query;
+
+      const solution_label= await QcCheckService.getSolutionLabelsForFile(file_id);
+
+
+      if (!file_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'file_id is required'
+        });
+      }
+
+      const solutionLabel = solution_label || 'QC MES 5 ppm';
+
+      const result = await tableService.getQCTableData(parseInt(file_id), solutionLabel);
+
+      if (!result.tableData || result.tableData.length === 0) {
+        return res.json({
+          success: true,
+          message: result.message || 'No data found',
+          tableData: [],
+          elements: [],
+          solutionLabel: result.solutionLabel
+        });
+      }
+
+      res.json({
+        success: true,
+        tableData: result.tableData,
+        elements: result.elements,
+        solutionLabel: result.solutionLabel
+      });
+
+    } catch (error) {
+      console.error('[TableController] Error fetching QC table data:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch QC table data',
+        error: error.message
+      });
+    }
+  }
+
 
 
     static async getSJSTableDataByFile(req, res) {
