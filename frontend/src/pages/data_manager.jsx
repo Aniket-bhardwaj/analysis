@@ -21,6 +21,7 @@ import {
     CircularProgress,
     Tooltip,
 } from '@mui/material'
+import { Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import {
     CloudUpload,
@@ -34,6 +35,15 @@ import {
 import '../styles/data_manager.css';
 
 const DataManagerPage = () => {
+
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [snackbarSeverity, setSnackbarSeverity] = useState('error');
+
+    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+    const [fileToDelete, setFileToDelete] = useState(null);
+
+
 
     const [files, setFiles] = useState([]);
     const [dragActive, setDragActive] = useState(false);
@@ -109,12 +119,18 @@ const DataManagerPage = () => {
             xhr.send(formData);
 
             const result = await uploadPromise;
+            setSnackbarMessage('File uploaded successfully');
+            setSnackbarSeverity('success');
+            setSnackbarOpen(true);
 
             fetchUploadedFiles();
 
         } catch (err) {
             console.error('Error uploading file:', err);
-            alert(err.message || 'Something went wrong');
+            setSnackbarMessage(err.message || 'Something went wrong');
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+
         } finally {
             setIsUploading(false);
             setUploadProgress(0);
@@ -210,7 +226,9 @@ const DataManagerPage = () => {
             }
         } catch (err) {
             console.error('Error hiding file:', err);
-            alert('Something went wrong while trying to hide the file');
+            setSnackbarMessage('Something went wrong while trying to hide the file');
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
         }
     };
 
@@ -261,7 +279,6 @@ const DataManagerPage = () => {
     const [selectedItem, setSelectedItem] = useState('Data Manager');
     const location = useLocation();
     const navigate = useNavigate();
-
     return (
         <Box className="file-upload-container">
             <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
@@ -402,12 +419,8 @@ const DataManagerPage = () => {
 
                                                     <IconButton
                                                         onClick={() => {
-                                                            const confirmDelete = window.confirm(
-                                                                'Are you sure you want to delete this file?'
-                                                            );
-                                                            if (confirmDelete) {
-                                                                handleDelete(file.id);
-                                                            }
+                                                            setFileToDelete(file.id);
+                                                            setConfirmDialogOpen(true);
                                                         }}
                                                         className="delete-button"
                                                         size="small"
@@ -424,6 +437,43 @@ const DataManagerPage = () => {
                     </CardContent>
                 </Card>
             </Box>
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={5000}
+                onClose={() => setSnackbarOpen(false)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={() => setSnackbarOpen(false)}
+                    severity={snackbarSeverity}
+                    sx={{ width: '100%' }}
+                >
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                        {snackbarMessage}
+                    </Typography>
+                </Alert>
+            </Snackbar>
+
+            <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
+                <DialogTitle>Confirm Deletion</DialogTitle>
+                <DialogContent>
+                    Are you sure you want to delete this file?
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+                    <Button
+                        onClick={() => {
+                            handleDelete(fileToDelete);
+                            setConfirmDialogOpen(false);
+                        }}
+                        color="error"
+                        variant="contained"
+                    >
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
         </Box>
     );
 };
