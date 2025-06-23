@@ -1,8 +1,8 @@
-const db = require('../initialize_db');// Assuming you have a database config
+const db = require('../initialize_db');
+const { MEconc, TEconc } = require('../colHeaders');
+const QcCheckService = require('../services/qcCheckService');
 
-// ==========================
-// 1. Total Uploaded Files Count
-// ==========================
+// Core dashboard statistics functions
 function getTotalFilesCount() {
   const sql = `SELECT COUNT(*) AS count FROM uploaded_files WHERE hidden = 0`;
   return new Promise((resolve, reject) => {
@@ -16,9 +16,6 @@ function getTotalFilesCount() {
   });
 }
 
-// ==========================
-// 2. Total Samples Count
-// ==========================
 function getTotalSamplesCount() {
   const sql = `SELECT COUNT(*) AS count FROM sample_data`;
   return new Promise((resolve, reject) => {
@@ -32,122 +29,184 @@ function getTotalSamplesCount() {
   });
 }
 
-// ==========================
-// 3. Files Uploaded in Past 7 Days
-// ==========================
-function getFilesUploadedThisWeek() {
-  const sql = `
-    SELECT COUNT(*) AS count
-    FROM uploaded_files
-    WHERE hidden = 0 AND DATE(uploaded_at) >= DATE('now', '-7 days')
-  `;
+async function getQCPassRate() {
   return new Promise((resolve, reject) => {
-    db.get(sql, [], (err, row) => {
+    // Get QC files from past week
+    const sql = `
+      SELECT DISTINCT
+        uploaded_files.id,
+        uploaded_files.type,
+        uploaded_files.filename
+      FROM uploaded_files
+      JOIN qc_data ON uploaded_files.id = qc_data.file_id
+      WHERE uploaded_files.uploaded_at >= DATE('now', '-7 days')
+        AND uploaded_files.hidden = 0
+        AND qc_data."Solution Label" LIKE '%QC MES%'
+    `;
+    
+    db.all(sql, [], async (err, files) => {
       if (err) {
-        console.error('Error getting files uploaded this week:', err);
+        console.error('Error getting QC files:', err);
         return reject(err);
       }
-      resolve(row?.count || 0);
+      
+      if (!files || files.length === 0) {
+        return resolve({ passRate: 0, totalChecks: 0, passedChecks: 0 });
+      }
+      
+      let totalChecks = 0;
+      let passedChecks = 0;
+      
+      try {
+        // Process each file to calculate QC pass/fail status
+        for (const file of files) {
+          const fileId = file.id;
+          
+          // Get the appropriate QC solution label for this file type
+          const solutionLabel = await QcCheckService.getSolutionLabelsForFile(fileId);
+          
+          if (!solutionLabel) continue;
+          
+          // Get QC summary which includes elements within tolerance
+          const qcSummary = await QcCheckService.getSummaryForQC(fileId, solutionLabel);
+          
+          // Each element is considered a "check"
+          totalChecks += qcSummary.totalElements;
+          passedChecks += qcSummary.elementsWithinTolerance;
+        }
+        
+        const passRate = totalChecks > 0 ? Math.round((passedChecks / totalChecks) * 100) : 0;
+        
+        resolve({
+          passRate,
+          totalChecks,
+          passedChecks
+        });
+        
+      } catch (error) {
+        console.error('Error calculating QC pass rate:', error);
+        reject(error);
+      }
     });
   });
 }
 
-// ==========================
-// 4. QC Data for Past Week
-// ==========================
-function getQCDataPastWeek() {
-  const sql = `
-    SELECT 
-      DATE(uploaded_files.uploaded_at) AS date,
-      qc_data.file_id,
-      qc_data."Solution Label" AS solution_label,
-      uploaded_files.type AS file_type,
-      uploaded_files.uploaded_at
-    FROM qc_data
-    JOIN uploaded_files ON qc_data.file_id = uploaded_files.id
-    WHERE uploaded_files.uploaded_at >= DATE('now', '-7 days')
-      AND qc_data."Solution Label" LIKE '%QC MES%'
-    ORDER BY uploaded_files.uploaded_at ASC
-  `;
+function getQCGraphDataForDashboard() {
   return new Promise((resolve, reject) => {
-    db.all(sql, [], (err, rows) => {
-      if (err) {
-        console.error('Error getting QC data for past week:', err);
-        return reject(err);
+    const filesQuery = `
+      SELECT DISTINCT 
+        uploaded_files.id,
+        uploaded_files.type,
+        uploaded_files.uploaded_at,
+        uploaded_files.filename
+      FROM uploaded_files
+      JOIN qc_data ON uploaded_files.id = qc_data.file_id
+      WHERE uploaded_files.uploaded_at >= DATE('now', '-7 days')
+        AND uploaded_files.hidden = 0
+        AND qc_data."Solution Label" LIKE '%QC MES%'
+      ORDER BY uploaded_files.uploaded_at ASC
+    `;
+
+    db.all(filesQuery, [], async (err, files) => {
+      if (err) return reject(err);
+      if (!files || files.length === 0) {
+        return resolve({ success: true, graphData: {} });
       }
-      resolve(rows || []);
+
+      const allGraphData = {};
+
+      try {
+        for (const file of files) {
+          const fileId = file.id;
+          const fileType = file.type;
+          
+          const VALID_LABELS = {
+            1: 'QC MES 5 ppm',
+            2: 'QC MES 50 ppb',
+          };
+          
+          const ELEMENT_TABLES = {
+            1: MEconc,
+            2: TEconc,
+          };
+
+          const qcLabel = VALID_LABELS[fileType];
+          const elementNames = ELEMENT_TABLES[fileType];
+
+          if (!qcLabel || !Array.isArray(elementNames) || elementNames.length === 0) {
+            continue;
+          }
+
+          const timeColumn = fileType === 2 ? `"Acq. Date-Time"` : `"Timestamp"`;
+
+          const dataQuery = `
+            SELECT ${timeColumn} AS timestamp, ${elementNames.map(el => `"${el}"`).join(', ')}
+            FROM qc_data
+            WHERE file_id = ? AND "Solution Label" = ?
+            ORDER BY ${timeColumn} ASC
+          `;
+
+          const rows = await new Promise((resolve, reject) => {
+            db.all(dataQuery, [fileId, qcLabel], (err, rows) => {
+              if (err) reject(err);
+              else resolve(rows || []);
+            });
+          });
+
+          const fileGraphData = {};
+          elementNames.forEach(element => {
+            fileGraphData[element] = rows
+              .map(row => ({
+                timestamp: row.timestamp,
+                value: parseFloat(row[element]),
+                fileId: fileId,
+                fileName: file.filename,
+                fileType: fileType === 1 ? 'PPM' : 'PPB',
+                uploadedAt: file.uploaded_at
+              }))
+              .filter(point => !isNaN(point.value));
+          });
+
+          elementNames.forEach(element => {
+            if (!allGraphData[element]) {
+              allGraphData[element] = [];
+            }
+            allGraphData[element] = allGraphData[element].concat(fileGraphData[element]);
+          });
+        }
+
+        Object.keys(allGraphData).forEach(element => {
+          allGraphData[element].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        });
+
+        resolve({
+          success: true,
+          graphData: allGraphData,
+          fileCount: files.length,
+          elementCount: Object.keys(allGraphData).length
+        });
+
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
 
-// ==========================
-// 5. QC Stats for Past Week
-// ==========================
-function getQCStatsForWeek() {
-  const sql = `
-    SELECT 
-      DATE(uploaded_files.uploaded_at) AS date,
-      COUNT(*) AS total_qc_runs,
-      uploaded_files.type AS file_type
-    FROM qc_data
-    JOIN uploaded_files ON qc_data.file_id = uploaded_files.id
-    WHERE uploaded_files.uploaded_at >= DATE('now', '-7 days')
-      AND qc_data."Solution Label" LIKE '%QC MES%'
-    GROUP BY DATE(uploaded_files.uploaded_at), uploaded_files.type
-    ORDER BY date ASC
-  `;
-  return new Promise((resolve, reject) => {
-    db.all(sql, [], (err, rows) => {
-      if (err) {
-        console.error('Error getting QC stats for week:', err);
-        return reject(err);
-      }
-      resolve(rows || []);
-    });
-  });
-}
-
-// ==========================
-// 6. Recent Files (Limited)
-// ==========================
-function getRecentFiles(limit = 5) {
-  const sql = `
-    SELECT 
-      id,
-      filename AS original_name,
-      type,
-      uploaded_at AS created_at
-    FROM uploaded_files
-    WHERE hidden = 0
-    ORDER BY uploaded_at DESC
-    LIMIT ?
-  `;
-  return new Promise((resolve, reject) => {
-    db.all(sql, [limit], (err, rows) => {
-      if (err) {
-        console.error('Error getting recent files:', err);
-        return reject(err);
-      }
-      resolve(rows || []);
-    });
-  });
-}
-
-// ==========================
-// 7. Dashboard Summary
-// ==========================
 async function getDashboardSummary() {
   try {
-    const [totalFiles, totalSamples, weeklyFiles] = await Promise.all([
+    const [totalFiles, totalSamples, qcStats] = await Promise.all([
       getTotalFilesCount(),
       getTotalSamplesCount(),
-      getFilesUploadedThisWeek()
+      getQCPassRate()
     ]);
 
     return {
       totalFiles,
       totalSamples,
-      weeklyFiles
+      qcPassRate: qcStats.passRate,
+      qcTotalChecks: qcStats.totalChecks,
+      qcPassedChecks: qcStats.passedChecks
     };
   } catch (err) {
     console.error('Error getting dashboard summary:', err);
@@ -155,15 +214,10 @@ async function getDashboardSummary() {
   }
 }
 
-// ==========================
-// Export
-// ==========================
 module.exports = {
   getTotalFilesCount,
   getTotalSamplesCount,
-  getFilesUploadedThisWeek,
-  getQCDataPastWeek,
-  getQCStatsForWeek,
-  getRecentFiles,
-  getDashboardSummary
+  getQCPassRate,
+  getDashboardSummary,
+  getQCGraphDataForDashboard
 };

@@ -2,8 +2,8 @@ const DashboardService = require('../services/dashboardService');
 
 class DashboardController {
   /**
-   * GET /api/dashboard
-   * Get complete dashboard data
+   * GET /dashboard
+   * Get complete dashboard data: total files, total samples, QC pass rate, and QC graph data
    */
   static async getDashboard(req, res) {
     try {
@@ -25,129 +25,112 @@ class DashboardController {
   }
 
   /**
-   * GET /api/dashboard/summary
-   * Get dashboard summary statistics only
+   * GET /dashboard/files
+   * Get total files count only
    */
-  static async getSummary(req, res) {
+  static async getTotalFiles(req, res) {
     try {
-      const dashboardData = await DashboardService.getDashboardData();
+      const totalFiles = await DashboardService.getTotalFiles();
       
       res.status(200).json({
         success: true,
-        data: {
-          summary: dashboardData.summary,
-          qcStatistics: dashboardData.qcStatistics
-        },
+        data: { totalFiles },
         timestamp: new Date().toISOString()
       });
     } catch (err) {
-      console.error('Dashboard summary error:', err);
+      console.error('Get total files error:', err);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch dashboard summary',
+        error: 'Failed to fetch total files count',
         message: err.message
       });
     }
   }
 
   /**
-   * GET /api/dashboard/qc-chart
-   * Get QC chart data only
+   * GET /dashboard/samples
+   * Get total samples count only
    */
-  static async getQCChart(req, res) {
+  static async getTotalSamples(req, res) {
     try {
-      const qcChartData = await DashboardService.getQCChartData();
+      const totalSamples = await DashboardService.getTotalSamples();
       
       res.status(200).json({
         success: true,
-        data: qcChartData,
+        data: { totalSamples },
         timestamp: new Date().toISOString()
       });
     } catch (err) {
-      console.error('QC chart data error:', err);
+      console.error('Get total samples error:', err);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch QC chart data',
+        error: 'Failed to fetch total samples count',
         message: err.message
       });
     }
   }
 
   /**
-   * GET /api/dashboard/recent-activity
-   * Get recent activity data
+   * GET /dashboard/qc-pass-rate
+   * Get QC pass rate only
    */
-  static async getRecentActivity(req, res) {
+  static async getQCPassRate(req, res) {
     try {
-      const recentActivity = await DashboardService.getRecentActivity();
+      const qcStats = await DashboardService.getQCPassRate();
       
       res.status(200).json({
         success: true,
-        data: recentActivity,
+        data: qcStats,
         timestamp: new Date().toISOString()
       });
     } catch (err) {
-      console.error('Recent activity error:', err);
+      console.error('Get QC pass rate error:', err);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch recent activity',
+        error: 'Failed to fetch QC pass rate',
         message: err.message
       });
     }
   }
 
   /**
-   * GET /api/dashboard/stats
-   * Get detailed statistics
+   * GET /dashboard/qc-graph
+   * Get QC graph data for dashboard visualization (past week)
    */
-  static async getStats(req, res) {
+  static async getQCGraphData(req, res) {
     try {
-      const { timeframe = 'week' } = req.query;
-      
-      // For now, we only support week timeframe
-      // Future enhancement: support month, quarter, year
-      if (timeframe !== 'week') {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid timeframe. Only "week" is currently supported.'
-        });
-      }
-
-      const stats = await DashboardService.getQCStatistics();
+      const qcGraphData = await DashboardService.getQCGraphData();
       
       res.status(200).json({
         success: true,
-        data: {
-          timeframe,
-          statistics: stats
-        },
+        data: qcGraphData,
         timestamp: new Date().toISOString()
       });
     } catch (err) {
-      console.error('Dashboard stats error:', err);
+      console.error('QC graph data error:', err);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch dashboard statistics',
+        error: 'Failed to fetch QC graph data',
         message: err.message
       });
     }
   }
 
   /**
-   * GET /api/dashboard/health
-   * Get dashboard health check
+   * GET /dashboard/health
+   * Dashboard health check
    */
   static async getHealth(req, res) {
     try {
-      // Basic health check - try to get summary data
       const dashboardData = await DashboardService.getDashboardData();
       
       res.status(200).json({
         success: true,
         status: 'healthy',
         data: {
-          totalFiles: dashboardData.summary.totalFiles,
-          totalSamples: dashboardData.summary.totalSamples,
+          totalFiles: dashboardData.totalFiles,
+          totalSamples: dashboardData.totalSamples,
+          qcPassRate: dashboardData.qcPassRate,
           lastCheck: new Date().toISOString()
         }
       });

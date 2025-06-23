@@ -10,7 +10,7 @@ const DashboardPage = () => {
   const [error, setError] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [selectedItem, setSelectedItem] = useState('dashboard');
-
+  const [selectedElement, setSelectedElement] = useState(null);
 
   // Fetch dashboard data
   const fetchDashboardData = async () => {
@@ -22,7 +22,9 @@ const DashboardPage = () => {
       console.log('Response status:', response.status);
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
       
       const result = await response.json();
@@ -32,6 +34,14 @@ const DashboardPage = () => {
         setDashboardData(result.data);
         setLastRefresh(new Date());
         setError(null);
+        
+        // Set default selected element if QC graph data exists
+        if (result.data.qcGraphData?.success && result.data.qcGraphData.graphData) {
+          const elements = Object.keys(result.data.qcGraphData.graphData);
+          if (elements.length > 0 && !selectedElement) {
+            setSelectedElement(elements[0]);
+          }
+        }
       } else {
         throw new Error(result.message || 'Failed to fetch dashboard data');
       }
@@ -76,6 +86,24 @@ const DashboardPage = () => {
     }
   };
 
+  // Prepare chart data for selected element
+  const getChartData = () => {
+    if (!dashboardData?.qcGraphData?.success || !selectedElement) {
+      return [];
+    }
+
+    const elementData = dashboardData.qcGraphData.graphData[selectedElement];
+    if (!elementData?.dailyAverages) {
+      return [];
+    }
+
+    return elementData.dailyAverages.map(item => ({
+      date: item.date,
+      value: item.value,
+      dataPoints: item.dataPoints
+    }));
+  };
+
   if (loading && !dashboardData) {
     return (
       <div className="loading-container">
@@ -105,7 +133,9 @@ const DashboardPage = () => {
     );
   }
 
-  const { summary, recentFiles, qcChart, qcStatistics } = dashboardData || {};
+  const chartData = getChartData();
+  const availableElements = dashboardData?.qcGraphData?.success ? 
+    Object.keys(dashboardData.qcGraphData.graphData || {}) : [];
 
   return (
     <div className="dashboard-container">
@@ -121,6 +151,13 @@ const DashboardPage = () => {
                 {lastRefresh && `Last updated: ${lastRefresh.toLocaleTimeString()}`}
               </p>
             </div>
+            <button
+              onClick={fetchDashboardData}
+              className="refresh-button"
+              disabled={loading}
+            >
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
           </div>
         </div>
 
@@ -133,7 +170,7 @@ const DashboardPage = () => {
               </div>
               <div className="card-info">
                 <h3 className="card-label">Total Files</h3>
-                <p className="card-value">{summary?.totalFiles || 0}</p>
+                <p className="card-value">{dashboardData?.totalFiles || 0}</p>
               </div>
             </div>
           </div>
@@ -145,7 +182,20 @@ const DashboardPage = () => {
               </div>
               <div className="card-info">
                 <h3 className="card-label">Total Samples</h3>
-                <p className="card-value">{summary?.totalSamples || 0}</p>
+                <p className="card-value">{dashboardData?.totalSamples || 0}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="summary-card">
+            <div className="card-content">
+              <div className="card-icon">
+                <CheckCircle className={`icon-qc ${(dashboardData?.qcPassRate || 0) >= 80 ? 'icon-qc-good' : 'icon-qc-bad'}`} />
+              </div>
+              <div className="card-info">
+                <h3 className="card-label">QC Pass Rate</h3>
+                <p className="card-value">{dashboardData?.qcPassRate || 0}%</p>
+                <p className="card-subtitle">past week</p>
               </div>
             </div>
           </div>
@@ -156,34 +206,41 @@ const DashboardPage = () => {
                 <TrendingUp className="icon-trending" />
               </div>
               <div className="card-info">
-                <h3 className="card-label">This Week</h3>
-                <p className="card-value">{summary?.weeklyFiles || 0}</p>
-                <p className="card-subtitle">files uploaded</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="summary-card">
-            <div className="card-content">
-              <div className="card-icon">
-                <CheckCircle className={`icon-qc ${(summary?.qcPassRate || 0) >= 80 ? 'icon-qc-good' : 'icon-qc-bad'}`} />
-              </div>
-              <div className="card-info">
-                <h3 className="card-label">QC Pass Rate</h3>
-                <p className="card-value">{summary?.qcPassRate || 0}%</p>
-                <p className="card-subtitle">past week</p>
+                <h3 className="card-label">QC Checks</h3>
+                <p className="card-value">{dashboardData?.qcStats?.totalChecks || 0}</p>
+                <p className="card-subtitle">{dashboardData?.qcStats?.passedChecks || 0} passed</p>
               </div>
             </div>
           </div>
         </div>
 
         <div className="charts-container">
-          {/* QC Trend Chart */}
+          {/* QC Graph Chart */}
           <div className="chart-card chart-main">
-            <h3 className="chart-title">QC Pass Rate Trend (Past Week)</h3>
-            {qcChart?.dailySummaries?.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={qcChart.dailySummaries}>
+            <div className="chart-header">
+              <h3 className="chart-title">QC Element Trends (Past Week)</h3>
+              {availableElements.length > 0 && (
+                <div className="element-selector">
+                  <label htmlFor="element-select">Element: </label>
+                  <select
+                    id="element-select"
+                    value={selectedElement || ''}
+                    onChange={(e) => setSelectedElement(e.target.value)}
+                    className="element-dropdown"
+                  >
+                    {availableElements.map(element => (
+                      <option key={element} value={element}>
+                        {element}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={350}>
+                <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 
@@ -191,12 +248,11 @@ const DashboardPage = () => {
                     tick={{ fontSize: 12 }}
                   />
                   <YAxis 
-                    domain={[0, 100]}
                     tick={{ fontSize: 12 }}
-                    label={{ value: 'Pass Rate (%)', angle: -90, position: 'insideLeft' }}
+                    label={{ value: 'Concentration', angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
-                    formatter={(value, name) => [`${value}%`, 'Pass Rate']}
+                    formatter={(value, name) => [value, selectedElement]}
                     labelFormatter={(label) => `Date: ${formatDate(label)}`}
                     contentStyle={{
                       backgroundColor: '#fff',
@@ -207,11 +263,12 @@ const DashboardPage = () => {
                   <Legend />
                   <Line 
                     type="monotone" 
-                    dataKey="averagePassRate" 
+                    dataKey="value" 
                     stroke="#2563eb" 
-                    strokeWidth={3}
+                    strokeWidth={2}
                     dot={{ fill: '#2563eb', strokeWidth: 2, r: 4 }}
                     activeDot={{ r: 6, stroke: '#2563eb', strokeWidth: 2 }}
+                    name={selectedElement || 'Concentration'}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -220,68 +277,54 @@ const DashboardPage = () => {
                 <div className="no-data-content">
                   <TrendingUp className="no-data-icon" />
                   <p>No QC data available for the past week</p>
+                  {availableElements.length === 0 && (
+                    <p className="no-data-subtitle">No elements found in QC data</p>
+                  )}
                 </div>
               </div>
             )}
           </div>
-
-          {/* QC Statistics */}
-          <div className="charts-files-row"> 
-          <div className="chart-card chart-sidebar">
-            <h3 className="chart-title">QC Statistics</h3>
-            <div className="stats-container">
-              <div className="stat-row">
-                <span className="stat-label">Total QC Runs</span>
-                <span className="stat-value">{qcStatistics?.totalQCRuns || 0}</span>
-              </div>
-              
-              <div className="stat-row">
-                <span className="stat-label">Average RSD</span>
-                <span className="stat-value">{qcStatistics?.averageRSD || 0}%</span>
-              </div>
-              
-              <div className="stat-row">
-                <span className="stat-label">Average Error</span>
-                <span className="stat-value">{qcStatistics?.averageError || 0}%</span>
-              </div>
-              
-              
-            </div>
-          </div>
-          </div>
         </div>
 
-
-        {qcChart?.dailySummaries?.length > 0 && (
-          <div className="chart-card chart-full">
-            <h3 className="chart-title">Daily QC Runs</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={qcChart.dailySummaries}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatDate}
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip 
-                  formatter={(value, name) => [value, name === 'ppmRuns' ? 'PPM Runs' : 'PPB Runs']}
-                  labelFormatter={(label) => `Date: ${formatDate(label)}`}
-                />
-                <Legend />
-                <Bar dataKey="ppmRuns" stackId="a" fill="#3b82f6" name="PPM Files" />
-                <Bar dataKey="ppbRuns" stackId="a" fill="#10b981" name="PPB Files" />
-              </BarChart>
-            </ResponsiveContainer>
+        {/* QC Statistics */}
+        {dashboardData?.qcGraphData?.success && (
+          <div className="stats-grid">
+            <div className="stat-card">
+              <h4>Total Elements</h4>
+              <p className="stat-value">{dashboardData.qcGraphData.summary?.totalElements || 0}</p>
+            </div>
+            <div className="stat-card">
+              <h4>QC Files</h4>
+              <p className="stat-value">{dashboardData.qcGraphData.summary?.totalFiles || 0}</p>
+            </div>
+            <div className="stat-card">
+              <h4>Data Points</h4>
+              <p className="stat-value">{dashboardData.qcGraphData.summary?.totalDataPoints || 0}</p>
+            </div>
+            {selectedElement && dashboardData.qcGraphData.graphData[selectedElement] && (
+              <div className="stat-card">
+                <h4>{selectedElement} Points</h4>
+                <p className="stat-value">
+                  {dashboardData.qcGraphData.graphData[selectedElement].totalDataPoints || 0}
+                </p>
+              </div>
+            )}
           </div>
         )}
-        
 
         {/* Footer */}
         <div className="dashboard-footer">
           {error && (
             <p className="footer-error">
               Warning: {error}
+            </p>
+          )}
+          {dashboardData?.qcGraphData?.success && (
+            <p className="footer-info">
+              QC data from {dashboardData.qcGraphData.summary?.dateRange?.start ? 
+                formatDate(dashboardData.qcGraphData.summary.dateRange.start) : 'N/A'} to {
+                dashboardData.qcGraphData.summary?.dateRange?.end ? 
+                formatDate(dashboardData.qcGraphData.summary.dateRange.end) : 'N/A'}
             </p>
           )}
         </div>

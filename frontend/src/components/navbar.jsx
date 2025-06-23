@@ -52,8 +52,8 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
     >
       <Box className="logo-container">
         <img
-          src="/images/img_mati_carbon_logo_black_1.png"
-          alt="Mati Logo"
+          src="/images/bluelogoiitk.png"
+          alt="IITK Logo"
           className="logo-image"
         />
         <List className="menu-list">
