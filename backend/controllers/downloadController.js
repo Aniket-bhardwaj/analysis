@@ -1,25 +1,26 @@
 const path = require('path');
 const fileModel = require('../models/fileModel');
 
-
-/*************************/
-// 1.Download file by ID
-/*************************/
 exports.downloadFile = async (req, res) => {
-  const fileId = req.params.id;
+  try {
+    const fileId = req.params.id;
+    const row = await fileModel.getFileById(fileId); // gets { filename, path }
 
-  // use the model to fetch file data
-  const row = await fileModel.getFileById(fileId);
-
-  const absoluteFilePath = path.join(__dirname, "..", row.path);
-
-  res.download(absoluteFilePath, row.filename, (downloadErr) => {
-    if (downloadErr) {
-      console.error("File download error:", downloadErr);
-      if (!res.headersSent) {
-        res.status(500).json({ error: "Failed to download file" });
-      }
+    if (!row) {
+      return res.status(404).json({ error: 'File not found' });
     }
-  });
-};
 
+    const absoluteFilePath = path.join(__dirname, '..', row.path);
+    // console.log("Download request:", {
+    //   file: row.filename,
+    //   path: row.path
+    // });
+
+    // ✅ Use res.download to set filename correctly
+    return res.download(absoluteFilePath, row.filename);
+  } catch (err) {
+    console.error('Download error:', err);
+    res.status(500).json({ error: 'Failed to download file' });
+  }
+  
+};

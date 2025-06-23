@@ -139,14 +139,14 @@ const QCGraph = ({ selectedFileId }) => {
         label: 'Upper Limit',
         data: timestamps.map(() => upperLimit),
         borderWidth: 0,
-        backgroundColor: 'rgba(255, 0, 0, 0.05)',
+        backgroundColor: 'rgba(173, 230, 189, 0.3)',
         fill: false,
         pointRadius: 0,
         tension: 0.3,
       });
 
       datasets.push({
-        label: 'Error Range',
+        label: 'Lower Limit',
         data: timestamps.map(() => lowerLimit),
         borderWidth: 0,
         backgroundColor: 'rgba(173, 230, 189, 0.3)',

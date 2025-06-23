@@ -131,45 +131,45 @@ const DataManagerPage = () => {
 
     const fetchUploadedFiles = async () => {
         try {
-          const res = await fetch(`http://localhost:5000/uploaded-files`);
-          const data = await res.json();
-          const files = data.files || data.data || data; // fallback for various response shapes
-      
-          const filesWithStatus = await Promise.all(
-            files.map(async (file) => {
-              const fileId = file.id || file.file_id;
-              let qualityStatus = 'error'; // default to fail
-      
-              try {
-                const summaryRes = await fetch(`http://localhost:5000/summary?file_id=${fileId}`);
-                if (!summaryRes.ok) throw new Error('Summary fetch failed');
-      
-                const result = await summaryRes.json();
-                const summary = result.summary || {};
-                const total = summary.totalElements || 0;
-                const within = summary.elementsWithinTolerance || 0;
-      
-                if (total > 0 && total === within) {
-                  qualityStatus = 'success';
-                }
-      
-              } catch (err) {
-                console.error(`❌ Failed to fetch summary for file ${fileId}:`, err.message);
-              }
-      
-              return {
-                ...file,
-                qualityStatus
-              };
-            })
-          );
-      
-          setFiles(filesWithStatus);
+            const res = await fetch(`http://localhost:5000/uploaded-files`);
+            const data = await res.json();
+            const files = data.files || data.data || data; // fallback for various response shapes
+
+            const filesWithStatus = await Promise.all(
+                files.map(async (file) => {
+                    const fileId = file.id || file.file_id;
+                    let qualityStatus = 'error'; // default to fail
+
+                    try {
+                        const summaryRes = await fetch(`http://localhost:5000/summary?file_id=${fileId}`);
+                        if (!summaryRes.ok) throw new Error('Summary fetch failed');
+
+                        const result = await summaryRes.json();
+                        const summary = result.summary || {};
+                        const total = summary.totalElements || 0;
+                        const within = summary.elementsWithinTolerance || 0;
+
+                        if (total > 0 && total === within) {
+                            qualityStatus = 'success';
+                        }
+
+                    } catch (err) {
+                        console.error(`❌ Failed to fetch summary for file ${fileId}:`, err.message);
+                    }
+
+                    return {
+                        ...file,
+                        qualityStatus
+                    };
+                })
+            );
+
+            setFiles(filesWithStatus);
         } catch (err) {
-          console.error('❌ Failed to fetch uploaded files:', err.message);
+            console.error('❌ Failed to fetch uploaded files:', err.message);
         }
-      };
-      
+    };
+
 
     useEffect(() => {
         fetchUploadedFiles();
@@ -214,27 +214,13 @@ const DataManagerPage = () => {
         }
     };
 
-    const handleDownload = async (fileId) => {
-        try {
-            const response = await fetch(`http://localhost:5000/download-file/${fileId}`, {
-                method: 'GET',
-            });
-
-            if (!response.ok) throw new Error('Download failed');
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `file_${fileId}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Error downloading file:', error);
-        }
+    const handleDownload = (fileId) => {
+        const link = document.createElement('a');
+        link.href = `http://localhost:5000/download-file/${fileId}`;
+        link.download = ''; // Let server set the filename via Content-Disposition
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
 
@@ -410,11 +396,7 @@ const DataManagerPage = () => {
                                             </TableCell>
                                             <TableCell className="table-cell">
                                                 <>
-                                                    <IconButton
-                                                        onClick={() => handleDownload(file.id)}
-                                                        className="download-button"
-                                                        size="small"
-                                                    >
+                                                    <IconButton onClick={() => handleDownload(file.id)}>
                                                         <DownloadIcon />
                                                     </IconButton>
 
