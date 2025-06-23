@@ -51,25 +51,33 @@ static getRawElementValuesForSummary(fileId, solutionLabel, elementColumns) {
   }
 
   
-    static getRawQCTableRows(fileId, solutionLabel, elementColumns) {
+  static getRawQCTableRows(fileIds, solutionLabel, elementColumns) {
     return new Promise((resolve, reject) => {
+    if (!fileIds || fileIds.length === 0) {
+      return resolve([]); // no IDs → return empty result
+    }
 
     const safeColumns = elementColumns
       .map(col => `"${col.replace(/"/g, '""')}"`)
       .join(', ');
 
+    const placeholders = fileIds.map(() => '?').join(', ');
+
     const query = `
-      SELECT ${safeColumns}
+      SELECT ${safeColumns}, file_id
       FROM qc_data
-      WHERE "Solution Label" = ? AND file_id = ?
+      WHERE "Solution Label" = ? AND file_id IN (${placeholders})
     `;
 
-    db.all(query, [solutionLabel, fileId], (err, rows) => {
+    const params = [solutionLabel, ...fileIds];
+
+    db.all(query, params, (err, rows) => {
       if (err) return reject(err);
       resolve(rows);
     });
-  });
-}
+    });
+  }
+
 
 static async getSJSRows(elementColumns) {
   return new Promise((resolve, reject) => {

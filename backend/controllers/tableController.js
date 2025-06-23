@@ -81,50 +81,52 @@ class TableController {
 
   // Get QC table data by file ID
   static async getTableDataByFile(req, res) {
-    try {
-      const { file_id } = req.query;
+    console.log("🔍 Received Query Params:", req.query);
+  try {
+    const { file_id, start_date, end_date } = req.query;
 
-      const solution_label= await QcCheckService.getSolutionLabelsForFile(file_id);
-
-
-      if (!file_id) {
-        return res.status(400).json({
-          success: false,
-          message: 'file_id is required'
-        });
-      }
-
-      const solutionLabel = solution_label || 'QC MES 5 ppm';
-
-      const result = await tableService.getQCTableData(parseInt(file_id), solutionLabel);
-
-      if (!result.tableData || result.tableData.length === 0) {
-        return res.json({
-          success: true,
-          message: result.message || 'No data found',
-          tableData: [],
-          elements: [],
-          solutionLabel: result.solutionLabel
-        });
-      }
-
-      res.json({
-        success: true,
-        tableData: result.tableData,
-        elements: result.elements,
-        solutionLabel: result.solutionLabel
-      });
-
-    } catch (error) {
-      console.error('[TableController] Error fetching QC table data:', error);
-      res.status(500).json({
+    if (!file_id && !(start_date && end_date)) {
+      return res.status(400).json({
         success: false,
-        message: 'Failed to fetch QC table data',
-        error: error.message
+        message: 'A file_id or a start_date and end_date range is required'
       });
     }
-  }
+    console.log('sd',start_date,'ed', end_date);
+    console.log('file',file_id);
 
+    let result;
+    
+    if (file_id) {
+      result = await tableService.getQCTableData(parseInt(file_id, 10));
+    } 
+    else if (start_date && end_date) {
+      result = await tableService.getFinalQCTableData(start_date, end_date);
+    }
+
+    if (!result || !result.tableData || result.tableData.length === 0) {
+      return res.json({
+        success: true,
+        message: result ? result.message : 'No data found for the selected criteria',
+        tableData: [],
+        elements: []
+      });
+    }
+
+    res.json({
+      success: true,
+      tableData: result.tableData,
+      elements: result.elements
+    });
+
+  } catch (error) {
+    console.error('[TableController] Error fetching QC table data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch QC table data',
+      error: error.message
+    });
+  }
+}
 
 
     static async getSJSTableDataByFile(req, res) {

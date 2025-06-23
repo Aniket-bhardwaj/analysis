@@ -39,6 +39,8 @@ const QCChecks = () => {
   const [selectedItem, setSelectedItem] = useState('qc-tables');
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [selectedFileId, setSelectedFileId] = useState('');
+  const [selectedDateRange, setSelectedDateRange] = useState(null);
+
   const [summary, setSummary] = useState(null);
   const [viewMode, setViewMode] = useState('table');
   const [loading, setLoading] = useState(false);
@@ -59,6 +61,25 @@ const QCChecks = () => {
       }, 100);
     }
   }, [selectedFileId, section]);
+
+  const fetchFileMeta = async (fileId) => {
+  try {
+    const res = await fetch(`http://localhost:5000/file-meta?file_id=${fileId}`);
+    const data = await res.json();
+    if (data && (data.filename || data.uploaded_at || data.uploaded_by)) {
+      setUploadedFiles(prev =>
+        prev.map(f =>
+          (f.id === fileId || f.file_id === fileId)
+            ? { ...f, ...data }
+            : f
+        )
+      );
+    }
+  } catch (err) {
+    console.error("❌ Failed to fetch file meta:", err);
+  }
+};
+
 
   const fetchUploadedFiles = async (filters) => {
     setLoading(true);
@@ -118,27 +139,41 @@ const QCChecks = () => {
     }
   };
 
-  useEffect(() => {
-    if (selectedFileId) {
-      fetchSummaryData();
-    } else {
-      setSummary(null);
-    }
-  }, [selectedFileId]);
+useEffect(() => {
+  if (selectedFileId) {
+    fetchSummaryData();
+    fetchFileMeta(selectedFileId); // 👈 added here
+  } else {
+    setSummary(null);
+  }
+}, [selectedFileId]);
+
 
   const handleApplyFilter = (filterData) => {
-    setError(null);
-    if (filterData.type === 'clear') {
-      setSelectedFileId('');
-      fetchUploadedFiles();
-    } else if (filterData.type === 'date') {
-      setSelectedFileId('');
-      fetchUploadedFiles({ startDate: filterData.startDate, endDate: filterData.endDate });
-    } else if (filterData.type === 'file') {
-      const fileId = filterData.file.id || filterData.file.file_id;
-      setSelectedFileId(fileId);
-    }
-  };
+  setError(null);
+
+  if (filterData.type === 'clear') {
+    setSelectedFileId('');
+    setSelectedDateRange(null);
+    fetchUploadedFiles();
+  } 
+  
+  else if (filterData.type === 'date') {
+    setSelectedFileId('');  // ⛔ clear file
+    setSelectedDateRange({
+      startDate: filterData.startDate,
+      endDate: filterData.endDate,
+    });
+    fetchUploadedFiles({ startDate: filterData.startDate, endDate: filterData.endDate });
+  } 
+  
+  else if (filterData.type === 'file') {
+    const fileId = filterData.file.id || filterData.file.file_id;
+    setSelectedFileId(fileId);
+    setSelectedDateRange(null);  // ✅ clear date
+  }
+};
+
 
   return (
     <ThemeProvider theme={customTheme}>
@@ -153,9 +188,12 @@ const QCChecks = () => {
           <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
             <Grid item xs={12} md={4}>
               <NestedFilterDrawer
-                uploadedFiles={uploadedFiles}
-                onApplyFilter={handleApplyFilter}
-              />
+  uploadedFiles={uploadedFiles}
+  onApplyFilter={handleApplyFilter}
+  selectedFile={selectedFileId}
+  selectedDateRange={selectedDateRange}
+/>
+
             </Grid>
             <Grid item xs={12} md={8}>
               <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -217,6 +255,28 @@ const QCChecks = () => {
 
           {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
           {loading && <LinearProgress sx={{ mb: 3 }} />}
+          {selectedFileId && uploadedFiles.length > 0 && (() => {
+  const file = uploadedFiles.find(f => f.id === selectedFileId || f.file_id === selectedFileId);
+  if (!file) return null;
+
+  const fileType = file.type === 2 ? 'Trace Elements' :
+                   file.type === 1 ? 'Major Elements' : 'Unknown';
+
+  return (
+    <Box sx={{ mt: 2, ml: 1.5, mb: 2 }}>
+      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
+        Showing data for:
+      </Typography>
+      <Stack direction="row" spacing={4} flexWrap="wrap">
+        <Typography variant="body1" fontWeight={500}>📁 {file.filename || '— No filename —'}</Typography>
+        <Typography variant="body2" color="text.secondary">🕒 Uploaded at: {file.uploaded_at ? new Date(file.uploaded_at).toLocaleString() : '—'}</Typography>
+        <Typography variant="body2" color="text.secondary">👤 Uploaded by: {file.uploaded_by || '—'}</Typography>
+        <Typography variant="body2" color="text.secondary">🧪 Type: {fileType}</Typography>
+      </Stack>
+    </Box>
+  );
+})()}
+
 
           {summary && (
             <Grid container spacing={3} sx={{ mb: 3 }}> {/* Grid container spacing applied */}
@@ -399,11 +459,12 @@ const QCChecks = () => {
             </Grid>
           )}
 
-          {selectedFileId && viewMode === 'table' && (
-            <>
-              <div ref={qcTableRef}>
-                <QCTable selectedFileId={selectedFileId} />
-              </div>
+          {(selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) && viewMode === 'table' && (
+  <>
+    <div ref={qcTableRef}>
+      <QCTable selectedFileId={selectedFileId} selectedDateRange={selectedDateRange} />
+    </div>
+
               <Box mt={4} ref={sjsTableRef}>
                 <SJS_Table selectedFileId={selectedFileId} />
               </Box>

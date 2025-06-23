@@ -110,6 +110,27 @@ function getTypeById(fileId) {
   });
 }
 
+// ==========================
+// 8. Get File IDs and Types by Date Range
+// ==========================
+function getFileIdsByDateRange(startDate, endDate) {
+  const sql = `
+    SELECT id, type FROM uploaded_files
+    WHERE uploaded_at BETWEEN ? AND ?
+    AND hidden = 0
+  `;
+
+  const start = `${startDate} 00:00:00`;
+  const end = `${endDate} 23:59:59`;
+
+  return new Promise((resolve, reject) => {
+    db.all(sql, [start, end], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows); // Each row has { id, type }
+    });
+  });
+}
+
 
 // ==========================
 // Exports
@@ -121,5 +142,6 @@ module.exports = {
   getFileByName,
   fileExists,
   getFileById,
-  getTypeById
+  getTypeById,
+  getFileIdsByDateRange
 };
