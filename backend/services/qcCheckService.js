@@ -3,43 +3,6 @@ const fileModel = require('../models/fileModel');
 const { TEconc, MEconc } = require('../colHeaders');
 
 class QcCheckService {
-
-  static async getFileMetadata(fileId) {
-    let db;
-    try {
-        // Get a database connection.
-        db = getDbConnection();
-        // Prepare the SQL query to select specific columns for a given file ID.
-        // Note: 'uploaded_by' is not available in the provided 'uploaded_files' table schema.
-        const stmt = db.prepare('SELECT filename, uploaded_at, type FROM uploaded_files WHERE id = ?');
-        // Execute the query with the provided fileId and get the result.
-        const row = stmt.get(fileId);
-
-        // If a row is found, return the formatted metadata.
-        if (row) {
-            return {
-                filename: row.filename,
-                uploadedAt: row.uploaded_at, // Use camelCase for consistency in JS
-                fileType: row.type
-            };
-        } else {
-            // If no row is found, log a message and return null.
-            console.log(`No file found with ID: ${fileId}`);
-            return null;
-        }
-    } catch (error) {
-        // Log and re-throw any errors encountered during the query.
-        console.error('Error fetching file metadata:', error.message);
-        throw new Error('Could not fetch file metadata.');
-    } finally {
-        // Ensure the database connection is closed after the operation.
-        if (db) {
-            db.close();
-            console.log('Database connection closed.');
-        }
-    }
-  }
-
   static async getSolutionLabelsForFile(fileId) {
     return new Promise(async (resolve, reject) => {
       try {

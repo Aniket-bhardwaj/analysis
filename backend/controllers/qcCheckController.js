@@ -1,44 +1,36 @@
 const QcCheckService = require('../services/qcCheckService');
+const fileModel = require('../models/fileModel');
 
 class QcCheckController {
 
   static async meta(req, res) {
-    // Extract the 'id' from the request parameters.
-    // Ensure the ID is parsed as an integer, as it's expected to be a number.
-    const fileId = parseInt(req.params.id, 10);
+    // The frontend sends file_id as a query parameter (e.g., /file-meta?file_id=123)
+    const fileId = req.query.file_id;
 
-    // Basic validation: Check if the fileId is a valid number.
     if (isNaN(fileId)) {
         return res.status(400).json({ message: 'Invalid file ID provided.' });
     }
 
     try {
-        // Call the service layer to get the file metadata.
-        const metadata = await QcCheckServices.getFileMetadata(fileId);
+        const metadata = await fileModel.getFileMetadata(fileId);
 
-        // If metadata is found, construct and send the successful response.
         if (metadata) {
-            // As 'uploaded_by' is not in your 'uploaded_files' table schema,
-            // we will explicitly state it's not available from this query.
-            // If you have a separate 'users' table and a 'user_id' in 'uploaded_files',
-            // you would perform a JOIN query in the service to fetch user details.
+            // Adjust response keys to match what the frontend expects (filename, uploaded_at, uploaded_by)
             const responseHeaders = {
                 filename: metadata.filename,
-                'uploaded at': metadata.uploadedAt, // Space in key requires quotes
-                'uploaded by': 'Not available from this table', // Placeholder
-                'file type': metadata.fileType // Space in key requires quotes
+                uploaded_at: metadata.uploadedAt , // Frontend expects 'uploaded_at'
+                uploaded_by: 'Not available from this table', // Still a placeholder as it's not in your DB schema
+                file_type: metadata.fileType // Changed to match common snake_case for consistency
             };
             return res.status(200).json(responseHeaders);
         } else {
-            // If no metadata is found for the given ID, send a 404 Not Found response.
             return res.status(404).json({ message: `File with ID ${fileId} not found.` });
         }
     } catch (error) {
-        // Catch any errors from the service layer and send a 500 Internal Server Error response.
         console.error('Error in qcCheckController.meta:', error.message);
         return res.status(500).json({ message: 'Internal server error while fetching file metadata.' });
     }
-  }
+}
 
   static async getSolutionLabels(req, res) {
     try {

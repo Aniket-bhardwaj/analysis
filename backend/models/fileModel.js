@@ -131,6 +131,30 @@ function getFileIdsByDateRange(startDate, endDate) {
   });
 }
 
+// ==========================
+// 8. Get Metadata by file_id
+// ==========================
+function getFileMetadata(fileId) {
+    try {
+        const stmt = db.prepare('SELECT filename, uploaded_at, type FROM uploaded_files WHERE id = ?');
+        const row = stmt.get(fileId);
+
+        if (row) {
+            return {
+                filename: row.filename,
+                uploadedAt: row.uploaded_at,
+                fileType: row.type
+            };
+        } else {
+            console.log(`No file found with ID: ${fileId}`);
+            return null;
+        }
+    } catch (error) {
+        console.error('Error fetching file metadata from database:', error.message);
+        throw new Error('Could not fetch file metadata from the database.');
+    }
+}
+
 
 // ==========================
 // Exports
@@ -143,5 +167,6 @@ module.exports = {
   fileExists,
   getFileById,
   getTypeById,
-  getFileIdsByDateRange
+  getFileIdsByDateRange,
+  getFileMetadata,
 };
