@@ -192,6 +192,7 @@ function validateQcLabels(qc) {
     { name: 'QC MES', regex: /^QC MES/i },
     { name: 'SJS-Std', regex: /^SJS-Std$/ },
     { name: 'Wash', regex: /^Wash$/ },
+    { name: '2 % HNO3', regex: /^2 % HNO3$/},
   ];
 
   const found = Array(required.length).fill(false);
