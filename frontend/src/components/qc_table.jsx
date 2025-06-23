@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import {
-  Box, Typography
-} from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import QCRow from './QCRow';
+// ⏳ Add this helper
+const formatDate = (dateObj) =>
+  `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 
-const QCTable = ({ selectedFileId }) => {
+
+const QCTable = ({ selectedFileId, selectedDateRange }) => {
   const [qcData, setQcData] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -12,16 +14,43 @@ const QCTable = ({ selectedFileId }) => {
   const [miniSortConfig, setMiniSortConfig] = useState({});
 
   useEffect(() => {
-    if (selectedFileId) fetchQCData();
-  }, [selectedFileId]);
+  console.log("📣 [useEffect] selectedFileId:", selectedFileId);
+  console.log("📣 [useEffect] selectedDateRange:", selectedDateRange);
+
+  if (selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) {
+    fetchQCData();
+  }
+}, [selectedFileId, selectedDateRange]);
+
+  const buildUrl = (baseUrl) => {
+  const params = new URLSearchParams();
+
+  // Only one should be active at a time:
+  if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
+    const start = formatDate(new Date(selectedDateRange.startDate));
+    const end = formatDate(new Date(selectedDateRange.endDate));
+    params.append('start_date', start);
+    params.append('end_date', end);
+  } else if (selectedFileId) {
+    params.append('file_id', selectedFileId);
+  }
+
+  return `${baseUrl}?${params.toString()}`;
+};
+
+
+
 
   const fetchQCData = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/table-data?file_id=${selectedFileId}`);
+      const url = buildUrl('http://localhost:5000/table-data');
+      console.log("📡 Fetching QC data from:", url);
+      const response = await fetch(url);
       const result = await response.json();
+      console.log("✅ Fetched result:", result);
       setQcData(result.tableData || []);
     } catch (err) {
-      console.error('Error fetching QC data:', err);
+      console.error('❌ Error fetching QC data:', err);
       setQcData([]);
     }
   };
@@ -40,12 +69,12 @@ const QCTable = ({ selectedFileId }) => {
 
   const fetchMiniTableData = async (element) => {
     try {
-      const url = `http://localhost:5000/element-mini-table?file_id=${selectedFileId}&element=${encodeURIComponent(element)}`;
-      const res = await fetch(url);
+      const url = buildUrl(`http://localhost:5000/element-mini-table`);
+      const res = await fetch(`${url}&element=${encodeURIComponent(element)}`);
       const json = await res.json();
       setMiniTables(prev => ({ ...prev, [element]: json.miniTable || [] }));
     } catch (err) {
-      console.error("\u274C [Frontend] Error fetching mini table:", err);
+      console.error("❌ [Frontend] Error fetching mini table:", err);
     }
   };
 
@@ -123,7 +152,6 @@ const QCTable = ({ selectedFileId }) => {
             ].map((col, idx) => {
               const isSortable = sortableKeys.includes(col.key);
               const isActive = sortConfig.key === col.key;
-
               const displayArrow = isActive
                 ? sortConfig.direction === 'asc' ? '▲' : '▼'
                 : '⇅';
@@ -134,7 +162,7 @@ const QCTable = ({ selectedFileId }) => {
                   onClick={() => isSortable && handleSort(col.key)}
                   style={{
                     position: 'sticky',
-                    top: 48, // matches heading height
+                    top: 48,
                     background: '#f8f9fb',
                     zIndex: 50,
                     textAlign: 'left',

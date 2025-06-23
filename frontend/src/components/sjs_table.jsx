@@ -4,7 +4,8 @@ import {
 } from '@mui/material';
 import SJSRow from './SJSRow';
 
-const SJSTable = ({ selectedFileId }) => {
+const SJSTable = ({ selectedFileId, startDate, endDate }) => {
+
   const [sjsData, setSjsData] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -12,20 +13,35 @@ const SJSTable = ({ selectedFileId }) => {
   const [miniSortConfig, setMiniSortConfig] = useState({});
 
   useEffect(() => {
-    if (selectedFileId) fetchSJSData();
-  }, [selectedFileId]);
+  if (selectedFileId || (startDate && endDate)) fetchSJSData();
+}, [selectedFileId, startDate, endDate]);
+
+
+  const buildSJSURL = (selectedFileId, startDate, endDate) => {
+  const base = 'http://localhost:5000/sjsTable-data';
+  const params = new URLSearchParams();
+  if (selectedFileId) params.append('file_id', selectedFileId);
+  else if (startDate && endDate) {
+    params.append('start_date', startDate);
+    params.append('end_date', endDate);
+  }
+  return `${base}?${params.toString()}`;
+};
+
 
   const fetchSJSData = async () => {
-    try {
-      const response = await fetch(`http://localhost:5000/sjsTable-data?file_id=${selectedFileId}`);
-      const result = await response.json();
-      console.log('[SJS Table] Data:', result.tableData);
-      setSjsData(result.tableData || []);
-    } catch (err) {
-      console.error('Error fetching SJS data:', err);
-      setSjsData([]);
-    }
-  };
+  try {
+    const url = buildSJSURL(selectedFileId, startDate, endDate);
+    const response = await fetch(url);
+    const result = await response.json();
+    console.log('[SJS Table] Data:', result.tableData);
+    setSjsData(result.tableData || []);
+  } catch (err) {
+    console.error('Error fetching SJS data:', err);
+    setSjsData([]);
+  }
+};
+
 
   const handleSort = (key) => {
     if (sortConfig.key !== key) {

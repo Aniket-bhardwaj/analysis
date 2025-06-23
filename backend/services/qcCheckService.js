@@ -26,7 +26,7 @@ class QcCheckService {
     const fileType = await fileModel.getTypeById(fileId);
     const elementColumns = fileType === 2 ? TEconc : MEconc;
 
-    const rows = await TableModel.getRawElementValuesForSummary(fileId, solutionLabel, elementColumns);
+    const rows = await TableModel.getRawQCTableRows(fileId, solutionLabel, elementColumns);
 
     const match = solutionLabel.match(/[\d.]+/);
     const errorFactor = match ? parseFloat(match[0]) : 1;
