@@ -53,7 +53,7 @@ const QCChecks = () => {
     if (!selectedFileId || !section) return;
     const scrollTarget =
       section === 'lab-standards' ? qcTableRef :
-      section === 'sjs-standards' ? sjsTableRef : null;
+        section === 'sjs-standards' ? sjsTableRef : null;
 
     if (scrollTarget?.current) {
       setTimeout(() => {
@@ -77,12 +77,12 @@ const QCChecks = () => {
             const currentFileId = f.id || f.file_id;
             return currentFileId === fileId
               ? {
-                  ...f,
-                  filename: data.filename,
-                  uploaded_at: data.uploaded_at, // Use uploaded_at directly
-                  uploaded_by: data.uploaded_by,
-                  type: data.file_type // Use 'type' or fallback to 'fileType'
-                }
+                ...f,
+                filename: data.filename,
+                uploaded_at: data.uploaded_at, // Use uploaded_at directly
+                uploaded_by: data.uploaded_by,
+                type: data.file_type // Use 'type' or fallback to 'fileType'
+              }
               : f;
           })
         );
@@ -276,7 +276,6 @@ const QCChecks = () => {
             const file = uploadedFiles.find(f => f.id === selectedFileId || f.file_id === selectedFileId);
             if (!file) return null;
 
-           
 
             return (
               <Box sx={{ mt: 2, ml: 1.5, mb: 2 }}>
@@ -482,8 +481,13 @@ const QCChecks = () => {
               </div>
 
               <Box mt={4} ref={sjsTableRef}>
-                <SJS_Table selectedFileId={selectedFileId} />
+                <SJS_Table
+                  selectedFileId={selectedFileId}
+                  startDate={selectedDateRange?.startDate}
+                  endDate={selectedDateRange?.endDate}
+                />
               </Box>
+
             </>
           )}
 
