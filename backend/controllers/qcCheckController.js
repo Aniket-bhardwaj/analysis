@@ -15,12 +15,14 @@ class QcCheckController {
         const metadata = await fileModel.getFileMetadata(fileId);
 
         if (metadata) {
+            const Type = metadata.type===1 ? 'Major Elements' : 'Trace elements';
+            console.log('TypE :' , Type);
             // Adjust response keys to match what the frontend expects (filename, uploaded_at, uploaded_by)
             const responseHeaders = {
                 filename: metadata.filename,
-                uploaded_at: metadata.uploadedAt , // Frontend expects 'uploaded_at'
-                uploaded_by: 'Not available from this table', // Still a placeholder as it's not in your DB schema
-                file_type: metadata.fileType // Changed to match common snake_case for consistency
+                uploaded_at: metadata.uploaded_at , // Frontend expects 'uploaded_at'
+                uploaded_by: 'user2', // Still a placeholder as it's not in your DB schema
+                file_type: Type // Changed to match common snake_case for consistency
             };
             return res.status(200).json(responseHeaders);
         } else {

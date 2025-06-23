@@ -63,22 +63,35 @@ const QCChecks = () => {
   }, [selectedFileId, section]);
 
   const fetchFileMeta = async (fileId) => {
-  try {
-    const res = await fetch(`http://localhost:5000/file-meta?file_id=${fileId}`);
-    const data = await res.json();
-    if (data && (data.filename || data.uploaded_at || data.uploaded_by)) {
-      setUploadedFiles(prev =>
-        prev.map(f =>
-          (f.id === fileId || f.file_id === fileId)
-            ? { ...f, ...data }
-            : f
-        )
-      );
+    try {
+      const res = await fetch(`http://localhost:5000/file-meta?file_id=${fileId}`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      const data = await res.json();
+      // Assuming data is directly the metadata object like:
+      // { filename: "...", uploaded_at: "...", uploaded_by: "...", type: ... }
+      if (data && (data.filename || data.uploaded_at || data.uploaded_by || data.fileType)) {
+        setUploadedFiles(prev =>
+          prev.map(f => {
+            const currentFileId = f.id || f.file_id;
+            return currentFileId === fileId
+              ? {
+                  ...f,
+                  filename: data.filename,
+                  uploaded_at: data.uploaded_at, // Use uploaded_at directly
+                  uploaded_by: data.uploaded_by,
+                  type: data.file_type // Use 'type' or fallback to 'fileType'
+                }
+              : f;
+          })
+        );
+      }
+    } catch (err) {
+      console.error("❌ Failed to fetch file meta:", err);
+      // Optionally, set an error state here if meta data fetching is critical
     }
-  } catch (err) {
-    console.error("❌ Failed to fetch file meta:", err);
-  }
-};
+  };
 
 
   const fetchUploadedFiles = async (filters) => {
@@ -125,6 +138,9 @@ const QCChecks = () => {
       const response = await fetch(
         `http://localhost:5000/summary?file_id=${selectedFileId}`
       );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const result = await response.json();
       const summaryData = result.summary || {
         totalElements: 0,
@@ -136,43 +152,44 @@ const QCChecks = () => {
     } catch (err) {
       console.error('Error fetching summary:', err);
       setSummary(null);
+      // Optionally, set an error state here if summary data fetching is critical
     }
   };
 
-useEffect(() => {
-  if (selectedFileId) {
-    fetchSummaryData();
-    fetchFileMeta(selectedFileId); // 👈 added here
-  } else {
-    setSummary(null);
-  }
-}, [selectedFileId]);
+  useEffect(() => {
+    if (selectedFileId) {
+      fetchSummaryData();
+      fetchFileMeta(selectedFileId); // 👈 added here
+    } else {
+      setSummary(null);
+    }
+  }, [selectedFileId]);
 
 
   const handleApplyFilter = (filterData) => {
-  setError(null);
+    setError(null);
 
-  if (filterData.type === 'clear') {
-    setSelectedFileId('');
-    setSelectedDateRange(null);
-    fetchUploadedFiles();
-  } 
-  
-  else if (filterData.type === 'date') {
-    setSelectedFileId('');  // ⛔ clear file
-    setSelectedDateRange({
-      startDate: filterData.startDate,
-      endDate: filterData.endDate,
-    });
-    fetchUploadedFiles({ startDate: filterData.startDate, endDate: filterData.endDate });
-  } 
-  
-  else if (filterData.type === 'file') {
-    const fileId = filterData.file.id || filterData.file.file_id;
-    setSelectedFileId(fileId);
-    setSelectedDateRange(null);  // ✅ clear date
-  }
-};
+    if (filterData.type === 'clear') {
+      setSelectedFileId('');
+      setSelectedDateRange(null);
+      fetchUploadedFiles();
+    }
+
+    else if (filterData.type === 'date') {
+      setSelectedFileId('');  // ⛔ clear file
+      setSelectedDateRange({
+        startDate: filterData.startDate,
+        endDate: filterData.endDate,
+      });
+      fetchUploadedFiles({ startDate: filterData.startDate, endDate: filterData.endDate });
+    }
+
+    else if (filterData.type === 'file') {
+      const fileId = filterData.file.id || filterData.file.file_id;
+      setSelectedFileId(fileId);
+      setSelectedDateRange(null);  // ✅ clear date
+    }
+  };
 
 
   return (
@@ -188,11 +205,11 @@ useEffect(() => {
           <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
             <Grid item xs={12} md={4}>
               <NestedFilterDrawer
-  uploadedFiles={uploadedFiles}
-  onApplyFilter={handleApplyFilter}
-  selectedFile={selectedFileId}
-  selectedDateRange={selectedDateRange}
-/>
+                uploadedFiles={uploadedFiles}
+                onApplyFilter={handleApplyFilter}
+                selectedFile={selectedFileId}
+                selectedDateRange={selectedDateRange}
+              />
 
             </Grid>
             <Grid item xs={12} md={8}>
@@ -256,26 +273,25 @@ useEffect(() => {
           {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
           {loading && <LinearProgress sx={{ mb: 3 }} />}
           {selectedFileId && uploadedFiles.length > 0 && (() => {
-  const file = uploadedFiles.find(f => f.id === selectedFileId || f.file_id === selectedFileId);
-  if (!file) return null;
+            const file = uploadedFiles.find(f => f.id === selectedFileId || f.file_id === selectedFileId);
+            if (!file) return null;
 
-  const fileType = file.type === 2 ? 'Trace Elements' :
-                   file.type === 1 ? 'Major Elements' : 'Unknown';
+           
 
-  return (
-    <Box sx={{ mt: 2, ml: 1.5, mb: 2 }}>
-      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
-        Showing data for:
-      </Typography>
-      <Stack direction="row" spacing={4} flexWrap="wrap">
-        <Typography variant="body1" fontWeight={500}>📁 {file.filename || '— No filename —'}</Typography>
-        <Typography variant="body2" color="text.secondary">🕒 Uploaded at: {file.uploaded_at ? new Date(file.uploaded_at).toLocaleString() : '—'}</Typography>
-        <Typography variant="body2" color="text.secondary">👤 Uploaded by: {file.uploaded_by || '—'}</Typography>
-        <Typography variant="body2" color="text.secondary">🧪 Type: {fileType}</Typography>
-      </Stack>
-    </Box>
-  );
-})()}
+            return (
+              <Box sx={{ mt: 2, ml: 1.5, mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
+                  Showing data for:
+                </Typography>
+                <Stack direction="row" spacing={4} flexWrap="wrap">
+                  <Typography variant="body1" fontWeight={500}>📁 {file.filename || '— No filename —'}</Typography>
+                  <Typography variant="body2" color="text.secondary">🕒 Uploaded at: {file.uploaded_at ? new Date(file.uploaded_at).toLocaleString() : '—'}</Typography>
+                  <Typography variant="body2" color="text.secondary">👤 Uploaded by: {file.uploaded_by || '—'}</Typography>
+                  <Typography variant="body2" color="text.secondary">🧪 Type: {file.type}</Typography>
+                </Stack>
+              </Box>
+            );
+          })()}
 
 
           {summary && (
@@ -460,10 +476,10 @@ useEffect(() => {
           )}
 
           {(selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) && viewMode === 'table' && (
-  <>
-    <div ref={qcTableRef}>
-      <QCTable selectedFileId={selectedFileId} selectedDateRange={selectedDateRange} />
-    </div>
+            <>
+              <div ref={qcTableRef}>
+                <QCTable selectedFileId={selectedFileId} selectedDateRange={selectedDateRange} />
+              </div>
 
               <Box mt={4} ref={sjsTableRef}>
                 <SJS_Table selectedFileId={selectedFileId} />

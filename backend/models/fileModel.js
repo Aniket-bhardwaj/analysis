@@ -51,19 +51,19 @@ function hideFileById(id, name) {
 }
 
 
-// ==========================
-// 4. Fetch File by Name
-// ==========================
-function getFileByName(storedName) {
-  const sql = `SELECT * FROM uploaded_files WHERE filename = ?`;
+// // ==========================
+// // 4. Fetch File by Name
+// // ==========================
+// function getFileByName(storedName) {
+//   const sql = `SELECT * FROM uploaded_files WHERE filename = ?`;
 
-  return new Promise((resolve, reject) => {
-    db.get(sql, [storedName], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-}
+//   return new Promise((resolve, reject) => {
+//     db.get(sql, [storedName], (err, row) => {
+//       if (err) reject(err);
+//       else resolve(row);
+//     });
+//   });
+// }
 
 
 // ==========================
@@ -132,28 +132,23 @@ function getFileIdsByDateRange(startDate, endDate) {
 }
 
 // ==========================
-// 8. Get Metadata by file_id
+// 9. Get Metadata by file_id
 // ==========================
 function getFileMetadata(fileId) {
-    try {
-        const stmt = db.prepare('SELECT filename, uploaded_at, type FROM uploaded_files WHERE id = ?');
-        const row = stmt.get(fileId);
-
-        if (row) {
-            return {
-                filename: row.filename,
-                uploadedAt: row.uploaded_at,
-                fileType: row.type
-            };
-        } else {
-            console.log(`No file found with ID: ${fileId}`);
-            return null;
-        }
-    } catch (error) {
-        console.error('Error fetching file metadata from database:', error.message);
-        throw new Error('Could not fetch file metadata from the database.');
-    }
+  const sql = `
+    SELECT filename, uploaded_at,type
+    FROM uploaded_files
+    WHERE id = ?
+  `;
+  return new Promise((resolve, reject) => {
+    db.get(sql, [fileId], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
 }
+
+
 
 
 // ==========================
@@ -163,7 +158,6 @@ module.exports = {
   insertFile,
   getVisibleFiles,
   hideFileById,
-  getFileByName,
   fileExists,
   getFileById,
   getTypeById,
