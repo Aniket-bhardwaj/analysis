@@ -491,43 +491,17 @@ const QCChecks = () => {
             </>
           )}
 
-          {selectedFileId && viewMode === 'graph' && (
+          {(selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) && viewMode === 'graph' && (
             <>
-              <QCGraph selectedFileId={selectedFileId} />
+              <QCGraph selectedFileId={selectedFileId} selectedDateRange={selectedDateRange} />
               <Box mt={4}>
-                <SJS_Graph selectedFileId={selectedFileId} />
+                <SJS_Graph selectedFileId={selectedFileId} selectedDateRange={selectedDateRange} />
               </Box>
             </>
           )}
 
-          {!selectedFileId && !loading && (
-            <Card
-              elevation={2}
-              sx={{
-                transition: 'box-shadow 0.3s ease-in-out',
-                '&:hover': {
-                  boxShadow: 6,
-                  cursor: 'pointer',
-                }
-              }}
-            >
-              <CardContent sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                py: 6,
-              }}>
-                <FilterListIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-                <Typography variant="h6" color="textSecondary">
-                  Apply a Filter to Begin
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Use the filter to select a specific file or narrow down the file list by date.
-                </Typography>
-              </CardContent>
-            </Card>
-          )}
+
+
         </div>
       </div>
     </ThemeProvider>

@@ -22,17 +22,40 @@ import {
 
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Title, Tooltip, Legend, Filler);
 
-const SJS_Graph = ({ selectedFileId }) => {
+// 🔧 helper to format date as YYYY-MM-DD
+const formatDate = (dateObj) =>
+  `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+
+const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
   const [elementData, setElementData] = useState({});
   const [availableElements, setAvailableElements] = useState([]);
   const [selectedElement, setSelectedElement] = useState('');
   const [xLabel, setXLabel] = useState('Timestamp');
 
+  const buildUrl = () => {
+    const baseUrl = 'http://localhost:5000/sjs-graph';
+    const params = new URLSearchParams();
+  
+    if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
+      const start = formatDate(new Date(selectedDateRange.startDate));
+      const end = formatDate(new Date(selectedDateRange.endDate));
+      params.append('start_date', start);
+      params.append('end_date', end);
+    } else if (selectedFileId) {
+      params.append('file_id', selectedFileId);
+    }
+
+    return `${baseUrl}?${params.toString()}`;
+  };
+
   useEffect(() => {
     const fetchGraphData = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/sjs-graph?file_id=${selectedFileId}`);
+        const url = buildUrl();
+        const response = await fetch(url);
         const result = await response.json();
+
+        console.log('Fetched result:', result);
 
         setElementData(result.data || {});
         setAvailableElements(result.elements || []);
@@ -45,10 +68,10 @@ const SJS_Graph = ({ selectedFileId }) => {
       }
     };
 
-    if (selectedFileId) {
+    if (selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) {
       fetchGraphData();
     }
-  }, [selectedFileId]);
+  }, [selectedFileId, selectedDateRange]);
 
   const chartData = {
     labels: elementData[selectedElement]?.map((d) => d.x) || [],

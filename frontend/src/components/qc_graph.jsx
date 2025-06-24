@@ -33,31 +33,51 @@ ChartJS.register(
   Filler
 );
 
-const QCGraph = ({ selectedFileId }) => {
+// 🔧 helper to format date as YYYY-MM-DD
+const formatDate = (dateObj) =>
+  `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+
+const QCGraph = ({ selectedFileId, selectedDateRange }) => {
   const [rawData, setRawData] = useState([]);
   const [elements, setElements] = useState([]);
   const [selectedElement, setSelectedElement] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!selectedFileId) return;
+  const buildUrl = () => {
+    const baseUrl = 'http://localhost:5000/graph-data';
+    const params = new URLSearchParams();
 
+    if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
+      const start = formatDate(new Date(selectedDateRange.startDate));
+      const end = formatDate(new Date(selectedDateRange.endDate));
+      params.append('start_date', start);
+      params.append('end_date', end);
+    } else if (selectedFileId) {
+      params.append('file_id', selectedFileId);
+    }
+
+    return `${baseUrl}?${params.toString()}`;
+  };
+
+  useEffect(() => {
+    console.log("📣 [useEffect] selectedFileId:", selectedFileId);
+    console.log("📣 [useEffect] selectedDateRange:", selectedDateRange);
+  
     const fetchData = async () => {
       setLoading(true);
       setError(null);
+  
       try {
-        const res = await fetch(
-          `http://localhost:5000/graph-data?file_id=${selectedFileId}`
-        );
-
+        const url = buildUrl();
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
+  
         const result = await res.json();
         if (!result.success || !result.graphData) {
           throw new Error(result.message || 'Failed to load graph data');
         }
-
+  
         const transformedData = Object.keys(result.graphData).map(element => ({
           element,
           data: result.graphData[element].map((point, index) => ({
@@ -65,7 +85,7 @@ const QCGraph = ({ selectedFileId }) => {
             value: point.value,
           }))
         }));
-
+  
         setRawData(transformedData);
         setElements(Object.keys(result.graphData));
         if (Object.keys(result.graphData).length > 0) {
@@ -78,9 +98,11 @@ const QCGraph = ({ selectedFileId }) => {
         setLoading(false);
       }
     };
-
-    fetchData();
-  }, [selectedFileId]);
+  
+    if (selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) {
+      fetchData();
+    }
+  }, [selectedFileId, selectedDateRange]);
 
   const chartData = () => {
     if (!selectedElement) return null;
