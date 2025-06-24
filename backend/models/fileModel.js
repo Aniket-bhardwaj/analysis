@@ -149,6 +149,40 @@ function getFileMetadata(fileId) {
 }
 
 
+// ============================
+// 10. Get file_id by date range
+// ============================
+
+async function getFileIdsByDateRange(startDate, endDate) {
+    try {
+      const startIso = `${startDate} 00:00:00.000Z`;
+      const endIso = `${endDate} 23:59:59.999Z`;
+
+      return new Promise((resolve, reject) => {
+        const sql = `
+          SELECT id FROM uploaded_files
+          WHERE uploaded_at BETWEEN ? AND ?
+          ORDER BY uploaded_at ASC
+        `;
+        db.all(sql, [startIso, endIso], (err, rows) => {
+          if (err) {
+            console.error('Original database error in getFileIdsByDateRange:', err.message);
+            return reject(new Error('Database query failed while fetching file IDs. Check server logs for details.'));
+          }
+          const fileIds = rows.map(row => row.id);
+          resolve(fileIds);
+        });
+      });
+    } catch (error) {
+      console.error('Unexpected error in getFileIdsByDateRange:', error);
+      throw new Error('An unexpected error occurred while preparing database query.');
+    }
+  }
+
+  // ... other methods of FileModel might be here ...
+
+
+
 
 
 // ==========================
@@ -163,4 +197,5 @@ module.exports = {
   getTypeById,
   getFileIdsByDateRange,
   getFileMetadata,
+  getFileIdsByDateRange
 };
