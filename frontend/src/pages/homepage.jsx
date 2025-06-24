@@ -98,7 +98,7 @@ const DashboardPage = () => {
     }
 
     return elementData.dailyAverages.map(item => ({
-      date: item.date,
+      date: new Date(item.date),
       value: item.value,
       dataPoints: item.dataPoints
     }));
@@ -151,13 +151,6 @@ const DashboardPage = () => {
                 {lastRefresh && `Last updated: ${lastRefresh.toLocaleTimeString()}`}
               </p>
             </div>
-            <button
-              onClick={fetchDashboardData}
-              className="refresh-button"
-              disabled={loading}
-            >
-              {loading ? 'Refreshing...' : 'Refresh'}
-            </button>
           </div>
         </div>
 

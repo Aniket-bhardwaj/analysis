@@ -112,7 +112,7 @@ class TableController {
 
   // Get QC table data by file ID
   static async getTableDataByFile(req, res) {
-    console.log("🔍 Received Query Params:", req.query);
+    console.log("Received Query Params:", req.query);
   try {
     const { file_id, start_date, end_date } = req.query;
 
@@ -160,7 +160,7 @@ class TableController {
 }
 
     static async getSJSTableDataByFile(req, res) {
-  console.log("🔍 Received Query Params:", req.query);
+  console.log(" Received Query Params:", req.query);
 
   try {
     const { file_id, start_date, end_date } = req.query;
