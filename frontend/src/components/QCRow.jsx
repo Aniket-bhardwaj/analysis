@@ -89,7 +89,7 @@ const QCRow = ({
         <TableCell colSpan={6} sx={{ py: 0 }}>
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
             <Box sx={{ px: 4, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
-              <Box sx={{ maxHeight: 300, overflowY: 'auto', position: 'relative' }}>
+              <Box sx={{ maxHeight: '400', overflowY: 'auto', position: 'relative' }}>
                 <Table size="small">
                   <TableHead sx={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: '#f0f0f0' }}>
                     <TableRow>

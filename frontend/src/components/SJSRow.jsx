@@ -99,7 +99,7 @@ const SJSRow = ({
                 <TableCell colSpan={8} sx={{ py: 0, border: 'none' }}>
                     <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                         <Box sx={{ p: 2, backgroundColor: '#fafafa', borderRadius: 1 }}>
-                            <Box sx={{ maxHeight: 400, overflowY: 'auto', position: 'relative' }}>
+                            <Box sx={{ maxHeight: '410px', overflowY: 'auto', position: 'relative' }}>
                                 <Table size="small">
                                     <TableHead sx={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: '#fafafa' }}>
                                         <TableRow>
