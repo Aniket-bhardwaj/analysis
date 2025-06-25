@@ -27,11 +27,10 @@ const filterOutCpsAndIstd = (columns) =>
 
 
 // -----------------------------
-// 🔤 Normalize single header
+// 🔤 Normalize headers
 // -----------------------------
-function normalizeHeader(header) {
-  return header.trim().replace(/^"|"$/g, '').replace(/\s+/g, ' ');
-}
+const normalizeHeaders = (headers) =>
+  headers.map(h => h.trim().replace(/^"|"$/g, '').replace(/\s+/g, ' '));
 
 // -----------------------------
 // 🧾 Header Parsing (Type 1)
@@ -42,52 +41,70 @@ async function getHeadersType1(filePath) {
     rl.on('line', (line) => {
       rl.close();
       resolve(
-        line.split(',').map(normalizeHeader).filter(h => h !== '')
+        line.split(',').filter(h => h !== '') // no normalization here
       );
     });
     rl.on('error', reject);
   });
 }
 
+
 // -----------------------------
 // 🧾 Header Parsing (Type 2)
 // -----------------------------
+
 function getHeadersType2(filePath) {
-  const content = fs.readFileSync(filePath, 'utf8');
-  const [row1, row2] = parse(content, { to_line: 2 });
+  return new Promise((resolve, reject) => {
+    fs.readFile(filePath, 'utf8', (err, content) => {
+      if (err) return reject(err);
 
-  const headers = [];
-  let i = 0;
+      try {
+        const [row1, row2] = parse(content, { to_line: 2 });
+        const headers = [];
+        let i = 0;
 
-  while (i < row1.length) {
-    const val1 = (row1[i] || '').trim();
-    if (val1.includes('[')) {
-      const base = val1;
-      const sub1 = (row2[i] || '').trim();
-      const sub2 = (row2[i + 1] || '').trim();
-      const sub3 = (row2[i + 2] || '').trim();
+        while (i < row1.length) {
+          const val1 = (row1[i] || '').trim();
+          if (val1.includes('[')) {
+            const base = val1;
+            const sub1 = (row2[i] || '').trim();
+            const sub2 = (row2[i + 1] || '').trim();
+            const sub3 = (row2[i + 2] || '').trim();
 
-      headers.push(`${base} ${sub1}`.trim());
-      headers.push(`${base} ${sub2}`.trim());
-      headers.push(`${base} ${sub3}`.trim());
+            headers.push(`${base} ${sub1}`.trim());
+            headers.push(`${base} ${sub2}`.trim());
+            headers.push(`${base} ${sub3}`.trim());
 
-      i += 3;
-    } else {
-      headers.push(val1);
-      i += 1;
-    }
-  }
+            i += 3;
+          } else {
+            headers.push(val1);
+            i += 1;
+          }
+        }
 
-  return headers;
+        resolve(headers);
+      } catch (parseErr) {
+        reject(parseErr);
+      }
+    });
+  });
 }
 
 // -----------------------------
 // 📤 Get Headers by Type
 // -----------------------------
 async function getHeaders(csvType, filePath) {
-  if (csvType === 1) return await getHeadersType1(filePath);
-  if (csvType === 2) return getHeadersType2(filePath);
-  throw new Error('Unsupported CSV type');
+  let headers;
+
+  if (csvType === 1) {
+    headers = await getHeadersType1(filePath);
+  } else if (csvType === 2) {
+    headers = await getHeadersType2(filePath);
+  } else {
+    throw new Error('Unsupported CSV type');
+  }
+
+  return normalizeHeaders(headers);
 }
 
 // -----------------------------
@@ -108,8 +125,7 @@ function validateHeaders(actual, csvType) {
   console.log('[Header Debug]');
   
   for (const header of actual) {
-    const normalizedHeader = normalizeHeader(header);
-    const found = expected.some(eh => normalizeHeader(eh) === normalizedHeader);
+    const found = expected.some(eh => eh === header);
     if (!found) {
       console.error(`Error: Header "${header}" not found in expected headers.`);
       return false;
@@ -235,7 +251,7 @@ module.exports = {
   parseDataRows,
   splitSamplesAndQc,
   validateQcLabels,
-  normalizeHeader,
+  normalizeHeaders,
   filterColumnsByKeys,
   filterOutCpsAndIstd
 };
