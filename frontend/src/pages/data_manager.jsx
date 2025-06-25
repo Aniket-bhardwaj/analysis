@@ -23,6 +23,8 @@ import {
 } from '@mui/material'
 import { Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+
 import {
     CloudUpload,
     Delete,
@@ -232,6 +234,10 @@ const DataManagerPage = () => {
         }
     };
 
+    const handleCopyToClipboard = () => {
+        navigator.clipboard.writeText(snackbarMessage);
+      };
+
     const handleDownload = (fileId) => {
         const link = document.createElement('a');
         link.href = `${import.meta.env.VITE_API_URL}/download-file/${fileId}`;
@@ -438,21 +444,45 @@ const DataManagerPage = () => {
                 </Card>
             </Box>
             <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={5000}
-                onClose={() => setSnackbarOpen(false)}
-                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-            >
-                <Alert
-                    onClose={() => setSnackbarOpen(false)}
-                    severity={snackbarSeverity}
-                    sx={{ width: '100%' }}
-                >
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                        {snackbarMessage}
-                    </Typography>
-                </Alert>
-            </Snackbar>
+  open={snackbarOpen}
+  autoHideDuration={5000}
+  onClose={() => setSnackbarOpen(false)}
+  anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+>
+  <Alert
+    onClose={() => setSnackbarOpen(false)}
+    severity={snackbarSeverity}
+    sx={{
+      width: '100%',
+      pl: 1,
+      pr: 1,
+      display: 'flex',
+      alignItems: 'flex-start',
+    }}
+    iconMapping={{
+      error: <ErrorIcon sx={{ mt: '4px' }} fontSize="small" />,
+    }}
+  >
+    <Box sx={{ display: 'flex', width: '100%' }}>
+      <Box sx={{ flexGrow: 1 }}>
+        <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+          {snackbarMessage}
+        </Typography>
+      </Box>
+      <Tooltip title="Copy to clipboard">
+        <IconButton
+          onClick={handleCopyToClipboard}
+          color="inherit"
+          size="small"
+          sx={{ ml: 4 }}
+        >
+          <ContentCopyIcon sx={{ fontSize: 24 }} />
+        </IconButton>
+      </Tooltip>
+    </Box>
+  </Alert>
+</Snackbar>
+
 
             <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
                 <DialogTitle>Confirm Deletion</DialogTitle>
