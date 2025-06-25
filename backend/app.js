@@ -3,6 +3,8 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 
+const { generateFakeFiles } = require('./populatedb'); 
+
 // Initialize app
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -52,7 +54,26 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+async function insertFakeData() {
+  try{
+    console.log('Generating fake data...');
+    await generateFakeFiles();
+    console.log('Fake data generation completed');
+    
+    // Start server
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+    
+  } catch (error) {
+    console.error('Failed to generate fake data:', error);
+    console.log('Starting server anyway...');
+    
+    // Start server even if fake data generation fails
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+}
+
+insertFakeData();
