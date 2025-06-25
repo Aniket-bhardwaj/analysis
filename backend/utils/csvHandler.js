@@ -16,6 +16,16 @@ const {
   MEconc
 } = require('../colHeaders');
 
+/**
+ * Remove columns containing CPS, ISTD, or C/S
+ */
+const filterOutCpsAndIstd = (columns) =>
+  columns.filter(col => {
+    const upper = col.toUpperCase();
+    return !upper.includes('CPS') && !upper.includes('ISTD') && !upper.includes('C/S');
+  });
+
+
 // -----------------------------
 // 🔤 Normalize single header
 // -----------------------------
@@ -96,32 +106,25 @@ function validateHeaders(actual, csvType) {
   const expected = csvType === 1 ? OcleanedHeaders1 : OcleanedHeaders2;
 
   console.log('[Header Debug]');
-  actual.forEach((header, i) => {
-    const expectedHeader = expected[i];
-    if (normalizeHeader(header) !== normalizeHeader(expectedHeader)) {
-      console.log(`Mismatch at index ${i}`);
-      console.log(`Actual  : "${header}"`);
-      console.log(`Expected: "${expectedHeader}"`);
+  
+  for (const header of actual) {
+    const normalizedHeader = normalizeHeader(header);
+    const found = expected.some(eh => normalizeHeader(eh) === normalizedHeader);
+    if (!found) {
+      console.error(`Error: Header "${header}" not found in expected headers.`);
+      return false;
     }
-  });
+  }
 
-  return actual.length === expected.length &&
-         actual.every((h, i) =>
-           normalizeHeader(h) === normalizeHeader(expected[i])
-         );
+  return true;
 }
 
 // -----------------------------
 // 📦 Parse Full Data Rows (both types)
 // -----------------------------
-async function parseDataRows(filePath, csvType) {
+async function parseDataRows(filePath, headers) {
   const content = fs.readFileSync(filePath, 'utf8');
   const allRows = parse(content, { skip_empty_lines: true });
-
-  const headers =
-    csvType === 1 ? OcleanedHeaders1
-    : csvType === 2 ? OcleanedHeaders2
-    : (() => { throw new Error('Unsupported CSV type'); })();
 
   const dataRows = allRows.slice(2); // Always skip header + subheader
   const parsed = [];
@@ -143,11 +146,11 @@ async function parseDataRows(filePath, csvType) {
 // -----------------------------
 // 🧹 Filter Columns into 2 Maps
 // -----------------------------
-function filterColumnsByKeys(rows, csvType) {
+function filterColumnsByKeys(rows, csvType,headers) {
   const isType1 = csvType === 1;
 
   const nonE = isType1 ? nonE1 : nonE2;
-  const conc = isType1 ? MEconc : TEconc;
+  const conc = filterOutCpsAndIstd(headers);
 
   return rows.map((row) => {
     const filtered1 = {};
@@ -192,7 +195,6 @@ function validateQcLabels(qc) {
     { name: 'QC MES', regex: /^QC MES/i },
     { name: 'SJS-Std', regex: /^SJS-Std$/ },
     { name: 'Wash', regex: /^Wash$/ },
-    { name: '2 % HNO3', regex: /^2 % HNO3$/},
   ];
 
   const found = Array(required.length).fill(false);
@@ -234,5 +236,6 @@ module.exports = {
   splitSamplesAndQc,
   validateQcLabels,
   normalizeHeader,
-  filterColumnsByKeys
+  filterColumnsByKeys,
+  filterOutCpsAndIstd
 };

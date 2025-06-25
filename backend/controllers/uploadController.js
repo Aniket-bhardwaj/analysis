@@ -31,7 +31,8 @@ const uploadFile = async (req, res) => {
         error: validationError,
         samples,
         qc,
-        csvType
+        csvType,
+        headers
       } = await uploadService.validate(savedFilePath, originalName);
 
       if (validationError) {
@@ -50,7 +51,7 @@ const uploadFile = async (req, res) => {
       const {
         error: insertError,
         fileId,
-      } = await uploadService.insertAllData(originalName, savedFilePath, samples, qc, csvType);
+      } = await uploadService.insertAllData(originalName, savedFilePath, samples, qc, csvType,headers);
 
       if (insertError) {
         db.run('ROLLBACK', () => {
@@ -65,7 +66,7 @@ const uploadFile = async (req, res) => {
       // ========================
       // 3. Apply correction factors to sample & std data
       // ========================
-      const { error: correctionError } = await uploadService.insertCorrected(fileId, csvType);
+      const { error: correctionError } = await uploadService.insertCorrected(fileId, csvType,headers);
 
       if (correctionError) {
         db.run('ROLLBACK', () => {

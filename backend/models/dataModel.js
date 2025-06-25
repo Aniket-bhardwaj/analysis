@@ -189,11 +189,12 @@ function getStdIdsForFile(fileId) {
   });
 }
 
-/**
- * Fetch a full sample_data row by its ID.
- */
-function getSampleById(id) {
-  const sql = `SELECT * FROM sample_data WHERE id = ?`;
+function getSampleById(id, elementCols) {
+  const colsString = elementCols
+    .map(col => `"${col.replace(/"/g, '""')}"`)
+    .join(', ');
+  const sql = `SELECT ${colsString} FROM sample_data WHERE id = ?`;
+  
   return new Promise((resolve, reject) => {
     db.get(sql, [id], (err, row) => {
       if (err) reject(err);
@@ -201,12 +202,18 @@ function getSampleById(id) {
     });
   });
 }
+
+
 
 /**
  * Fetch a full qc_data row by ID (usually for SJS-Std corrections).
  */
-function getStdById(id) {
-  const sql = `SELECT * FROM qc_data WHERE id = ?`;
+function getStdById(id, elementCols) {
+  const colsString = elementCols
+    .map(col => `"${col.replace(/"/g, '""')}"`)
+    .join(', ');
+  const sql = `SELECT ${colsString} FROM qc_data WHERE id = ?`;
+  
   return new Promise((resolve, reject) => {
     db.get(sql, [id], (err, row) => {
       if (err) reject(err);
@@ -215,18 +222,17 @@ function getStdById(id) {
   });
 }
 
-/**
- * Update specific corrected values for a sample row.
- */
 function updateSampleCorrectedValues(id, updates) {
-  const setClause = Object.keys(updates).map(k => `"${k}" = ?`).join(', ');
+  const setClause = Object.keys(updates)
+    .map(k => `"${k.replace(/"/g, '""')}" = ?`)
+    .join(', ');
   const values = Object.values(updates);
   const sql = `UPDATE sample_data SET ${setClause} WHERE id = ?`;
 
   return new Promise((resolve, reject) => {
     db.run(sql, [...values, id], function (err) {
       if (err) reject(err);
-      else resolve(); // no return value needed
+      else resolve(this.changes); // number of rows updated
     });
   });
 }

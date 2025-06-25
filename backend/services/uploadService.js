@@ -2,6 +2,10 @@ const fileModel = require('../models/fileModel');
 const dataModel = require('../models/dataModel');
 const csvHandler = require('../utils/csvHandler');
 const { MEconc, TEconc } = require('../colHeaders');
+const qcl = {
+  1: 'QC MES 5 ppm',
+  2: 'QC MES 50 ppb',
+};
 
 
 // ==========================
@@ -19,43 +23,44 @@ async function validate(filePath, originalName) {
   try {
     // Check if file with same name already exists
     if (await fileModel.fileExists(originalName)) {
-      return { error: 'File already present', samples: null, qc: null, csvType: null };
+      return { error: 'File already present', samples: null, qc: null, csvType: null, headers: null };
     }
 
     // Detect CSV type from initial header(s)
     const firstLine = await csvHandler.getHeaders(1, filePath);
     const csvType = csvHandler.checkCsvType(firstLine);
     if (csvType === 0) {
-      return { error: 'Unrecognized CSV structure', samples: null, qc: null, csvType };
+      return { error: 'Unrecognized CSV structure', samples: null, qc: null, csvType, headers: null };
     }
 
     // Validate full header set
     const headers = await csvHandler.getHeaders(csvType, filePath);
     if (!csvHandler.validateHeaders(headers, csvType)) {
-      return { error: 'Invalid or mismatched headers', samples: null, qc: null, csvType };
+      return { error: 'Invalid or mismatched headers', samples: null, qc: null, csvType, headers };
     }
 
     // Parse all data rows
-    const rows = await csvHandler.parseDataRows(filePath, csvType);
+    const rows = await csvHandler.parseDataRows(filePath, headers);
     if (!rows.length) {
-      return { error: 'No valid data rows', samples: null, qc: null, csvType };
+      return { error: 'No valid data rows', samples: null, qc: null, csvType, headers };
     }
 
     // Separate rows into samples and QC
     const { samples, qc } = csvHandler.splitSamplesAndQc(rows);
     if (!samples.length || !qc.length) {
-      return { error: 'Either no samples or no QC rows', samples: null, qc: null, csvType };
+      return { error: 'Either no samples or no QC rows', samples: null, qc: null, csvType, headers };
     }
 
     // Final QC label check
     csvHandler.validateQcLabels(qc);
 
-    return { error: null, samples, qc, csvType };
+    return { error: null, samples, qc, csvType, headers };
   } catch (err) {
     console.error('[validate] Error:', err.message);
-    return { error: err.message || 'Validation failed', samples: null, qc: null, csvType: null };
+    return { error: err.message || 'Validation failed', samples: null, qc: null, csvType: null, headers: null };
   }
 }
+
 
 
 // ==========================
@@ -69,7 +74,7 @@ async function validate(filePath, originalName) {
  * - Insert/update sample rows
  * - Map sample IDs to file
  */
-async function insertAllData(originalName, savedFilePath, samples, qc, csvType) {
+async function insertAllData(originalName, savedFilePath, samples, qc, csvType,headers) {
   let fileId;
 
   // Step 1: Insert file info
@@ -92,7 +97,7 @@ async function insertAllData(originalName, savedFilePath, samples, qc, csvType) 
   }
 
   // Step 3: Filter relevant sample columns
-  const filteredRows = csvHandler.filterColumnsByKeys(samples, csvType);
+  const filteredRows = csvHandler.filterColumnsByKeys(samples, csvType,headers);
 
   // Step 4: Insert or update sample data + mapping
   try {
@@ -130,7 +135,7 @@ async function insertAllData(originalName, savedFilePath, samples, qc, csvType) 
   } catch (err) {
   return { error: 'Failed to process sample data: ' + err.message, fileId };
   }
-
+  
 
   return { error: null, fileId };
 }
@@ -145,23 +150,27 @@ async function insertAllData(originalName, savedFilePath, samples, qc, csvType) 
  * - Calculates % deviation from known value
  * - Applies correction to sample_data and SJS-Std
  */
-async function insertCorrected(fileId, csvType) {
+async function insertCorrected(fileId, csvType,headers) {
+
+
   try {
-    // Step 1: Get QC MES rows for this file
-    const qcRows = await dataModel.getAllQCMESRows(fileId);
-    const selectedRow = qcRows[0];
-    const usedLabel = selectedRow["Solution Label"];
+    // // Step 1: Get QC MES rows for this file
+    // const qcRows = await dataModel.getAllQCMESRows(fileId);
+    // const selectedRow = qcRows[0];
+    // const usedLabel = selectedRow["Solution Label"];
 
     // Step 2: Determine applicable element columns
     const allowedCols = csvType === 1 ? MEconc : TEconc;
-    const elementCols = allowedCols.filter(
-      col => selectedRow.hasOwnProperty(col) && selectedRow[col] !== null && selectedRow[col] !== ''
-    );
+    const elementCols = headers.filter(header => allowedCols.includes(header));
+
+
 
     // Step 3: Get average measured values
-    const averages = await dataModel.getQCAveragesByLabel(fileId, usedLabel, elementCols);
+    const averages = await dataModel.getQCAveragesByLabel(fileId, qcl[csvType], elementCols);
 
-    const known = parseFloat(usedLabel.match(/(\d+(\.\d+)?)/)?.[0]); // e.g., extract 50 from "QC MES 50"
+    
+
+    const known = csvType === 1 ? 5 : 50; // e.g., extract 50 from "QC MES 50"
 
     // Step 4: Calculate correction factors
     const factors = {};
@@ -173,9 +182,12 @@ async function insertCorrected(fileId, csvType) {
 
     // Step 5: Apply correction to samples
     const sampleIds = await dataModel.getSampleIdsForFile(fileId);
+    
 
     for (const sampleId of sampleIds) {
-      const row = await dataModel.getSampleById(sampleId);
+      const row = await dataModel.getSampleById(sampleId,elementCols);
+
+
       if (!row) continue;
 
       const updates = {};
@@ -195,7 +207,7 @@ async function insertCorrected(fileId, csvType) {
     const stdIds = await dataModel.getStdIdsForFile(fileId);
 
     for (const stdId of stdIds) {
-      const row = await dataModel.getStdById(stdId);
+      const row = await dataModel.getStdById(stdId,elementCols);
       if (!row) continue;
 
       const updates = {};
