@@ -11,6 +11,7 @@ import {
   TableRow,
   TableSortLabel,
   Typography,
+  Pagination, // Import Pagination
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -24,7 +25,9 @@ const QCRow = ({
   row,
   isExpanded,
   toggleRowExpansion,
-  miniTables,
+  miniTableData, // Updated prop
+  pageSize,      // New prop
+  handleMiniTablePageChange, // New prop
   miniSortConfig,
   sortMiniTable,
 }) => {
@@ -124,7 +127,7 @@ const QCRow = ({
                   </TableHead>
 
                   <TableBody>
-                    {(miniTables[row.element] || []).map((entry, i) => {
+                    {(miniTableData.data || []).map((entry, i) => {
                       const miniStatus =
                         entry.status === 'Pass'
                           ? { icon: <CheckCircleIcon />, label: 'Pass', color: 'success' }
@@ -152,6 +155,17 @@ const QCRow = ({
                   </TableBody>
                 </Table>
               </Box>
+              {miniTableData.totalItems > 0 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
+                  <Pagination
+                    count={Math.ceil(miniTableData.totalItems / pageSize)}
+                    page={miniTableData.currentPage}
+                    onChange={(event, value) => handleMiniTablePageChange(row.element, value)}
+                    color="primary"
+                    size="small"
+                  />
+                </Box>
+              )}
             </Box>
           </Collapse>
         </TableCell>

@@ -15,6 +15,8 @@ class TableController {
   static async getQcMiniTableData(req, res) {
   try {
     const { start_date, end_date, element, file_id } = req.query; // Destructure with snake_case
+    const page = parseInt(req.query.page, 10) || 1;
+    const pageSize = parseInt(req.query.pageSize, 10) || 10;
 
     if (!element || (!file_id && (!start_date || !end_date))) { // Use file_id, start_date, end_date
       return res.status(400).json({
@@ -26,9 +28,17 @@ class TableController {
     let fileIdsToProcess = [];
 
     if (file_id) { // Use file_id
-      fileIdsToProcess = [parseInt(file_id, 10)];
+      // Ensure file_id is treated as an array for consistency, even if it's just one.
+      // This simplifies logic if getFileIdsByDateRange returns an array of objects with id property.
+      const numericFileId = parseInt(file_id, 10);
+      if (!isNaN(numericFileId)) {
+        fileIdsToProcess = [numericFileId];
+      }
     } else {
-      fileIdsToProcess = await fileModel.getFileIdsByDateRange(start_date, end_date); // Use start_date, end_date
+      // Assuming getFileIdsByDateRange returns an array of IDs directly or an array of objects {id: ...}
+      const ids = await fileModel.getFileIdsByDateRange(start_date, end_date); // Use start_date, end_date
+      // Ensure we have an array of numbers
+      fileIdsToProcess = ids.map(item => (typeof item === 'object' ? item.id : item)).filter(id => !isNaN(parseInt(id,10)));
     }
 
     if (!fileIdsToProcess || fileIdsToProcess.length === 0) {
@@ -36,11 +46,14 @@ class TableController {
         success: true,
         message: 'No files found for the specified criteria.',
         miniTable: [],
+        totalItems: 0,
+        page,
+        pageSize,
       });
     }
 
-    let aggregatedData = [];
-    for (const file_id_item of fileIdsToProcess) { // Renamed to avoid conflict with outer file_id
+    let allMiniTableRowsForElement = [];
+    for (const file_id_item of fileIdsToProcess) { 
       const solution_label = await QcCheckService.getSolutionLabelsForFile(file_id_item);
 
       if (!solution_label) {
@@ -49,23 +62,31 @@ class TableController {
       }
 
       const data = await miniTableService.getMiniTableForElement(
-        parseInt(file_id_item, 10),
+        file_id_item, // Already an int if coming from single file_id, or mapped to int
         solution_label,
         element
       );
 
       if (data && data.length > 0) {
-        aggregatedData = aggregatedData.concat(data);
+        allMiniTableRowsForElement = allMiniTableRowsForElement.concat(data);
       }
     }
 
+    const totalItems = allMiniTableRowsForElement.length;
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = page * pageSize;
+    const paginatedData = allMiniTableRowsForElement.slice(startIndex, endIndex);
+
     return res.json({
       success: true,
-      miniTable: aggregatedData,
+      miniTable: paginatedData,
+      totalItems,
+      page,
+      pageSize,
     });
 
   } catch (error) {
-    console.error('[TableController] Error in getMiniTableData:', error);
+    console.error('[TableController] Error in getQcMiniTableData:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to get mini table data',

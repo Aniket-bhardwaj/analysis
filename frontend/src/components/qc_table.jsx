@@ -10,8 +10,11 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
   const [qcData, setQcData] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
   const [expandedRows, setExpandedRows] = useState(new Set());
+  // Store mini table data as { data: [], totalItems: 0, currentPage: 1 }
   const [miniTables, setMiniTables] = useState({});
   const [miniSortConfig, setMiniSortConfig] = useState({});
+
+  const MINI_TABLE_PAGE_SIZE = 10; // Define page size
 
   useEffect(() => {
   console.log("📣 [useEffect] selectedFileId:", selectedFileId);
@@ -22,7 +25,7 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
   }
 }, [selectedFileId, selectedDateRange]);
 
-  const buildUrl = (baseUrl) => {
+  const buildUrl = (baseUrl, page, pageSize) => {
   const params = new URLSearchParams();
 
   // Only one should be active at a time:
@@ -35,6 +38,11 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
     params.append('file_id', selectedFileId);
   }
 
+  if (page && pageSize) {
+    params.append('page', page);
+    params.append('pageSize', pageSize);
+  }
+
   return `${baseUrl}?${params.toString()}`;
 };
 
@@ -43,7 +51,8 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
 
   const fetchQCData = async () => {
     try {
-      const url = buildUrl('http://localhost:5000/table-data');
+      // buildUrl for fetchQCData does not need page/pageSize for the main table
+      const url = buildUrl('http://localhost:5000/table-data'); 
       console.log("📡 Fetching QC data from:", url);
       const response = await fetch(url);
       const result = await response.json();
@@ -67,14 +76,33 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
     }
   };
 
-  const fetchMiniTableData = async (element) => {
+  const fetchMiniTableData = async (element, page = 1) => {
     try {
-      const url = buildUrl(`http://localhost:5000/element-mini-table`);
+      const url = buildUrl(`http://localhost:5000/element-mini-table`, page, MINI_TABLE_PAGE_SIZE);
       const res = await fetch(`${url}&element=${encodeURIComponent(element)}`);
       const json = await res.json();
-      setMiniTables(prev => ({ ...prev, [element]: json.miniTable || [] }));
+      if (json.success) {
+        setMiniTables(prev => ({
+          ...prev,
+          [element]: {
+            data: json.miniTable || [],
+            totalItems: json.totalItems || 0,
+            currentPage: json.page || 1,
+          }
+        }));
+      } else {
+        console.error("❌ [Frontend] Error fetching mini table:", json.message);
+        setMiniTables(prev => ({
+          ...prev,
+          [element]: { data: [], totalItems: 0, currentPage: 1 }
+        }));
+      }
     } catch (err) {
       console.error("❌ [Frontend] Error fetching mini table:", err);
+      setMiniTables(prev => ({
+          ...prev,
+          [element]: { data: [], totalItems: 0, currentPage: 1 }
+        }));
     }
   };
 
@@ -84,7 +112,10 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
       next.delete(element);
     } else {
       next.add(element);
-      if (!miniTables[element]) fetchMiniTableData(element);
+      // Fetch data if not already fetched or if it's empty (e.g. after an error)
+      if (!miniTables[element] || !miniTables[element].data || miniTables[element].data.length === 0 && miniTables[element].totalItems === 0) {
+        fetchMiniTableData(element, 1); // Fetch first page on expand
+      }
     }
     setExpandedRows(next);
   };
@@ -101,6 +132,10 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
     });
     setMiniTables(prev => ({ ...prev, [element]: sorted }));
     setMiniSortConfig(prev => ({ ...prev, [element]: { key, direction } }));
+  };
+
+  const handleMiniTablePageChange = (element, newPage) => {
+    fetchMiniTableData(element, newPage);
   };
 
   const sortedData = useMemo(() => {
@@ -212,9 +247,12 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
               row={row}
               isExpanded={expandedRows.has(row.element)}
               toggleRowExpansion={toggleRowExpansion}
-              miniTables={miniTables}
-              miniSortConfig={miniSortConfig}
-              sortMiniTable={sortMiniTable}
+              // Pass the specific miniTable object for the element, or a default structure
+              miniTableData={miniTables[row.element] || { data: [], totalItems: 0, currentPage: 1 }}
+              pageSize={MINI_TABLE_PAGE_SIZE}
+              handleMiniTablePageChange={handleMiniTablePageChange}
+              miniSortConfig={miniSortConfig} // Keep this for client-side sort state
+              sortMiniTable={sortMiniTable}   // Keep this for client-side sort function
             />
           ))}
         </tbody>
