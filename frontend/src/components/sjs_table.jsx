@@ -22,7 +22,7 @@ const SJSTable = ({ selectedFileId, startDate, endDate }) => {
 
 
     const buildSJSURL = (selectedFileId, startDate, endDate) => {
-        const base = 'http://localhost:5000/sjsTable-data';
+        const base = `${import.meta.env.VITE_API_URL}/sjsTable-data`;
         const params = new URLSearchParams();
         if (selectedFileId) params.append('file_id', selectedFileId);
         else if (startDate && endDate) {
@@ -61,7 +61,7 @@ const SJSTable = ({ selectedFileId, startDate, endDate }) => {
 
     const fetchMiniTableData = async (element, page = 1) => {
         try {
-            let url = `http://localhost:5000/sjs-mini-table?element=${encodeURIComponent(element)}`;
+            let url = `${import.meta.env.VITE_API_URL}/sjs-mini-table?element=${encodeURIComponent(element)}`;
             if (selectedFileId) {
                 url += `&file_id=${selectedFileId}`;
             } else if (startDate && endDate) {

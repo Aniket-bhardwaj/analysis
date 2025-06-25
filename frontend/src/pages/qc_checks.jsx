@@ -64,7 +64,7 @@ const QCChecks = () => {
 
   const fetchFileMeta = async (fileId) => {
     try {
-      const res = await fetch(`http://localhost:5000/file-meta?file_id=${fileId}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/file-meta?file_id=${fileId}`);
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
@@ -97,7 +97,7 @@ const QCChecks = () => {
   const fetchUploadedFiles = async (filters) => {
     setLoading(true);
     setError(null);
-    let url = `http://localhost:5000/uploaded-files`;
+    let url = `${import.meta.env.VITE_API_URL}/uploaded-files`;
 
     if (filters?.startDate && filters?.endDate) {
       const params = new URLSearchParams({
@@ -136,7 +136,7 @@ const QCChecks = () => {
   const fetchSummaryData = async () => {
     try {
       const response = await fetch(
-        `http://localhost:5000/summary?file_id=${selectedFileId}`
+        `${import.meta.env.VITE_API_URL}/summary?file_id=${selectedFileId}`
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

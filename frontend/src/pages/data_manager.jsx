@@ -115,7 +115,7 @@ const DataManagerPage = () => {
             });
 
             // Send the request
-            xhr.open('POST', `http://localhost:5000/upload-csv`);
+            xhr.open('POST', `${import.meta.env.VITE_API_URL}/upload-csv`);
             xhr.send(formData);
 
             const result = await uploadPromise;
@@ -147,7 +147,7 @@ const DataManagerPage = () => {
 
     const fetchUploadedFiles = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/uploaded-files`);
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`);
             const data = await res.json();
             const files = data.files || data.data || data; // fallback for various response shapes
 
@@ -157,7 +157,7 @@ const DataManagerPage = () => {
                     let qualityStatus = 'error'; // default to fail
 
                     try {
-                        const summaryRes = await fetch(`http://localhost:5000/summary?file_id=${fileId}`);
+                        const summaryRes = await fetch(`${import.meta.env.VITE_API_URL}/summary?file_id=${fileId}`);
                         if (!summaryRes.ok) throw new Error('Summary fetch failed');
 
                         const result = await summaryRes.json();
@@ -213,7 +213,7 @@ const DataManagerPage = () => {
 
     const handleDelete = async (id) => {
         try {
-            const res = await fetch(`http://localhost:5000/hide-file/${id}`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/hide-file/${id}`, {
                 method: 'POST',
             });
 
@@ -234,7 +234,7 @@ const DataManagerPage = () => {
 
     const handleDownload = (fileId) => {
         const link = document.createElement('a');
-        link.href = `http://localhost:5000/download-file/${fileId}`;
+        link.href = `${import.meta.env.VITE_API_URL}/download-file/${fileId}`;
         link.download = ''; // Let server set the filename via Content-Disposition
         document.body.appendChild(link);
         link.click();

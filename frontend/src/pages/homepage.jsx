@@ -16,9 +16,9 @@ const DashboardPage = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching dashboard data from: http://localhost:5000/dashboard');
+      console.log(`Fetching dashboard data from: ${import.meta.env.VITE_API_URL}/dashboard`);
       
-      const response = await fetch('http://localhost:5000/dashboard');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/dashboard`);
       console.log('Response status:', response.status);
       
       if (!response.ok) {
