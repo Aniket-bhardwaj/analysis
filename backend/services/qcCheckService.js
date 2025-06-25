@@ -31,7 +31,7 @@ class QcCheckService {
     const match = solutionLabel.match(/[\d.]+/);
     const errorFactor = match ? parseFloat(match[0]) : 1;
 
-    const totalElements = elementColumns.length;
+    let totalElements = 0;
     let elementsWithinTolerance = 0;
     let totalRSD = 0;
     let rsdCount = 0;
@@ -44,6 +44,7 @@ class QcCheckService {
         .filter(v => !isNaN(v));
 
       if (values.length === 0) continue;
+      totalElements++;
 
       const avg = values.reduce((a, b) => a + b, 0) / values.length;
       const variance = values.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / values.length;

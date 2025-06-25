@@ -49,12 +49,15 @@ exports.fetchGraphDataByFileId = (fileId) => {
         const graphData = {};
 
         elementNames.forEach(element => {
-          graphData[element] = rows
-            .map(row => ({
-              sample: row.timestamp,
-              value: parseFloat(row[element])
-            }))
-            .filter(point => !isNaN(point.value));
+          const points = rows.map(row => ({
+            sample: row.timestamp,
+            value: parseFloat(row[element])
+          })).filter(point => !isNaN(point.value));
+
+          // Only include elements that have at least one valid value
+          if (points.length > 0) {
+            graphData[element] = points;
+          }
         });
 
         resolve({
@@ -123,13 +126,12 @@ exports.fetchGraphDataByDateRange = (startDate, endDate) => {
                   }))
                   .filter(point => !isNaN(point.value));
 
-                if (!allGraphData[element]) {
-                  allGraphData[element] = [];
-                }
-
-                allGraphData[element].push(...dataPoints);
-              });
-            }
+                  if (dataPoints.length > 0) {
+                    if (!allGraphData[element]) allGraphData[element] = [];
+                    allGraphData[element].push(...dataPoints);
+                  }
+                });
+              }
 
             completed++;
             if (completed === files.length) {
@@ -197,12 +199,14 @@ exports.fetchSJSGraphDataByFileId = (fileId) => {
               };
             }).filter(p => p.y !== null);
 
-            graphData[el] = elementPoints;
+            if (elementPoints.length > 0) {
+              graphData[el] = elementPoints;
+            }
           });
 
           resolve({
             success: true,
-            elements: sjsElements,
+            elements: Object.keys(graphData),
             data: graphData,
             xLabel: 'Timestamp',
           });
