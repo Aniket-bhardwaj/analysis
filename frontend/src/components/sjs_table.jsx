@@ -57,12 +57,33 @@ const SJSTable = ({ selectedFileId, startDate, endDate }) => {
 
   const fetchMiniTableData = async (element) => {
     try {
-      const url = `http://localhost:5000/sjs-mini-table?file_id=${selectedFileId}&element=${encodeURIComponent(element)}`;
+      let url = `http://localhost:5000/sjs-mini-table?element=${encodeURIComponent(element)}`;
+      if (selectedFileId) {
+        url += `&file_id=${selectedFileId}`;
+      } else if (startDate && endDate) {
+        url += `&start_date=${startDate}&end_date=${endDate}`;
+      } else {
+        console.warn("[SJS_Table] Cannot fetch mini table data without file_id or date range.");
+        return;
+      }
+      // Add pagination parameters if needed, though current backend controller for SJS mini table does not seem to use them yet
+      // url += `&page=1&pageSize=10`; // Example if pagination was implemented for SJS mini table like QC
+
       const res = await fetch(url);
       const json = await res.json();
       setMiniTables(prev => ({ ...prev, [element]: json.miniTable || [] }));
+      // If pagination is added to backend and you want to use it:
+      // setMiniTables(prev => ({
+      //   ...prev,
+      //   [element]: {
+      //     data: json.miniTable || [],
+      //     totalItems: json.totalItems,
+      //     page: json.page,
+      //     pageSize: json.pageSize
+      //   }
+      // }));
     } catch (err) {
-      console.error("\u274C [Frontend] Error fetching mini table:", err);
+      console.error("\u274C [Frontend] Error fetching SJS mini table:", err);
     }
   };
 

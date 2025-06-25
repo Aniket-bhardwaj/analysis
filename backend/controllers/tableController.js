@@ -96,38 +96,81 @@ class TableController {
 }
 
   static async getSJSMiniTableData(req, res) {
-  try {
-    const { file_id, element } = req.query;
+    try {
+      const { start_date, end_date, element, file_id } = req.query;
+      const page = parseInt(req.query.page, 10) || 1;
+      const pageSize = parseInt(req.query.pageSize, 10) || 10;
 
-    if (!file_id || !element) {
-      return res.status(400).json({
+      if (!element || (!file_id && (!start_date || !end_date))) {
+        return res.status(400).json({
+          success: false,
+          message: 'Query must include an element and either a file_id or both a start_date and end_date.',
+        });
+      }
+
+      let fileIdsToProcess = [];
+
+      if (file_id) {
+        const numericFileId = parseInt(file_id, 10);
+        if (!isNaN(numericFileId)) {
+          fileIdsToProcess = [numericFileId];
+        }
+      } else {
+        const ids = await fileModel.getFileIdsByDateRange(start_date, end_date);
+        fileIdsToProcess = ids.map(item => (typeof item === 'object' ? item.id : item)).filter(id => !isNaN(parseInt(id, 10)));
+      }
+
+      if (!fileIdsToProcess || fileIdsToProcess.length === 0) {
+        return res.json({
+          success: true,
+          message: 'No files found for the specified criteria.',
+          miniTable: [],
+          totalItems: 0,
+          page,
+          pageSize,
+        });
+      }
+
+      const solutionLabel = 'SJS-Std';
+      let allMiniTableRowsForElement = [];
+
+      for (const id of fileIdsToProcess) {
+        // We need to fetch file type for each file to pass to getSJSMiniTableForElement if it needs it
+        // Assuming getSJSMiniTableForElement can determine what it needs from file_id or if solution_label is enough
+        // For now, directly calling with file_id and solution_label as per existing single file logic
+        const data = await miniTableService.getSJSMiniTableForElement(
+          id, // Use the numeric id from fileIdsToProcess
+          solutionLabel,
+          element
+        );
+
+        if (data && data.length > 0) {
+          allMiniTableRowsForElement = allMiniTableRowsForElement.concat(data);
+        }
+      }
+
+      const totalItems = allMiniTableRowsForElement.length;
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = page * pageSize;
+      const paginatedData = allMiniTableRowsForElement.slice(startIndex, endIndex);
+
+      return res.json({
+        success: true,
+        miniTable: paginatedData,
+        totalItems,
+        page,
+        pageSize,
+      });
+
+    } catch (error) {
+      console.error('[TableController] Error in getSJSMiniTableData:', error);
+      res.status(500).json({
         success: false,
-        message: 'file_id and element are required'
+        message: 'Failed to get SJS mini table data',
+        error: error.message,
       });
     }
-
-    const solutionLabel = 'SJS-Std';
-
-    const data = await miniTableService.getSJSMiniTableForElement(
-      parseInt(file_id),
-      solutionLabel,
-      element
-    );
-
-    return res.json({
-      success: true,
-      miniTable: data
-    });
-
-  } catch (error) {
-    console.error('[TableController] Error in getSJSMiniTableData:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get mini table data',
-      error: error.message
-    });
   }
-}
 
 
 
