@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Upload, TrendingUp, Database, CheckCircle, AlertCircle, Clock, FileText } from 'lucide-react';
 import Navbar from '@/components/navbar';
+import { Autocomplete, TextField } from '@mui/material';
 import '../styles/homepage.css';
+
 
 const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -61,11 +63,10 @@ const DashboardPage = () => {
   }, []);
 
   // Format date for display
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric'
-    });
+  const formatDate = (date) => {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return 'Invalid Date';
+    return `${d.getDate()}/${d.getMonth() + 1}`;
   };
 
   // Format time ago
@@ -91,16 +92,13 @@ const DashboardPage = () => {
     if (!dashboardData?.qcGraphData?.success || !selectedElement) {
       return [];
     }
-
+  
     const elementData = dashboardData.qcGraphData.graphData[selectedElement];
-    if (!elementData?.dailyAverages) {
-      return [];
-    }
-
-    return elementData.dailyAverages.map(item => ({
-      date: new Date(item.date),
-      value: item.value,
-      dataPoints: item.dataPoints
+    if (!Array.isArray(elementData)) return [];
+  
+    return elementData.map(item => ({
+      date: new Date(item.sample), // ✅ correct timestamp field + wrapped in Date
+      value: item.value
     }));
   };
 
@@ -214,19 +212,16 @@ const DashboardPage = () => {
               <h3 className="chart-title">QC Element Trends (Past Week)</h3>
               {availableElements.length > 0 && (
                 <div className="element-selector">
-                  <label htmlFor="element-select">Element: </label>
-                  <select
-                    id="element-select"
-                    value={selectedElement || ''}
-                    onChange={(e) => setSelectedElement(e.target.value)}
-                    className="element-dropdown"
-                  >
-                    {availableElements.map(element => (
-                      <option key={element} value={element}>
-                        {element}
-                      </option>
-                    ))}
-                  </select>
+                  <Autocomplete
+  disablePortal
+  id="element-search"
+  options={availableElements}
+  sx={{ width: 300 }}
+  value={selectedElement}
+  onChange={(e, newValue) => setSelectedElement(newValue)}
+  renderInput={(params) => <TextField {...params} label="Select Element" variant="outlined" />}
+  size="small"
+/>
                 </div>
               )}
             </div>
@@ -236,9 +231,10 @@ const DashboardPage = () => {
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
-                    dataKey="date" 
-                    tickFormatter={formatDate}
-                    tick={{ fontSize: 12 }}
+                    dataKey="date"
+                    tickFormatter={(date) =>
+                      date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                    }
                   />
                   <YAxis 
                     tick={{ fontSize: 12 }}
@@ -298,7 +294,7 @@ const DashboardPage = () => {
               <div className="stat-card">
                 <h4>{selectedElement} Points</h4>
                 <p className="stat-value">
-                  {dashboardData.qcGraphData.graphData[selectedElement].totalDataPoints || 0}
+                  {dashboardData.qcGraphData.graphData[selectedElement]?.length || 0}
                 </p>
               </div>
             )}

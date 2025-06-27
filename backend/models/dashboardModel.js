@@ -1,6 +1,11 @@
 const db = require('../initialize_db');
 const { MEconc, TEconc } = require('../colHeaders');
 const QcCheckService = require('../services/qcCheckService');
+const ELEMENT_TABLES = {
+  1: MEconc,
+  2: TEconc,
+};
+
 
 // Core dashboard statistics functions
 function getTotalFilesCount() {
@@ -91,103 +96,80 @@ async function getQCPassRate() {
   });
 }
 
-function getQCGraphDataForDashboard() {
-  return new Promise((resolve, reject) => {
-    const filesQuery = `
-      SELECT DISTINCT 
-        uploaded_files.id,
-        uploaded_files.type,
-        uploaded_files.uploaded_at,
-        uploaded_files.filename
-      FROM uploaded_files
-      JOIN qc_data ON uploaded_files.id = qc_data.file_id
-      WHERE uploaded_files.uploaded_at >= DATE('now', '-7 days')
-        AND uploaded_files.hidden = 0
-        AND qc_data."Solution Label" LIKE '%QC MES%'
-      ORDER BY uploaded_files.uploaded_at ASC
-    `;
+function getQCGraphDataLastWeek() {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(endDate.getDate() - 7);
 
-    db.all(filesQuery, [], async (err, files) => {
+  const start = startDate.toISOString().split('T')[0] + ' 00:00:00';
+  const end = endDate.toISOString().split('T')[0] + ' 23:59:59';
+
+  const query = `
+    SELECT q.*, f.type, f.uploaded_at
+    FROM qc_data q
+    JOIN uploaded_files f ON q.file_id = f.id
+    WHERE f.uploaded_at BETWEEN ? AND ?
+      AND f.hidden = 0
+      AND q."Solution Label" LIKE 'QC%'
+    ORDER BY f.uploaded_at ASC
+  `;
+
+  const parseTimestamp = (ts) => {
+    if (typeof ts !== 'string') return null;
+
+    const [datePart, timePart] = ts.split(' ');
+    if (!datePart || !timePart) return null;
+
+    const [day, month, year] = datePart.split('-');
+    if (!day || !month || !year) return null;
+
+    const isoFormat = `${year}-${month}-${day}T${timePart}:00`;
+    const parsed = new Date(isoFormat);
+
+    return isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  };
+
+  return new Promise((resolve, reject) => {
+    db.all(query, [start, end], (err, rows) => {
       if (err) return reject(err);
-      if (!files || files.length === 0) {
-        return resolve({ success: true, graphData: {} });
-      }
 
       const allGraphData = {};
+      const uniqueFiles = new Set();
 
-      try {
-        for (const file of files) {
-          const fileId = file.id;
-          const fileType = file.type;
-          
-          const VALID_LABELS = {
-            1: 'QC MES 5 ppm',
-            2: 'QC MES 50 ppb',
-          };
-          
-          const ELEMENT_TABLES = {
-            1: MEconc,
-            2: TEconc,
-          };
+      for (const row of rows) {
+        const fileType = row.type;
+        const rawTimestamp = fileType === 2 ? row["Acq. Date-Time"] : row["Timestamp"];
+        const timestamp = parseTimestamp(rawTimestamp);
 
-          const qcLabel = VALID_LABELS[fileType];
-          const elementNames = ELEMENT_TABLES[fileType];
-
-          if (!qcLabel || !Array.isArray(elementNames) || elementNames.length === 0) {
-            continue;
-          }
-
-          const timeColumn = fileType === 2 ? `"Acq. Date-Time"` : `"Timestamp"`;
-
-          const dataQuery = `
-            SELECT ${timeColumn} AS timestamp, ${elementNames.map(el => `"${el}"`).join(', ')}
-            FROM qc_data
-            WHERE file_id = ? AND "Solution Label" = ?
-            ORDER BY ${timeColumn} ASC
-          `;
-
-          const rows = await new Promise((resolve, reject) => {
-            db.all(dataQuery, [fileId, qcLabel], (err, rows) => {
-              if (err) reject(err);
-              else resolve(rows || []);
-            });
-          });
-
-          const fileGraphData = {};
-          elementNames.forEach(element => {
-            fileGraphData[element] = rows
-              .map(row => ({
-                timestamp: row.timestamp,
-                value: parseFloat(row[element]),
-                fileId: fileId,
-                fileName: file.filename,
-                fileType: fileType === 1 ? 'PPM' : 'PPB',
-                uploadedAt: file.uploaded_at
-              }))
-              .filter(point => !isNaN(point.value));
-          });
-
-          elementNames.forEach(element => {
-            if (!allGraphData[element]) {
-              allGraphData[element] = [];
-            }
-            allGraphData[element] = allGraphData[element].concat(fileGraphData[element]);
-          });
+        if (!timestamp) {
+          console.warn(`Skipping invalid timestamp: ${rawTimestamp}`);
+          continue;
         }
 
-        Object.keys(allGraphData).forEach(element => {
-          allGraphData[element].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-        });
+        const elementNames = ELEMENT_TABLES[fileType];
+        if (!Array.isArray(elementNames)) continue;
+        uniqueFiles.add(row.file_id);
 
-        resolve({
-          success: true,
-          graphData: allGraphData,
-          fileCount: files.length,
-          elementCount: Object.keys(allGraphData).length
-        });
+        for (const el of elementNames) {
+          const val = parseFloat(row[el]);
+          if (!isNaN(val)) {
+            if (!allGraphData[el]) allGraphData[el] = [];
+            allGraphData[el].push({ timestamp, value: val });
+          }
+        }
+      }
 
-      } catch (error) {
-        reject(error);
+      resolve({
+        success: true,
+        graphData: allGraphData,
+        fileCount: uniqueFiles.size,
+        elementCount: Object.keys(allGraphData).length
+      });
+
+      // Optional debug log
+      if (allGraphData['107 Ag [ He ] Conc. [ ppb ]']) {
+        console.log('Sample data for 107 Ag [ He ] Conc. [ ppb ]:',
+          allGraphData['107 Ag [ He ] Conc. [ ppb ]'].slice(0, 5));
       }
     });
   });
@@ -219,5 +201,5 @@ module.exports = {
   getTotalSamplesCount,
   getQCPassRate,
   getDashboardSummary,
-  getQCGraphDataForDashboard
+  getQCGraphDataLastWeek
 };

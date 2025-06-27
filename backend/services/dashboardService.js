@@ -1,5 +1,12 @@
 const dashboardModel = require('../models/dashboardModel');
 const qcCheckService = require('./qcCheckService');
+const { MEconc, TEconc } = require('../colHeaders');
+
+
+const ELEMENT_TABLES = {
+  1: MEconc,
+  2: TEconc,
+};
 
 class DashboardService {
   /**
@@ -8,15 +15,15 @@ class DashboardService {
   static async getDashboardData() {
     try {
       console.log('Getting dashboard data...');
-      
-      const [summary, qcGraphData] = await Promise.all([
+  
+      const [summary, qcGraphRaw] = await Promise.all([
         dashboardModel.getDashboardSummary(),
-        dashboardModel.getQCGraphDataForDashboard()
+        DashboardService.fetchQCGraphDataLastWeek()  // 👈 use your function
       ]);
-      
+  
       console.log('Dashboard summary received:', summary);
-      console.log('QC graph data received:', qcGraphData);
-
+      // console.log('QC graph raw data received:', qcGraphRaw);
+  
       return {
         totalFiles: summary.totalFiles,
         totalSamples: summary.totalSamples,
@@ -26,23 +33,11 @@ class DashboardService {
           passedChecks: summary.qcPassedChecks,
           passRate: summary.qcPassRate
         },
-        qcGraphData: this.processQCGraphData(qcGraphData)
+        qcGraphData: qcGraphRaw  // 👈 directly return raw output
       };
     } catch (err) {
       console.error('Dashboard service error:', err);
       throw new Error('Failed to get dashboard data: ' + err.message);
-    }
-  }
-
-  /**
-   * Get individual statistics
-   */
-  static async getTotalFiles() {
-    try {
-      return await dashboardModel.getTotalFilesCount();
-    } catch (err) {
-      console.error('Error getting total files:', err);
-      throw err;
     }
   }
 
@@ -64,89 +59,44 @@ class DashboardService {
     }
   }
 
-  /**
-   * Get QC Graph Data for Dashboard
-   */
-  static async getQCGraphData() {
-    try {
-      const result = await dashboardModel.getQCGraphDataForDashboard();
-      return this.processQCGraphData(result);
-    } catch (err) {
-      console.error('Error getting QC graph data:', err);
-      throw err;
+ 
+  //  Get QC Graph Data for Dashboard
+  
+  static async fetchQCGraphDataLastWeek() {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 7);
+  
+    const formattedStart = this.formatDate(startDate);  // "YYYY-MM-DD"
+    const formattedEnd = this.formatDate(endDate);
+  
+    // Call model to get already-processed data
+    const result = await dashboardModel.getQCGraphDataLastWeek(formattedStart, formattedEnd);
+  
+    // Validate result
+    if (!result || !result.success || typeof result.graphData !== 'object') {
+      throw new Error('Invalid QC graph data received from model');
     }
+  
+    return result;  // Return directly to be used in getDashboardData
+  }
+  static formatDate(date) {
+    return date.toISOString().split('T')[0];
   }
 
-  /**
-   * Process QC graph data for dashboard visualization
-   */
-  static processQCGraphData(result) {
-    if (!result.success || !result.graphData) {
-      return {
-        success: false,
-        graphData: {},
-        message: 'No QC graph data available'
-      };
-    }
+  static parseTimestamp(ts) {
+    if (typeof ts !== 'string') return null;
+    const [datePart, timePart] = ts.split(' ');
+    if (!datePart || !timePart) return null;
 
-    const processedData = {};
-    const elementNames = Object.keys(result.graphData);
+    const [day, month, year] = datePart.split('-');
+    if (!day || !month || !year) return null;
 
-    elementNames.forEach(element => {
-      const elementData = result.graphData[element];
-      
-      if (elementData && elementData.length > 0) {
-        // Group data points by date for better visualization
-        const groupedByDate = {};
-        
-        elementData.forEach(point => {
-          const date = new Date(point.timestamp).toDateString();
-          if (!groupedByDate[date]) {
-            groupedByDate[date] = [];
-          }
-          groupedByDate[date].push(point);
-        });
-
-        // Calculate daily averages
-        const dailyAverages = Object.keys(groupedByDate).map(date => {
-          const dayPoints = groupedByDate[date];
-          const avgValue = dayPoints.reduce((sum, point) => sum + point.value, 0) / dayPoints.length;
-          
-          return {
-            date: date,
-            value: Math.round(avgValue * 100) / 100,
-            dataPoints: dayPoints.length,
-            fileTypes: [...new Set(dayPoints.map(p => p.fileType))],
-            files: [...new Set(dayPoints.map(p => p.fileName))]
-          };
-        }).sort((a, b) => new Date(a.date) - new Date(b.date));
-
-        processedData[element] = {
-          rawData: elementData,
-          dailyAverages: dailyAverages,
-          totalDataPoints: elementData.length,
-          dateRange: {
-            start: elementData[0]?.timestamp,
-            end: elementData[elementData.length - 1]?.timestamp
-          }
-        };
-      }
-    });
-
-    return {
-      success: true,
-      graphData: processedData,
-      summary: {
-        totalElements: elementNames.length,
-        totalFiles: result.fileCount || 0,
-        totalDataPoints: Object.values(result.graphData).reduce((sum, arr) => sum + (arr?.length || 0), 0),
-        dateRange: {
-          start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          end: new Date().toISOString()
-        }
-      }
-    };
+    const isoFormat = `${year}-${month}-${day}T${timePart}`;
+const parsed = new Date(isoFormat);
+return isNaN(parsed.getTime()) ? null : parsed.toISOString();
   }
 }
+
 
 module.exports = DashboardService;

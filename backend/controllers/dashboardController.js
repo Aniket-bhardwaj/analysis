@@ -99,20 +99,17 @@ class DashboardController {
    */
   static async getQCGraphData(req, res) {
     try {
-      const qcGraphData = await DashboardService.getQCGraphData();
+      const result = await DashboardService.fetchQCGraphDataLastWeek();
       
       res.status(200).json({
         success: true,
-        data: qcGraphData,
+        data: result,
         timestamp: new Date().toISOString()
       });
-    } catch (err) {
-      console.error('QC graph data error:', err);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch QC graph data',
-        message: err.message
-      });
+    } catch (error) {
+      console.error('Controller Error:', error);
+      res.status(500).json({ success: false, message: error.message });
+      
     }
   }
 
