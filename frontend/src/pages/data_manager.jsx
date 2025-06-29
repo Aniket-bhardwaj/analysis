@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/navbar';
 import {
@@ -21,6 +21,7 @@ import {
     CircularProgress,
     Tooltip,
     Pagination,
+    InputAdornment, // Added for search icon
 } from '@mui/material'
 import { Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -29,10 +30,10 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import {
     CloudUpload,
     Delete,
-    DateRange,
     CheckCircle,
     Error as ErrorIcon, // Renamed to avoid conflict with global Error
-    Warning
+    Warning,
+    Search as SearchIcon, // Added for search bar
 } from '@mui/icons-material';
 
 import '../styles/data_manager.css';
@@ -51,6 +52,7 @@ const DataManagerPage = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [page, setPage] = useState(1);
+    const [searchQuery, setSearchQuery] = useState(''); // State for the search bar
     const ROWS_PER_PAGE = 10;
 
     const handleDrag = (e) => {
@@ -109,7 +111,6 @@ const DataManagerPage = () => {
                     if (xhr.status === 200) {
                         resolve(JSON.parse(xhr.responseText));
                     } else {
-                        // Fixed: Now using global Error constructor correctly
                         reject(new Error(JSON.parse(xhr.responseText).error || 'Upload failed'));
                     }
                 };
@@ -189,33 +190,30 @@ const DataManagerPage = () => {
         }
     };
 
-
     useEffect(() => {
         fetchUploadedFiles();
     }, []);
-    useEffect(() => {
-        setPage(1);
-    }, [files]);
 
-    const handleFiles = (fileList) => {
-        const newFiles = Array.from(fileList).map((file, index) => ({
-            id: files.length + index + 1,
-            name: file.name.split('.')[0],
-            type: file.name.split('.').pop().toUpperCase(),
-            user: 'Current User',
-            email: 'randommail@gmail.com',
-            uploadDate: new Date().toLocaleString('en-IN', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            }).replace(',', ''),
-            status: 'Uploaded',
-            qualityStatus: getQualityCheckStatus(file)
-        }));
-        setFiles([...files, ...newFiles]);
-    };
+    const filteredFiles = useMemo(() => {
+        if (!searchQuery) {
+            return files;
+        }
+        return files.filter((file) => {
+            const query = searchQuery.toLowerCase();
+            return (
+                file.name.toLowerCase().includes(query) ||
+                file.type.toLowerCase().includes(query) ||
+                file.user.toLowerCase().includes(query) ||
+                file.email.toLowerCase().includes(query) ||
+                file.uploadDate.toLowerCase().includes(query)
+            );
+        });
+    }, [files, searchQuery]);
+
+    useEffect(() => {
+        setPage(1); // Reset to the first page whenever the filter changes
+    }, [filteredFiles]);
+
 
     const handleDelete = async (id) => {
         try {
@@ -287,9 +285,9 @@ const DataManagerPage = () => {
     };
 
     const [selectedItem, setSelectedItem] = useState('Data Manager');
-    const location = useLocation();
     const navigate = useNavigate();
-    const paginatedFiles = files.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+    const paginatedFiles = filteredFiles.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+    
     return (
         <Box className="file-upload-container">
             <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
@@ -300,26 +298,21 @@ const DataManagerPage = () => {
                         Data Manager
                     </Typography>
 
-                    <Stack direction="row" spacing={2} className="date-filters">
-                        <TextField
-                            type="date"
-                            defaultValue="2025-04-17"
-                            variant="outlined"
-                            size="small"
-                            InputProps={{
-                                startAdornment: <DateRange className="date-icon" />
-                            }}
-                        />
-                        <TextField
-                            type="date"
-                            defaultValue="2025-04-17"
-                            variant="outlined"
-                            size="small"
-                            InputProps={{
-                                startAdornment: <DateRange className="date-icon" />
-                            }}
-                        />
-                    </Stack>
+                    <TextField
+                        variant="outlined"
+                        size="small"
+                        placeholder="Search files..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                        sx={{ width: { xs: '100%', sm: '300px' } }}
+                    />
                 </Box>
 
                 <Card className="upload-card">
@@ -445,10 +438,10 @@ const DataManagerPage = () => {
                                 </TableBody>
                             </Table>
                         </TableContainer>
-                        {files.length > ROWS_PER_PAGE && (
+                        {filteredFiles.length > ROWS_PER_PAGE && (
                             <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
                                 <Pagination
-                                    count={Math.ceil(files.length / ROWS_PER_PAGE)}
+                                    count={Math.ceil(filteredFiles.length / ROWS_PER_PAGE)}
                                     page={page}
                                     onChange={(event, value) => setPage(value)}
                                     color="primary"
@@ -497,7 +490,6 @@ const DataManagerPage = () => {
                     </Box>
                 </Alert>
             </Snackbar>
-
 
             <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
                 <DialogTitle>Confirm Deletion</DialogTitle>
