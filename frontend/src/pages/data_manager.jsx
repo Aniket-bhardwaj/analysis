@@ -20,6 +20,7 @@ import {
     Stack,
     CircularProgress,
     Tooltip,
+    Pagination,
 } from '@mui/material'
 import { Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -30,7 +31,7 @@ import {
     Delete,
     DateRange,
     CheckCircle,
-    Error as ErrorIcon,  // Renamed to avoid conflict with global Error
+    Error as ErrorIcon, // Renamed to avoid conflict with global Error
     Warning
 } from '@mui/icons-material';
 
@@ -45,12 +46,12 @@ const DataManagerPage = () => {
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
     const [fileToDelete, setFileToDelete] = useState(null);
 
-
-
     const [files, setFiles] = useState([]);
     const [dragActive, setDragActive] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [page, setPage] = useState(1);
+    const ROWS_PER_PAGE = 10;
 
     const handleDrag = (e) => {
         e.preventDefault();
@@ -192,6 +193,9 @@ const DataManagerPage = () => {
     useEffect(() => {
         fetchUploadedFiles();
     }, []);
+    useEffect(() => {
+        setPage(1);
+    }, [files]);
 
     const handleFiles = (fileList) => {
         const newFiles = Array.from(fileList).map((file, index) => ({
@@ -236,7 +240,7 @@ const DataManagerPage = () => {
 
     const handleCopyToClipboard = () => {
         navigator.clipboard.writeText(snackbarMessage);
-      };
+    };
 
     const handleDownload = (fileId) => {
         const link = document.createElement('a');
@@ -262,7 +266,7 @@ const DataManagerPage = () => {
                 color: '#ff9800'
             },
             error: {
-                icon: <ErrorIcon sx={{ color: '#f44336', fontSize: 20 }} />,  // Using renamed ErrorIcon
+                icon: <ErrorIcon sx={{ color: '#f44336', fontSize: 20 }} />, // Using renamed ErrorIcon
                 tooltip: `Quality check failed for ${filename}`,
                 color: '#f44336'
             }
@@ -273,7 +277,7 @@ const DataManagerPage = () => {
         return (
             <Tooltip title={config.tooltip} arrow>
                 <Box
-                    sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                     onClick={() => navigate('/qc-checks', { state: { fileId } })}
                 >
                     {config.icon}
@@ -285,6 +289,7 @@ const DataManagerPage = () => {
     const [selectedItem, setSelectedItem] = useState('Data Manager');
     const location = useLocation();
     const navigate = useNavigate();
+    const paginatedFiles = files.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
     return (
         <Box className="file-upload-container">
             <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
@@ -374,7 +379,7 @@ const DataManagerPage = () => {
                                     <TableRow className="table-header">
                                         <TableCell className="table-cell-header">#</TableCell>
                                         <TableCell className="table-cell-header">Filename</TableCell>
-                                        <TableCell className="table-cell-header">Quality Check</TableCell>
+                                        <TableCell className="table-cell-header" align="center">Quality Check</TableCell>
                                         <TableCell className="table-cell-header">Type</TableCell>
                                         <TableCell className="table-cell-header">User</TableCell>
                                         <TableCell className="table-cell-header">Upload Date</TableCell>
@@ -382,15 +387,15 @@ const DataManagerPage = () => {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {files.map((file, index) => (
+                                    {paginatedFiles.map((file, index) => (
                                         <TableRow key={file.id} className="table-row">
-                                            <TableCell className="table-cell">{index + 1}</TableCell>
+                                            <TableCell className="table-cell">{(page - 1) * ROWS_PER_PAGE + index + 1}</TableCell>
                                             <TableCell className="filename-cell">
                                                 <Typography variant="body2" className="filename-text">
                                                     {file.name}
                                                 </Typography>
                                             </TableCell>
-                                            <TableCell className="table-cell">
+                                            <TableCell className="table-cell" align="center">
                                                 {renderQualityStatus(file.qualityStatus, file.name, file.id)}
                                             </TableCell>
                                             <TableCell className="table-cell">
@@ -440,48 +445,58 @@ const DataManagerPage = () => {
                                 </TableBody>
                             </Table>
                         </TableContainer>
+                        {files.length > ROWS_PER_PAGE && (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                <Pagination
+                                    count={Math.ceil(files.length / ROWS_PER_PAGE)}
+                                    page={page}
+                                    onChange={(event, value) => setPage(value)}
+                                    color="primary"
+                                />
+                            </Box>
+                        )}
                     </CardContent>
                 </Card>
             </Box>
             <Snackbar
-  open={snackbarOpen}
-  autoHideDuration={5000}
-  onClose={() => setSnackbarOpen(false)}
-  anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
->
-  <Alert
-    onClose={() => setSnackbarOpen(false)}
-    severity={snackbarSeverity}
-    sx={{
-      width: '100%',
-      pl: 1,
-      pr: 1,
-      display: 'flex',
-      alignItems: 'flex-start',
-    }}
-    iconMapping={{
-      error: <ErrorIcon sx={{ mt: '4px' }} fontSize="small" />,
-    }}
-  >
-    <Box sx={{ display: 'flex', width: '100%' }}>
-      <Box sx={{ flexGrow: 1 }}>
-        <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-          {snackbarMessage}
-        </Typography>
-      </Box>
-      <Tooltip title="Copy to clipboard">
-        <IconButton
-          onClick={handleCopyToClipboard}
-          color="inherit"
-          size="small"
-          sx={{ ml: 4 }}
-        >
-          <ContentCopyIcon sx={{ fontSize: 24 }} />
-        </IconButton>
-      </Tooltip>
-    </Box>
-  </Alert>
-</Snackbar>
+                open={snackbarOpen}
+                autoHideDuration={5000}
+                onClose={() => setSnackbarOpen(false)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={() => setSnackbarOpen(false)}
+                    severity={snackbarSeverity}
+                    sx={{
+                        width: '100%',
+                        pl: 1,
+                        pr: 1,
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                    }}
+                    iconMapping={{
+                        error: <ErrorIcon sx={{ mt: '4px' }} fontSize="small" />,
+                    }}
+                >
+                    <Box sx={{ display: 'flex', width: '100%' }}>
+                        <Box sx={{ flexGrow: 1 }}>
+                            <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                                {snackbarMessage}
+                            </Typography>
+                        </Box>
+                        <Tooltip title="Copy to clipboard">
+                            <IconButton
+                                onClick={handleCopyToClipboard}
+                                color="inherit"
+                                size="small"
+                                sx={{ ml: 4 }}
+                            >
+                                <ContentCopyIcon sx={{ fontSize: 24 }} />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
+                </Alert>
+            </Snackbar>
 
 
             <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
