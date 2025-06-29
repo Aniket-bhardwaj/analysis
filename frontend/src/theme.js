@@ -4,7 +4,7 @@ import { createTheme } from '@mui/material/styles';
 const customTheme = createTheme({
   typography: {
     fontFamily: [
-      'Arial',
+      'Poppins',
       'sans-serif',
     ].join(','),
     h4: {

@@ -1,10 +1,14 @@
 /* Layout adjustments for navbar */
 .file-upload-container {
-  background-color: #f5f5f5;
+  display: flex;
+  background-color: #f9fafb;
   min-height: 100vh;
-  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  /* Adjust for fixed navbar - modify these values based on your navbar height */
-  margin-left: 280px; /* Adjust based on sidebar navbar width */
+  font-family:
+    'Poppins',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   padding-top: 0; /* Remove if navbar is sidebar, add if top navbar */
 }
 
@@ -20,16 +24,17 @@
 .header-section {
   display: flex;
   justify-content: space-between;
+  margin-top: 2rem;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 0.5em;
   flex-wrap: wrap;
   gap: 1rem;
 }
 
 .page-title {
-  font-weight: 300 !important;
-  color: #333 !important;
-  font-size: 2rem !important;
+  font-size: 1.875rem !important;
+  font-weight: 600 !important;
+  color: #111827 !important;
 }
 
 .date-filters {
@@ -166,24 +171,6 @@
   letter-spacing: 0.5px;
 }
 
-.table-row {
-  transition: background-color 0.2s ease;
-}
-
-.table-row:hover {
-  background-color: #f8f9fa !important;
-}
-
-.table-cell {
-  padding: 1rem !important;
-  border-bottom: 1px solid #f0f0f0 !important;
-}
-
-.filename-cell {
-  padding: 1rem !important;
-  border-bottom: 1px solid #f0f0f0 !important;
-}
-
 .filename-text {
   font-weight: 500 !important;
   color: #333 !important;
@@ -248,14 +235,14 @@
 /* Responsive Design */
 @media (max-width: 1024px) {
   .file-upload-container {
-    margin-left: 200px; /* Smaller sidebar on tablets */
+    padding-top: 0;
   }
-  
+
   .upload-zone {
     padding: 2.5rem 1.5rem;
     min-height: 180px;
   }
-  
+
   .upload-icon {
     font-size: 3rem !important;
   }
@@ -263,57 +250,55 @@
 
 @media (max-width: 768px) {
   .file-upload-container {
-    margin-left: 0; /* Remove sidebar margin on mobile */
     padding-top: 60px; /* Account for mobile navbar */
   }
-  
+
   .file-upload-container.dual-navbar {
-    margin-left: 0;
     padding-top: 60px;
   }
-  
+
   .main-content {
     padding: 1rem;
   }
-  
+
   .header-section {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .upload-zone {
     padding: 2rem 1rem;
     min-height: 160px;
     gap: 1rem;
   }
-  
+
   .upload-icon {
     font-size: 2.5rem !important;
   }
-  
+
   .upload-button {
     padding: 0.75rem 2rem !important;
     font-size: 0.9rem !important;
   }
-  
+
   .page-title {
     font-size: 1.5rem !important;
   }
-  
+
   .table-cell,
   .table-cell-header,
   .filename-cell {
     padding: 0.75rem !important;
     font-size: 0.85rem !important;
   }
-  
+
   .user-cell {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .user-avatar {
     width: 28px !important;
     height: 28px !important;
@@ -325,35 +310,35 @@
   .file-upload-container {
     padding-top: 56px; /* Smaller mobile navbar */
   }
-  
+
   .date-filters {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .upload-zone {
     padding: 1.5rem 1rem;
     min-height: 140px;
     gap: 0.75rem;
   }
-  
+
   .upload-icon {
     font-size: 2rem !important;
   }
-  
+
   .upload-button {
     font-size: 0.85rem !important;
     padding: 0.6rem 1.5rem !important;
   }
-  
+
   .upload-text {
     font-size: 0.8rem !important;
   }
-  
+
   .upload-progress-text {
     font-size: 0.9rem !important;
   }
-  
+
   /* Make table horizontally scrollable on very small screens */
   .files-table-card .MuiTableContainer-root {
     max-width: calc(100vw - 2rem);
@@ -363,7 +348,7 @@
 
 /* Smooth transition when navbar state changes */
 .file-upload-container {
-  transition: margin-left 0.3s ease, padding-top 0.3s ease;
+  transition: padding-top 0.3s ease;
 }
 
 /* Animation for file upload success */
@@ -384,8 +369,13 @@
 
 /* Loading pulse animation */
 @keyframes uploadPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .upload-zone .upload-progress-container {
@@ -455,4 +445,76 @@
   background: linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 150, 243, 0.05) 100%);
   border-radius: 6px;
   pointer-events: none;
+}
+
+/* Modern search bar styling */
+.search-bar .MuiOutlinedInput-root {
+  background-color: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding-left: 4px; /* Default, overridden by component sx for more control */
+}
+
+.search-bar .MuiOutlinedInput-notchedOutline {
+  border-color: #d0d5dd; /* Default border color */
+}
+
+.search-bar .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #2196f3; /* Focus border color */
+}
+
+/* Enhanced table appearance */
+.files-table {
+  border-collapse: separate !important;
+  border-spacing: 0 8px !important;
+}
+
+.table-row {
+  background-color: #fff;
+  border-radius: 6px;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.1s ease;
+}
+
+.table-row:nth-of-type(odd) {
+  background-color: #fafafa;
+}
+
+.table-row:hover {
+  background-color: #fff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.table-cell,
+.filename-cell {
+  padding: 1rem !important;
+  border-bottom: none !important;
+}
+
+/* --- New and improved Search Bar Styles --- */
+/* The primary styling for the search bar is now inline within the TextField's `sx` prop
+   for better encapsulation and direct control over Material-UI components.
+   However, some general classes for layout are still relevant. */
+.search-bar {
+  /* This class can still be used for responsive width adjustments if needed */
+  width: 100%; /* Default to full width on smaller screens */
+}
+
+@media (min-width: 600px) {
+  .search-bar {
+    width: 300px; /* Specific width for small to medium screens */
+  }
+}
+
+@media (min-width: 900px) {
+  .search-bar {
+    width: 400px; /* Wider for larger screens */
+  }
+}
+
+.MuiInputBase-root.MuiOutlinedInput-root {
+  /* Ensuring consistent height and alignment */
+  height: 40px; /* Adjust as needed */
 }

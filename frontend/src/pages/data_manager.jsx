@@ -2,517 +2,535 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/navbar';
 import {
-    Box,
-    Typography,
-    Button,
-    Table,
-    Card,
-    CardContent,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Paper,
-    Chip,
-    IconButton,
-    TextField,
-    Stack,
-    CircularProgress,
-    Tooltip,
-    Pagination,
-    InputAdornment, // Added for search icon
-} from '@mui/material'
+  Box,
+  Typography,
+  Button,
+  Table,
+  Card,
+  CardContent,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Chip,
+  IconButton,
+  TextField,
+  Stack,
+  CircularProgress,
+  Tooltip,
+  Pagination,
+  InputAdornment,
+} from '@mui/material';
 import { Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 import {
-    CloudUpload,
-    Delete,
-    CheckCircle,
-    Error as ErrorIcon, // Renamed to avoid conflict with global Error
-    Warning,
-    Search as SearchIcon, // Added for search bar
+  CloudUpload,
+  Delete,
+  CheckCircle,
+  Error as ErrorIcon,
+  Warning,
+  Search as SearchIcon,
+  Clear as ClearIcon, // Added ClearIcon for clearing search
 } from '@mui/icons-material';
 
 import '../styles/data_manager.css';
 
 const DataManagerPage = () => {
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('error');
 
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
-    const [snackbarMessage, setSnackbarMessage] = useState('');
-    const [snackbarSeverity, setSnackbarSeverity] = useState('error');
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState(null);
 
-    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-    const [fileToDelete, setFileToDelete] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const ROWS_PER_PAGE = 10;
 
-    const [files, setFiles] = useState([]);
-    const [dragActive, setDragActive] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
-    const [page, setPage] = useState(1);
-    const [searchQuery, setSearchQuery] = useState(''); // State for the search bar
-    const ROWS_PER_PAGE = 10;
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-    const handleDrag = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
 
-        if (e.type === 'dragenter' || e.type === 'dragover') {
-            setDragActive(true);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const getQualityCheckStatus = (file) => {
+    const random = Math.random();
+    if (random > 0.7) return 'success';
+    if (random > 0.4) return 'warning';
+    return 'error';
+  };
+
+  const handleFileUpload = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = (e.loaded / e.total) * 100;
+          setUploadProgress(Math.round(percentComplete));
         }
-        else if (e.type === 'dragleave') {
-            setDragActive(false);
-        }
-    };
+      });
 
-    const handleDrop = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(false);
-
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleFileUpload(e.dataTransfer.files[0]);
-        }
-    };
-
-    // Helper function to determine quality check status
-    const getQualityCheckStatus = (file) => {
-        // You can modify this logic based on your actual quality check criteria
-        const random = Math.random();
-        if (random > 0.7) return 'success';
-        if (random > 0.4) return 'warning';
-        return 'error';
-    };
-
-    const handleFileUpload = async (file) => {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        setIsUploading(true);
-        setUploadProgress(0);
-
-        try {
-
-            const xhr = new XMLHttpRequest();
-
-            // Track upload progress
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    const percentComplete = (e.loaded / e.total) * 100;
-                    setUploadProgress(Math.round(percentComplete));
-                }
-            });
-
-            // Handle response
-            const uploadPromise = new Promise((resolve, reject) => {
-                xhr.onload = () => {
-                    if (xhr.status === 200) {
-                        resolve(JSON.parse(xhr.responseText));
-                    } else {
-                        reject(new Error(JSON.parse(xhr.responseText).error || 'Upload failed'));
-                    }
-                };
-
-                xhr.onerror = () => reject(new Error('Network error'));
-            });
-
-            // Send the request
-            xhr.open('POST', `${import.meta.env.VITE_API_URL}/upload-csv`);
-            xhr.send(formData);
-
-            const result = await uploadPromise;
-            setSnackbarMessage('File uploaded successfully');
-            setSnackbarSeverity('success');
-            setSnackbarOpen(true);
-
-            fetchUploadedFiles();
-
-        } catch (err) {
-            console.error('Error uploading file:', err);
-            setSnackbarMessage(err.message || 'Something went wrong');
-            setSnackbarSeverity('error');
-            setSnackbarOpen(true);
-
-        } finally {
-            setIsUploading(false);
-            setUploadProgress(0);
-        }
-    };
-
-    const handleFileSelect = async (e) => {
-        const selectedFiles = e.target.files;
-        if (!selectedFiles || selectedFiles.length === 0) return;
-
-        await handleFileUpload(selectedFiles[0]);
-        e.target.value = '';
-    };
-
-    const fetchUploadedFiles = async () => {
-        try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`);
-            const data = await res.json();
-            const files = data.files || data.data || data; // fallback for various response shapes
-
-            const filesWithStatus = await Promise.all(
-                files.map(async (file) => {
-                    const fileId = file.id || file.file_id;
-                    let qualityStatus = 'error'; // default to fail
-
-                    try {
-                        const summaryRes = await fetch(`${import.meta.env.VITE_API_URL}/summary?file_id=${fileId}`);
-                        if (!summaryRes.ok) throw new Error('Summary fetch failed');
-
-                        const result = await summaryRes.json();
-                        const summary = result.summary || {};
-                        const total = summary.totalElements || 0;
-                        const within = summary.elementsWithinTolerance || 0;
-
-                        if (total > 0 && total === within) {
-                            qualityStatus = 'success';
-                        }
-
-                    } catch (err) {
-                        console.error(`❌ Failed to fetch summary for file ${fileId}:`, err.message);
-                    }
-
-                    return {
-                        ...file,
-                        qualityStatus
-                    };
-                })
-            );
-
-            setFiles(filesWithStatus);
-        } catch (err) {
-            console.error('❌ Failed to fetch uploaded files:', err.message);
-        }
-    };
-
-    useEffect(() => {
-        fetchUploadedFiles();
-    }, []);
-
-    const filteredFiles = useMemo(() => {
-        if (!searchQuery) {
-            return files;
-        }
-        return files.filter((file) => {
-            const query = searchQuery.toLowerCase();
-            return (
-                file.name.toLowerCase().includes(query) ||
-                file.type.toLowerCase().includes(query) ||
-                file.user.toLowerCase().includes(query) ||
-                file.email.toLowerCase().includes(query) ||
-                file.uploadDate.toLowerCase().includes(query)
-            );
-        });
-    }, [files, searchQuery]);
-
-    useEffect(() => {
-        setPage(1); // Reset to the first page whenever the filter changes
-    }, [filteredFiles]);
-
-
-    const handleDelete = async (id) => {
-        try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/hide-file/${id}`, {
-                method: 'POST',
-            });
-
-            const data = await res.json();
-
-            if (res.ok && data.success) {
-                setFiles(prevFiles => prevFiles.filter(file => file.id !== id));
-            } else {
-                alert(data.error || 'Failed to hide the file');
-            }
-        } catch (err) {
-            console.error('Error hiding file:', err);
-            setSnackbarMessage('Something went wrong while trying to hide the file');
-            setSnackbarSeverity('error');
-            setSnackbarOpen(true);
-        }
-    };
-
-    const handleCopyToClipboard = () => {
-        navigator.clipboard.writeText(snackbarMessage);
-    };
-
-    const handleDownload = (fileId) => {
-        const link = document.createElement('a');
-        link.href = `${import.meta.env.VITE_API_URL}/download-file/${fileId}`;
-        link.download = ''; // Let server set the filename via Content-Disposition
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-
-    // Function to render quality check status icon
-    const renderQualityStatus = (status, filename, fileId) => {
-        const statusConfig = {
-            success: {
-                icon: <CheckCircle sx={{ color: '#4caf50', fontSize: 20 }} />,
-                tooltip: `Quality check passed for ${filename}`,
-                color: '#4caf50'
-            },
-            warning: {
-                icon: <Warning sx={{ color: '#ff9800', fontSize: 20 }} />,
-                tooltip: `Quality check completed with warnings for ${filename}`,
-                color: '#ff9800'
-            },
-            error: {
-                icon: <ErrorIcon sx={{ color: '#f44336', fontSize: 20 }} />, // Using renamed ErrorIcon
-                tooltip: `Quality check failed for ${filename}`,
-                color: '#f44336'
-            }
+      const uploadPromise = new Promise((resolve, reject) => {
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            resolve(JSON.parse(xhr.responseText));
+          } else {
+            reject(new Error(JSON.parse(xhr.responseText).error || 'Upload failed'));
+          }
         };
 
-        const config = statusConfig[status] || statusConfig.error;
+        xhr.onerror = () => reject(new Error('Network error'));
+      });
 
-        return (
-            <Tooltip title={config.tooltip} arrow>
-                <Box
-                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                    onClick={() => navigate('/qc-checks', { state: { fileId } })}
-                >
-                    {config.icon}
-                </Box>
-            </Tooltip>
-        );
+      xhr.open('POST', `${import.meta.env.VITE_API_URL}/upload-csv`);
+      xhr.send(formData);
+
+      const result = await uploadPromise;
+      setSnackbarMessage('File uploaded successfully');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+
+      fetchUploadedFiles();
+    } catch (err) {
+      console.error('Error uploading file:', err);
+      setSnackbarMessage(err.message || 'Something went wrong');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleFileSelect = async (e) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles || selectedFiles.length === 0) return;
+
+    await handleFileUpload(selectedFiles[0]);
+    e.target.value = '';
+  };
+
+  const fetchUploadedFiles = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`);
+      const data = await res.json();
+      const files = data.files || data.data || data;
+
+      const filesWithStatus = await Promise.all(
+        files.map(async (file) => {
+          const fileId = file.id || file.file_id;
+          let qualityStatus = 'error';
+
+          try {
+            const summaryRes = await fetch(
+              `${import.meta.env.VITE_API_URL}/summary?file_id=${fileId}`
+            );
+            if (!summaryRes.ok) throw new Error('Summary fetch failed');
+
+            const result = await summaryRes.json();
+            const summary = result.summary || {};
+            const total = summary.totalElements || 0;
+            const within = summary.elementsWithinTolerance || 0;
+
+            if (total > 0 && total === within) {
+              qualityStatus = 'success';
+            }
+          } catch (err) {
+            console.error(`❌ Failed to fetch summary for file ${fileId}:`, err.message);
+          }
+
+          return {
+            ...file,
+            qualityStatus,
+          };
+        })
+      );
+
+      setFiles(filesWithStatus);
+    } catch (err) {
+      console.error('❌ Failed to fetch uploaded files:', err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchUploadedFiles();
+  }, []);
+
+  const filteredFiles = useMemo(() => {
+    if (!searchQuery) {
+      return files;
+    }
+    return files.filter((file) => {
+      const query = searchQuery.toLowerCase();
+      return (
+        file.name.toLowerCase().includes(query) ||
+        file.type.toLowerCase().includes(query) ||
+        file.user.toLowerCase().includes(query) ||
+        file.email.toLowerCase().includes(query) ||
+        file.uploadDate.toLowerCase().includes(query)
+      );
+    });
+  }, [files, searchQuery]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filteredFiles]);
+
+  const handleDelete = async (id) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/hide-file/${id}`, {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setFiles((prevFiles) => prevFiles.filter((file) => file.id !== id));
+      } else {
+        alert(data.error || 'Failed to hide the file');
+      }
+    } catch (err) {
+      console.error('Error hiding file:', err);
+      setSnackbarMessage('Something went wrong while trying to hide the file');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleCopyToClipboard = () => {
+    navigator.clipboard.writeText(snackbarMessage);
+  };
+
+  const handleDownload = (fileId) => {
+    const link = document.createElement('a');
+    link.href = `${import.meta.env.VITE_API_URL}/download-file/${fileId}`;
+    link.download = '';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const renderQualityStatus = (status, filename, fileId) => {
+    const statusConfig = {
+      success: {
+        icon: <CheckCircle sx={{ color: '#4caf50', fontSize: 20 }} />,
+        tooltip: `Quality check passed for ${filename}`,
+        color: '#4caf50',
+      },
+      warning: {
+        icon: <Warning sx={{ color: '#ff9800', fontSize: 20 }} />,
+        tooltip: `Quality check completed with warnings for ${filename}`,
+        color: '#ff9800',
+      },
+      error: {
+        icon: <ErrorIcon sx={{ color: '#f44336', fontSize: 20 }} />,
+        tooltip: `Quality check failed for ${filename}`,
+        color: '#f44336',
+      },
     };
 
-    const [selectedItem, setSelectedItem] = useState('Data Manager');
-    const navigate = useNavigate();
-    const paginatedFiles = filteredFiles.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
-    
+    const config = statusConfig[status] || statusConfig.error;
+
     return (
-        <Box className="file-upload-container">
-            <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
-
-            <Box className="main-content">
-                <Box className="header-section">
-                    <Typography variant="h4" className="page-title">
-                        Data Manager
-                    </Typography>
-
-                    <TextField
-                        variant="outlined"
-                        size="small"
-                        placeholder="Search files..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon />
-                                </InputAdornment>
-                            ),
-                        }}
-                        sx={{ width: { xs: '100%', sm: '300px' } }}
-                    />
-                </Box>
-
-                <Card className="upload-card">
-                    <CardContent>
-                        <Box
-                            className={`upload-zone ${dragActive ? 'drag-active' : ''}`}
-                            onDragEnter={handleDrag}
-                            onDragLeave={handleDrag}
-                            onDragOver={handleDrag}
-                            onDrop={handleDrop}
-                        >
-                            {isUploading ? (
-                                <Box className="upload-progress-container">
-                                    <CircularProgress
-                                        variant="determinate"
-                                        value={uploadProgress}
-                                        size={70}
-                                        thickness={4}
-                                        className="upload-progress-circular"
-                                    />
-                                    <Typography variant="body1" className="upload-progress-text">
-                                        Uploading... {uploadProgress}%
-                                    </Typography>
-                                </Box>
-                            ) : (
-                                <Box className="upload-normal-state">
-                                    <Button
-                                        variant="contained"
-                                        component="label"
-                                        className="upload-button"
-                                        startIcon={<CloudUpload />}
-                                        size="large"
-                                        disabled={isUploading}
-                                    >
-                                        Choose file
-                                        <input
-                                            type="file"
-                                            hidden
-                                            multiple
-                                            onChange={handleFileSelect}
-                                        />
-                                    </Button>
-                                    <Typography variant="body2" className="upload-text">
-                                        or drag file in here
-                                    </Typography>
-                                </Box>
-                            )}
-                        </Box>
-                    </CardContent>
-                </Card>
-
-                <Card className="files-table-card">
-                    <CardContent>
-                        <TableContainer component={Paper} elevation={0}>
-                            <Table>
-                                <TableHead>
-                                    <TableRow className="table-header">
-                                        <TableCell className="table-cell-header">#</TableCell>
-                                        <TableCell className="table-cell-header">Filename</TableCell>
-                                        <TableCell className="table-cell-header" align="center">Quality Check</TableCell>
-                                        <TableCell className="table-cell-header">Type</TableCell>
-                                        <TableCell className="table-cell-header">User</TableCell>
-                                        <TableCell className="table-cell-header">Upload Date</TableCell>
-                                        <TableCell className="table-cell-header">Actions</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {paginatedFiles.map((file, index) => (
-                                        <TableRow key={file.id} className="table-row">
-                                            <TableCell className="table-cell">{(page - 1) * ROWS_PER_PAGE + index + 1}</TableCell>
-                                            <TableCell className="filename-cell">
-                                                <Typography variant="body2" className="filename-text">
-                                                    {file.name}
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell className="table-cell" align="center">
-                                                {renderQualityStatus(file.qualityStatus, file.name, file.id)}
-                                            </TableCell>
-                                            <TableCell className="table-cell">
-                                                <Chip
-                                                    label={file.type}
-                                                    className="file-type-chip"
-                                                    size="small"
-                                                />
-                                            </TableCell>
-                                            <TableCell className="table-cell">
-                                                <Box className="user-cell">
-                                                    <Box className="user-info">
-                                                        <Typography variant="body2" className="user-name">
-                                                            {file.user}
-                                                        </Typography>
-                                                        <Typography variant="caption" className="user-email">
-                                                            {file.email}
-                                                        </Typography>
-                                                    </Box>
-                                                </Box>
-                                            </TableCell>
-                                            <TableCell className="table-cell">
-                                                <Typography variant="body2" className="date-text">
-                                                    {file.uploadDate}
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell className="table-cell">
-                                                <>
-                                                    <IconButton onClick={() => handleDownload(file.id)}>
-                                                        <DownloadIcon />
-                                                    </IconButton>
-
-                                                    <IconButton
-                                                        onClick={() => {
-                                                            setFileToDelete(file.id);
-                                                            setConfirmDialogOpen(true);
-                                                        }}
-                                                        className="delete-button"
-                                                        size="small"
-                                                    >
-                                                        <Delete />
-                                                    </IconButton>
-                                                </>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                        {filteredFiles.length > ROWS_PER_PAGE && (
-                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                                <Pagination
-                                    count={Math.ceil(filteredFiles.length / ROWS_PER_PAGE)}
-                                    page={page}
-                                    onChange={(event, value) => setPage(value)}
-                                    color="primary"
-                                />
-                            </Box>
-                        )}
-                    </CardContent>
-                </Card>
-            </Box>
-            <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={5000}
-                onClose={() => setSnackbarOpen(false)}
-                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-            >
-                <Alert
-                    onClose={() => setSnackbarOpen(false)}
-                    severity={snackbarSeverity}
-                    sx={{
-                        width: '100%',
-                        pl: 1,
-                        pr: 1,
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                    }}
-                    iconMapping={{
-                        error: <ErrorIcon sx={{ mt: '4px' }} fontSize="small" />,
-                    }}
-                >
-                    <Box sx={{ display: 'flex', width: '100%' }}>
-                        <Box sx={{ flexGrow: 1 }}>
-                            <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                                {snackbarMessage}
-                            </Typography>
-                        </Box>
-                        <Tooltip title="Copy to clipboard">
-                            <IconButton
-                                onClick={handleCopyToClipboard}
-                                color="inherit"
-                                size="small"
-                                sx={{ ml: 4 }}
-                            >
-                                <ContentCopyIcon sx={{ fontSize: 24 }} />
-                            </IconButton>
-                        </Tooltip>
-                    </Box>
-                </Alert>
-            </Snackbar>
-
-            <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
-                <DialogTitle>Confirm Deletion</DialogTitle>
-                <DialogContent>
-                    Are you sure you want to delete this file?
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
-                    <Button
-                        onClick={() => {
-                            handleDelete(fileToDelete);
-                            setConfirmDialogOpen(false);
-                        }}
-                        color="error"
-                        variant="contained"
-                    >
-                        Delete
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
+      <Tooltip title={config.tooltip} arrow>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+          onClick={() => navigate('/qc-checks', { state: { fileId } })}
+        >
+          {config.icon}
         </Box>
+      </Tooltip>
     );
+  };
+
+  const [selectedItem, setSelectedItem] = useState('Data Manager');
+  const navigate = useNavigate();
+  const paginatedFiles = filteredFiles.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+
+  return (
+    <Box className="dashboard-container file-upload-container">
+      <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
+
+      <Box className="dashboard-content main-content">
+        <Box className="header-section">
+          <Typography variant="h4" className="page-title">
+            Data Manager
+          </Typography>
+
+          <TextField
+            variant="outlined"
+            size="small"
+            placeholder="Search files..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: '#9e9e9e' }} />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery ? ( // Show clear icon only if there's a search query
+                <InputAdornment position="end">
+                  <IconButton onClick={() => setSearchQuery('')} edge="end" size="small">
+                    <ClearIcon sx={{ color: '#9e9e9e' }} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            }}
+            sx={{
+              width: { xs: '100%', sm: '300px', md: '400px' }, // Adjust width for better UI
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '25px', // Make it more pill-shaped
+                backgroundColor: '#ffffff',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)', // Subtle shadow
+                transition: 'box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out',
+                '&:hover fieldset': {
+                  borderColor: '#b0b0b0', // Lighter border on hover
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#1976d2', // Primary color on focus
+                  boxShadow: '0 0 0 3px rgba(25, 118, 210, 0.2)', // Focus ring effect
+                },
+              },
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#e0e0e0', // Default border color
+              },
+              '& .MuiInputBase-input': {
+                padding: '10px 14px', // Adjust padding for better look with pill shape
+              },
+            }}
+            className="search-bar"
+          />
+        </Box>
+
+        <Card className="upload-card">
+          <CardContent>
+            <Box
+              className={`upload-zone ${dragActive ? 'drag-active' : ''}`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              {isUploading ? (
+                <Box className="upload-progress-container">
+                  <CircularProgress
+                    variant="determinate"
+                    value={uploadProgress}
+                    size={70}
+                    thickness={4}
+                    className="upload-progress-circular"
+                  />
+                  <Typography variant="body1" className="upload-progress-text">
+                    Uploading... {uploadProgress}%
+                  </Typography>
+                </Box>
+              ) : (
+                <Box className="upload-normal-state">
+                  <Button
+                    variant="contained"
+                    component="label"
+                    className="upload-button"
+                    startIcon={<CloudUpload />}
+                    size="large"
+                    disabled={isUploading}
+                  >
+                    Choose file
+                    <input type="file" hidden multiple onChange={handleFileSelect} />
+                  </Button>
+                  <Typography variant="body2" className="upload-text">
+                    or drag file in here
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          </CardContent>
+        </Card>
+
+        <Card className="files-table-card">
+          <CardContent>
+            <TableContainer component={Paper} elevation={0}>
+              <Table
+                className="files-table"
+                sx={{ borderCollapse: 'separate', borderSpacing: '0 8px' }}
+              >
+                <TableHead>
+                  <TableRow className="table-header">
+                    <TableCell className="table-cell-header">#</TableCell>
+                    <TableCell className="table-cell-header">Filename</TableCell>
+                    <TableCell className="table-cell-header" align="center">
+                      Quality Check
+                    </TableCell>
+                    <TableCell className="table-cell-header">Type</TableCell>
+                    <TableCell className="table-cell-header">User</TableCell>
+                    <TableCell className="table-cell-header">Upload Date</TableCell>
+                    <TableCell className="table-cell-header">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {paginatedFiles.map((file, index) => (
+                    <TableRow key={file.id} className="table-row">
+                      <TableCell className="table-cell">
+                        {(page - 1) * ROWS_PER_PAGE + index + 1}
+                      </TableCell>
+                      <TableCell className="filename-cell">
+                        <Typography variant="body2" className="filename-text">
+                          {file.name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell className="table-cell" align="center">
+                        {renderQualityStatus(file.qualityStatus, file.name, file.id)}
+                      </TableCell>
+                      <TableCell className="table-cell">
+                        <Chip label={file.type} className="file-type-chip" size="small" />
+                      </TableCell>
+                      <TableCell className="table-cell">
+                        <Box className="user-cell">
+                          <Box className="user-info">
+                            <Typography variant="body2" className="user-name">
+                              {file.user}
+                            </Typography>
+                            <Typography variant="caption" className="user-email">
+                              {file.email}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell className="table-cell">
+                        <Typography variant="body2" className="date-text">
+                          {file.uploadDate}
+                        </Typography>
+                      </TableCell>
+                      <TableCell className="table-cell">
+                        <>
+                          <IconButton onClick={() => handleDownload(file.id)}>
+                            <DownloadIcon />
+                          </IconButton>
+
+                          <IconButton
+                            onClick={() => {
+                              setFileToDelete(file.id);
+                              setConfirmDialogOpen(true);
+                            }}
+                            className="delete-button"
+                            size="small"
+                          >
+                            <Delete />
+                          </IconButton>
+                        </>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            {filteredFiles.length > ROWS_PER_PAGE && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                <Pagination
+                  count={Math.ceil(filteredFiles.length / ROWS_PER_PAGE)}
+                  page={page}
+                  onChange={(event, value) => setPage(value)}
+                  color="primary"
+                />
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={5000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{
+            width: '100%',
+            pl: 1,
+            pr: 1,
+            display: 'flex',
+            alignItems: 'flex-start',
+          }}
+          iconMapping={{
+            error: <ErrorIcon sx={{ mt: '4px' }} fontSize="small" />,
+          }}
+        >
+          <Box sx={{ display: 'flex', width: '100%' }}>
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                {snackbarMessage}
+              </Typography>
+            </Box>
+            <Tooltip title="Copy to clipboard">
+              <IconButton
+                onClick={handleCopyToClipboard}
+                color="inherit"
+                size="small"
+                sx={{ ml: 4 }}
+              >
+                <ContentCopyIcon sx={{ fontSize: 24 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Alert>
+      </Snackbar>
+
+      <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>Are you sure you want to delete this file?</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={() => {
+              handleDelete(fileToDelete);
+              setConfirmDialogOpen(false);
+            }}
+            color="error"
+            variant="contained"
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
 };
 
 export default DataManagerPage;

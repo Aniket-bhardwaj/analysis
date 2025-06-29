@@ -6,18 +6,13 @@ import {
   Button,
   Card,
   CardContent,
-  Grid,
   LinearProgress,
   Stack,
   Typography,
   Alert,
   ThemeProvider,
 } from '@mui/material';
-import {
-  TableChart as TableChartIcon,
-  BarChart as BarChartIcon,
-  FilterList as FilterListIcon,
-} from '@mui/icons-material';
+import { TableChart as TableChartIcon, BarChart as BarChartIcon } from '@mui/icons-material';
 
 import { Calculator, CheckSquare, Activity, AlertTriangle, FileText } from 'lucide-react';
 
@@ -29,6 +24,7 @@ import SJS_Graph from '@/components/sjs_graph';
 import NestedFilterDrawer from '@/components/common/Filter';
 
 import customTheme from '../theme';
+import '../styles/qc_checks.css';
 
 const QCChecks = () => {
   const { section } = useParams();
@@ -188,41 +184,41 @@ const QCChecks = () => {
         <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
 
         <div style={{ flexGrow: 1, padding: '24px' }}>
-          <Typography variant="h4" sx={{ mb: 2, fontWeight: 600 }}>
-            QC Checks
-          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 2,
+            }}
+          >
+            <Typography variant="h4" sx={{ fontWeight: 600 }}>
+              QC Checks
+            </Typography>
 
-          <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-            <Grid item xs={12} md={4}>
-              <NestedFilterDrawer
-                uploadedFiles={uploadedFiles}
-                onApplyFilter={handleApplyFilter}
-                selectedFile={selectedFileId}
-                selectedDateRange={selectedDateRange}
-              />
-            </Grid>
-            <Grid item xs={12} md={8}>
-              <Stack direction="row" spacing={1} justifyContent="flex-end">
+            {/* This Stack now contains the view mode buttons AND the filter */}
+            <Stack direction="row" spacing={2} alignItems="center"
+               sx={{ pr: 0.5 }} // Adjust this value as needed for fine-tuning
+            >
+              {/* View mode buttons first */}
+              <Stack direction="row" spacing={1}>
                 <Button
                   variant={viewMode === 'table' ? 'contained' : 'outlined'}
                   onClick={() => setViewMode('table')}
                   startIcon={<TableChartIcon />}
-                  // Add sx prop for styling
                   sx={{
-                    // When selected (contained variant)
                     ...(viewMode === 'table' && {
-                      backgroundColor: 'black', // Black background for contained
-                      color: 'white', // White text for contained
+                      backgroundColor: 'black',
+                      color: 'white',
                       '&:hover': {
-                        backgroundColor: '#333', // Slightly lighter black on hover
+                        backgroundColor: '#333',
                       },
                     }),
-                    // When not selected (outlined variant)
                     ...(viewMode !== 'table' && {
-                      borderColor: 'black', // Black border for outlined
-                      color: 'black', // Black text for outlined
+                      borderColor: 'black',
+                      color: 'black',
                       '&:hover': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)', // Light hover effect
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
                       },
                     }),
                   }}
@@ -233,22 +229,19 @@ const QCChecks = () => {
                   variant={viewMode === 'graph' ? 'contained' : 'outlined'}
                   onClick={() => setViewMode('graph')}
                   startIcon={<BarChartIcon />}
-                  // Add sx prop for styling
                   sx={{
-                    // When selected (contained variant)
                     ...(viewMode === 'graph' && {
-                      backgroundColor: 'black', // Black background for contained
-                      color: 'white', // White text for contained
+                      backgroundColor: 'black',
+                      color: 'white',
                       '&:hover': {
-                        backgroundColor: '#333', // Slightly lighter black on hover
+                        backgroundColor: '#333',
                       },
                     }),
-                    // When not selected (outlined variant)
                     ...(viewMode !== 'graph' && {
-                      borderColor: 'black', // Black border for outlined
-                      color: 'black', // Black text for outlined
+                      borderColor: 'black',
+                      color: 'black',
                       '&:hover': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)', // Light hover effect
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
                       },
                     }),
                   }}
@@ -256,8 +249,15 @@ const QCChecks = () => {
                   Graph
                 </Button>
               </Stack>
-            </Grid>
-          </Grid>
+              {/* Then the filter drawer */}
+              <NestedFilterDrawer
+                uploadedFiles={uploadedFiles}
+                onApplyFilter={handleApplyFilter}
+                selectedFile={selectedFileId}
+                selectedDateRange={selectedDateRange}
+              />
+            </Stack>
+          </Box>
 
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
@@ -279,7 +279,7 @@ const QCChecks = () => {
                     Showing data for:
                   </Typography>
                   <Stack direction="row" spacing={4} flexWrap="wrap">
-                    <Typography variant="body1" fontWeight={500}>
+                    <Typography variant="body2" color="text.secondary">
                       📁 {file.filename || '— No filename —'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -298,208 +298,70 @@ const QCChecks = () => {
             })()}
 
           {summary && (
-            <Grid container spacing={3} sx={{ mb: 3 }}>
-              {' '}
-              {/* Grid container spacing applied */}
+            <div className="summary-grid">
               {/* Card 1: Total Elements */}
-              <Grid item xs={12} sm={6} md={3}>
-                {' '}
-                {/* Responsive: 1 per row on xs, 2 per row on sm, 4 per row on md+ */}
-                <Card
-                  elevation={2}
-                  sx={{
-                    transition: 'box-shadow 0.3s ease-in-out',
-                    '&:hover': {
-                      boxShadow: 6,
-                      cursor: 'pointer',
-                    },
-                  }}
-                >
-                  <CardContent
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '16px',
-                      minHeight: 110,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        flexShrink: 0,
-                        mr: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        backgroundColor: '#e3f2fd',
-                      }}
-                    >
-                      <Calculator size={24} color="#1976d2" />
-                    </Box>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="summaryLabel" sx={{ mb: 0.5 }}>
-                        Total Elements
-                      </Typography>
-                      <Typography variant="summaryValue" sx={{ color: '#1976d2' }}>
-                        {summary.totalElements}
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
+              <Card elevation={2} className="summary-card">
+                <CardContent className="card-content">
+                  <div className="card-icon" style={{ backgroundColor: '#e3f2fd' }}>
+                    <Calculator size={24} color="#1976d2" />
+                  </div>
+                  <Typography variant="summaryValue" sx={{ color: '#1976d2', mb: 0.5 }}>
+                    {summary.totalElements}
+                  </Typography>
+                  <Typography variant="summaryLabel">Total Elements</Typography>
+                </CardContent>
+              </Card>
               {/* Card 2: Outside Tolerance */}
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  elevation={2}
-                  sx={{
-                    transition: 'box-shadow 0.3s ease-in-out',
-                    '&:hover': {
-                      boxShadow: 6,
-                      cursor: 'pointer',
-                    },
-                  }}
-                >
-                  <CardContent
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '16px',
-                      minHeight: 110,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        flexShrink: 0,
-                        mr: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        backgroundColor: '#ffebee',
-                      }}
-                    >
-                      <AlertTriangle size={24} color="#f44336" />
-                    </Box>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="summaryLabel" sx={{ mb: 0.5 }}>
-                        Outside Tolerance
-                      </Typography>
-                      <Typography variant="summaryValue" sx={{ color: '#f44336' }}>
-                        {summary.totalElements - summary.elementsWithinTolerance}
-                      </Typography>
-                      <LinearProgress
-                        variant="determinate"
-                        value={
-                          summary.totalElements > 0
-                            ? ((summary.totalElements - summary.elementsWithinTolerance) /
-                                summary.totalElements) *
-                              100
-                            : 0
-                        }
-                        color="error"
-                        sx={{ mt: 1 }}
-                      />
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
+              <Card elevation={2} className="summary-card">
+                <CardContent className="card-content">
+                  <div className="card-icon" style={{ backgroundColor: '#ffebee' }}>
+                    <AlertTriangle size={24} color="#f44336" />
+                  </div>
+                  <Typography variant="summaryValue" sx={{ color: '#f44336', mb: 0.5 }}>
+                    {summary.totalElements - summary.elementsWithinTolerance}
+                  </Typography>
+                  <Typography variant="summaryLabel" sx={{ mb: 1 }}>
+                    Outside Tolerance
+                  </Typography>
+                  <LinearProgress
+                    variant="determinate"
+                    value={
+                      summary.totalElements > 0
+                        ? ((summary.totalElements - summary.elementsWithinTolerance) /
+                            summary.totalElements) *
+                          100
+                        : 0
+                    }
+                    color="error"
+                    sx={{ width: '100%' }}
+                  />
+                </CardContent>
+              </Card>
               {/* Card 3: Average RSD */}
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  elevation={2}
-                  sx={{
-                    transition: 'box-shadow 0.3s ease-in-out',
-                    '&:hover': {
-                      boxShadow: 6,
-                      cursor: 'pointer',
-                    },
-                  }}
-                >
-                  <CardContent
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '16px',
-                      minHeight: 110,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        flexShrink: 0,
-                        mr: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        backgroundColor: '#fff3e0',
-                      }}
-                    >
-                      <Activity size={24} color="#ff9800" />
-                    </Box>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="summaryLabel" sx={{ mb: 0.5 }}>
-                        Average RSD
-                      </Typography>
-                      <Typography variant="summaryValue" sx={{ color: '#ff9800' }}>
-                        {summary.averageRSD}%
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
+              <Card elevation={2} className="summary-card">
+                <CardContent className="card-content">
+                  <div className="card-icon" style={{ backgroundColor: '#fff3e0' }}>
+                    <Activity size={24} color="#ff9800" />
+                  </div>
+                  <Typography variant="summaryValue" sx={{ color: '#ff9800', mb: 0.5 }}>
+                    {summary.averageRSD}%
+                  </Typography>
+                  <Typography variant="summaryLabel">Average RSD</Typography>
+                </CardContent>
+              </Card>
               {/* Card 4: Average Error */}
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  elevation={2}
-                  sx={{
-                    transition: 'box-shadow 0.3s ease-in-out',
-                    '&:hover': {
-                      boxShadow: 6,
-                      cursor: 'pointer',
-                    },
-                  }}
-                >
-                  <CardContent
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '16px',
-                      minHeight: 110,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        flexShrink: 0,
-                        mr: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        backgroundColor: '#f3e5f5',
-                      }}
-                    >
-                      <AlertTriangle size={24} color="#9c27b0" />
-                    </Box>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="summaryLabel" sx={{ mb: 0.5 }}>
-                        Average Error
-                      </Typography>
-                      <Typography variant="summaryValue" sx={{ color: '#9c27b0' }}>
-                        {summary.averageErrorPercentage}%
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
+              <Card elevation={2} className="summary-card">
+                <CardContent className="card-content">
+                  <div className="card-icon" style={{ backgroundColor: '#f3e5f5' }}>
+                    <AlertTriangle size={24} color="#9c27b0" />
+                  </div>
+                  <Typography variant="summaryValue" sx={{ color: '#9c27b0', mb: 0.5 }}>
+                    {summary.averageErrorPercentage}%
+                  </Typography>
+                  <Typography variant="summaryLabel">Average Error</Typography>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {(selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) &&
