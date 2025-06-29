@@ -11,7 +11,7 @@ import {
   Stack,
   Typography,
   Alert,
-  ThemeProvider
+  ThemeProvider,
 } from '@mui/material';
 import {
   TableChart as TableChartIcon,
@@ -20,7 +20,6 @@ import {
 } from '@mui/icons-material';
 
 import { Calculator, CheckSquare, Activity, AlertTriangle, FileText } from 'lucide-react';
-
 
 import Navbar from '@/components/navbar';
 import QCTable from '@/components/qc_table';
@@ -52,8 +51,7 @@ const QCChecks = () => {
   useEffect(() => {
     if (!selectedFileId || !section) return;
     const scrollTarget =
-      section === 'lab-standards' ? qcTableRef :
-        section === 'sjs-standards' ? sjsTableRef : null;
+      section === 'lab-standards' ? qcTableRef : section === 'sjs-standards' ? sjsTableRef : null;
 
     if (scrollTarget?.current) {
       setTimeout(() => {
@@ -72,27 +70,26 @@ const QCChecks = () => {
       // Assuming data is directly the metadata object like:
       // { filename: "...", uploaded_at: "...", uploaded_by: "...", type: ... }
       if (data && (data.filename || data.uploaded_at || data.uploaded_by || data.fileType)) {
-        setUploadedFiles(prev =>
-          prev.map(f => {
+        setUploadedFiles((prev) =>
+          prev.map((f) => {
             const currentFileId = f.id || f.file_id;
             return currentFileId === fileId
               ? {
-                ...f,
-                filename: data.filename,
-                uploaded_at: data.uploaded_at, // Use uploaded_at directly
-                uploaded_by: data.uploaded_by,
-                type: data.file_type // Use 'type' or fallback to 'fileType'
-              }
+                  ...f,
+                  filename: data.filename,
+                  uploaded_at: data.uploaded_at, // Use uploaded_at directly
+                  uploaded_by: data.uploaded_by,
+                  type: data.file_type, // Use 'type' or fallback to 'fileType'
+                }
               : f;
           })
         );
       }
     } catch (err) {
-      console.error("❌ Failed to fetch file meta:", err);
+      console.error('❌ Failed to fetch file meta:', err);
       // Optionally, set an error state here if meta data fetching is critical
     }
   };
-
 
   const fetchUploadedFiles = async (filters) => {
     setLoading(true);
@@ -120,7 +117,6 @@ const QCChecks = () => {
         const defaultId = preselectedFileId || files[0].id || files[0].file_id;
         setSelectedFileId(defaultId);
       }
-
     } catch (err) {
       console.error('Error fetching files:', err);
       setError(`Failed to load files: ${err.message}`);
@@ -165,7 +161,6 @@ const QCChecks = () => {
     }
   }, [selectedFileId]);
 
-
   const handleApplyFilter = (filterData) => {
     setError(null);
 
@@ -173,24 +168,19 @@ const QCChecks = () => {
       setSelectedFileId('');
       setSelectedDateRange(null);
       fetchUploadedFiles();
-    }
-
-    else if (filterData.type === 'date') {
-      setSelectedFileId('');  // ⛔ clear file
+    } else if (filterData.type === 'date') {
+      setSelectedFileId(''); // ⛔ clear file
       setSelectedDateRange({
         startDate: filterData.startDate,
         endDate: filterData.endDate,
       });
       fetchUploadedFiles({ startDate: filterData.startDate, endDate: filterData.endDate });
-    }
-
-    else if (filterData.type === 'file') {
+    } else if (filterData.type === 'file') {
       const fileId = filterData.file.id || filterData.file.file_id;
       setSelectedFileId(fileId);
-      setSelectedDateRange(null);  // ✅ clear date
+      setSelectedDateRange(null); // ✅ clear date
     }
   };
-
 
   return (
     <ThemeProvider theme={customTheme}>
@@ -210,7 +200,6 @@ const QCChecks = () => {
                 selectedFile={selectedFileId}
                 selectedDateRange={selectedDateRange}
               />
-
             </Grid>
             <Grid item xs={12} md={8}>
               <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -270,33 +259,52 @@ const QCChecks = () => {
             </Grid>
           </Grid>
 
-          {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
           {loading && <LinearProgress sx={{ mb: 3 }} />}
-          {selectedFileId && uploadedFiles.length > 0 && (() => {
-            const file = uploadedFiles.find(f => f.id === selectedFileId || f.file_id === selectedFileId);
-            if (!file) return null;
+          {selectedFileId &&
+            uploadedFiles.length > 0 &&
+            (() => {
+              const file = uploadedFiles.find(
+                (f) => f.id === selectedFileId || f.file_id === selectedFileId
+              );
+              if (!file) return null;
 
-
-            return (
-              <Box sx={{ mt: 2, ml: 1.5, mb: 2 }}>
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
-                  Showing data for:
-                </Typography>
-                <Stack direction="row" spacing={4} flexWrap="wrap">
-                  <Typography variant="body1" fontWeight={500}>📁 {file.filename || '— No filename —'}</Typography>
-                  <Typography variant="body2" color="text.secondary">🕒 Uploaded at: {file.uploaded_at ? new Date(file.uploaded_at).toLocaleString() : '—'}</Typography>
-                  <Typography variant="body2" color="text.secondary">👤 Uploaded by: {file.uploaded_by || '—'}</Typography>
-                  <Typography variant="body2" color="text.secondary">🧪 Type: {file.type}</Typography>
-                </Stack>
-              </Box>
-            );
-          })()}
-
+              return (
+                <Box sx={{ mt: 2, ml: 1.5, mb: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    Showing data for:
+                  </Typography>
+                  <Stack direction="row" spacing={4} flexWrap="wrap">
+                    <Typography variant="body1" fontWeight={500}>
+                      📁 {file.filename || '— No filename —'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      🕒 Uploaded at:{' '}
+                      {file.uploaded_at ? new Date(file.uploaded_at).toLocaleString() : '—'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      👤 Uploaded by: {file.uploaded_by || '—'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      🧪 Type: {file.type}
+                    </Typography>
+                  </Stack>
+                </Box>
+              );
+            })()}
 
           {summary && (
-            <Grid container spacing={3} sx={{ mb: 3 }}> {/* Grid container spacing applied */}
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+              {' '}
+              {/* Grid container spacing applied */}
               {/* Card 1: Total Elements */}
-              <Grid item xs={12} sm={6} md={3}> {/* Responsive: 1 per row on xs, 2 per row on sm, 4 per row on md+ */}
+              <Grid item xs={12} sm={6} md={3}>
+                {' '}
+                {/* Responsive: 1 per row on xs, 2 per row on sm, 4 per row on md+ */}
                 <Card
                   elevation={2}
                   sx={{
@@ -304,26 +312,30 @@ const QCChecks = () => {
                     '&:hover': {
                       boxShadow: 6,
                       cursor: 'pointer',
-                    }
+                    },
                   }}
                 >
-                  <CardContent sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '16px',
-                    minHeight: 110,
-                  }}>
-                    <Box sx={{
-                      flexShrink: 0,
-                      mr: 2,
+                  <CardContent
+                    sx={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '50%',
-                      backgroundColor: '#e3f2fd',
-                    }}>
+                      padding: '16px',
+                      minHeight: 110,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        flexShrink: 0,
+                        mr: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        backgroundColor: '#e3f2fd',
+                      }}
+                    >
                       <Calculator size={24} color="#1976d2" />
                     </Box>
                     <Box sx={{ flexGrow: 1 }}>
@@ -337,8 +349,7 @@ const QCChecks = () => {
                   </CardContent>
                 </Card>
               </Grid>
-
-              {/* Card 2: Within Tolerance */}
+              {/* Card 2: Outside Tolerance */}
               <Grid item xs={12} sm={6} md={3}>
                 <Card
                   elevation={2}
@@ -347,45 +358,55 @@ const QCChecks = () => {
                     '&:hover': {
                       boxShadow: 6,
                       cursor: 'pointer',
-                    }
+                    },
                   }}
                 >
-                  <CardContent sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '16px',
-                    minHeight: 110,
-                  }}>
-                    <Box sx={{
-                      flexShrink: 0,
-                      mr: 2,
+                  <CardContent
+                    sx={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '50%',
-                      backgroundColor: '#e8f5e9',
-                    }}>
-                      <CheckSquare size={24} color="#4caf50" />
+                      padding: '16px',
+                      minHeight: 110,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        flexShrink: 0,
+                        mr: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        backgroundColor: '#ffebee',
+                      }}
+                    >
+                      <AlertTriangle size={24} color="#f44336" />
                     </Box>
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="summaryLabel" sx={{ mb: 0.5 }}>
-                        Within Tolerance
+                        Outside Tolerance
                       </Typography>
-                      <Typography variant="summaryValue" sx={{ color: '#4caf50' }}>
-                        {summary.elementsWithinTolerance}
+                      <Typography variant="summaryValue" sx={{ color: '#f44336' }}>
+                        {summary.totalElements - summary.elementsWithinTolerance}
                       </Typography>
                       <LinearProgress
                         variant="determinate"
-                        value={summary.totalElements > 0 ? (summary.elementsWithinTolerance / summary.totalElements) * 100 : 0}
+                        value={
+                          summary.totalElements > 0
+                            ? ((summary.totalElements - summary.elementsWithinTolerance) /
+                                summary.totalElements) *
+                              100
+                            : 0
+                        }
+                        color="error"
                         sx={{ mt: 1 }}
                       />
                     </Box>
                   </CardContent>
                 </Card>
               </Grid>
-
               {/* Card 3: Average RSD */}
               <Grid item xs={12} sm={6} md={3}>
                 <Card
@@ -395,26 +416,30 @@ const QCChecks = () => {
                     '&:hover': {
                       boxShadow: 6,
                       cursor: 'pointer',
-                    }
+                    },
                   }}
                 >
-                  <CardContent sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '16px',
-                    minHeight: 110,
-                  }}>
-                    <Box sx={{
-                      flexShrink: 0,
-                      mr: 2,
+                  <CardContent
+                    sx={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '50%',
-                      backgroundColor: '#fff3e0',
-                    }}>
+                      padding: '16px',
+                      minHeight: 110,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        flexShrink: 0,
+                        mr: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        backgroundColor: '#fff3e0',
+                      }}
+                    >
                       <Activity size={24} color="#ff9800" />
                     </Box>
                     <Box sx={{ flexGrow: 1 }}>
@@ -428,7 +453,6 @@ const QCChecks = () => {
                   </CardContent>
                 </Card>
               </Grid>
-
               {/* Card 4: Average Error */}
               <Grid item xs={12} sm={6} md={3}>
                 <Card
@@ -438,26 +462,30 @@ const QCChecks = () => {
                     '&:hover': {
                       boxShadow: 6,
                       cursor: 'pointer',
-                    }
+                    },
                   }}
                 >
-                  <CardContent sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '16px',
-                    minHeight: 110,
-                  }}>
-                    <Box sx={{
-                      flexShrink: 0,
-                      mr: 2,
+                  <CardContent
+                    sx={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '50%',
-                      backgroundColor: '#f3e5f5',
-                    }}>
+                      padding: '16px',
+                      minHeight: 110,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        flexShrink: 0,
+                        mr: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        backgroundColor: '#f3e5f5',
+                      }}
+                    >
                       <AlertTriangle size={24} color="#9c27b0" />
                     </Box>
                     <Box sx={{ flexGrow: 1 }}>
@@ -474,34 +502,35 @@ const QCChecks = () => {
             </Grid>
           )}
 
-          {(selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) && viewMode === 'table' && (
-            <>
-              <div ref={qcTableRef}>
-                <QCTable selectedFileId={selectedFileId} selectedDateRange={selectedDateRange} />
-              </div>
+          {(selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) &&
+            viewMode === 'table' && (
+              <>
+                <div ref={qcTableRef}>
+                  <QCTable selectedFileId={selectedFileId} selectedDateRange={selectedDateRange} />
+                </div>
 
-              <Box mt={4} ref={sjsTableRef}>
-                <SJS_Table
-                  selectedFileId={selectedFileId}
-                  startDate={selectedDateRange?.startDate}
-                  endDate={selectedDateRange?.endDate}
-                />
-              </Box>
+                <Box mt={4} ref={sjsTableRef}>
+                  <SJS_Table
+                    selectedFileId={selectedFileId}
+                    startDate={selectedDateRange?.startDate}
+                    endDate={selectedDateRange?.endDate}
+                  />
+                </Box>
+              </>
+            )}
 
-            </>
-          )}
-
-          {(selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) && viewMode === 'graph' && (
-            <>
-              <QCGraph selectedFileId={selectedFileId} selectedDateRange={selectedDateRange} />
-              <Box mt={4}>
-                <SJS_Graph selectedFileId={selectedFileId} selectedDateRange={selectedDateRange} />
-              </Box>
-            </>
-          )}
-
-
-
+          {(selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) &&
+            viewMode === 'graph' && (
+              <>
+                <QCGraph selectedFileId={selectedFileId} selectedDateRange={selectedDateRange} />
+                <Box mt={4}>
+                  <SJS_Graph
+                    selectedFileId={selectedFileId}
+                    selectedDateRange={selectedDateRange}
+                  />
+                </Box>
+              </>
+            )}
         </div>
       </div>
     </ThemeProvider>
