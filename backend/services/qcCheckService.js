@@ -22,48 +22,37 @@ class QcCheckService {
     });
   }
   
-  static async getSummaryForQC(fileId, solutionLabel) {
-  const fileType = await fileModel.getTypeById(fileId);
-  const elementColumns = fileType === 2 ? TEconc : MEconc;
 
-  // Fetch avg and rsd rows from your updated model function
-  const { avgRow, rsdRow } = await TableModel.getAvgAndRsdRows(fileId, solutionLabel, elementColumns);
-
-  const match = solutionLabel.match(/[\d.]+/);
-  const errorFactor = match ? parseFloat(match[0]) : 1;
-
-  const totalElements = elementColumns.reduce((count, col) => {
-    return count + (avgRow[col] !== null && avgRow[col] !== undefined ? 1 : 0);
-  }, 0);
-
+  static async calculateSummaryStats(avgRow, rsdRow, errorFactor) {
+  let totalElements = 0;
   let elementsWithinTolerance = 0;
   let totalRSD = 0;
   let rsdCount = 0;
   let totalError = 0;
   let errorCount = 0;
 
-  for (const col of elementColumns) {
+  for (const col of Object.keys(avgRow)) {
     const avg = avgRow[col];
     const rsd = rsdRow[col];
 
-    if (avg === null || avg === undefined) continue;
+    if (typeof avg === 'number' && avg > 0) {
+      totalElements++;
 
-    const errorPercent = errorFactor !== 0
-      ? Math.abs(avg - errorFactor) / errorFactor * 100
-      : 0;
+      const errorPercent = Math.abs(avg - errorFactor) / errorFactor * 100;
 
-    if (rsd !== null && rsd !== undefined && !isNaN(rsd)) {
+      if (!isNaN(errorPercent)) {
+        totalError += errorPercent;
+        errorCount++;
+      }
+
+      if (errorPercent <= 10) {
+        elementsWithinTolerance++;
+      }
+    }
+
+    if (typeof rsd === 'number' && !isNaN(rsd)) {
       totalRSD += rsd;
       rsdCount++;
-    }
-
-    if (!isNaN(errorPercent)) {
-      totalError += errorPercent;
-      errorCount++;
-    }
-
-    if (errorPercent <= 10) {
-      elementsWithinTolerance++;
     }
   }
 
@@ -75,6 +64,75 @@ class QcCheckService {
   };
 }
 
+  static async getSummaryForQC(fileId, solutionLabel) {
+  const fileType = await fileModel.getTypeById(fileId);
+  const elementColumns = fileType === 2 ? TEconc : MEconc;
+
+  const { avgRow, rsdRow } = await TableModel.getAvgAndRsdRows(fileId, solutionLabel, elementColumns);
+
+  const match = solutionLabel.match(/[\d.]+/);
+  const errorFactor = match ? parseFloat(match[0]) : 1;
+
+  const { totalElements, elementsWithinTolerance, averageRSD, averageErrorPercentage } =
+    await this.calculateSummaryStats(avgRow, rsdRow, errorFactor);
+  
+    
+
+  return {
+    totalElements,
+    elementsWithinTolerance,
+    averageRSD,
+    averageErrorPercentage
+  };
 }
+
+
+static async getSummaryForQCByDates(startDate, endDate) {
+  try {
+    const { avgRow: avgRow1, rsdRow: rsdRow1 } = await TableModel.getQCDataWithDateRange(
+      startDate, endDate, MEconc
+    );
+
+    const { avgRow: avgRow2, rsdRow: rsdRow2 } = await TableModel.getQCDataWithDateRange(
+      startDate, endDate, TEconc
+    );
+
+    const result1 = await this.calculateSummaryStats(avgRow1, rsdRow1, 5);   // Type 1
+    const result2 = await this.calculateSummaryStats(avgRow2, rsdRow2, 50);  // Type 2
+
+    const totalElements = result1.totalElements + result2.totalElements;
+    const elementsWithinTolerance = result1.elementsWithinTolerance + result2.elementsWithinTolerance;
+
+    const weightedRSD = totalElements > 0
+      ? ((result1.averageRSD * result1.totalElements) + (result2.averageRSD * result2.totalElements)) / totalElements
+      : 0;
+
+    const weightedError = totalElements > 0
+      ? ((result1.averageErrorPercentage * result1.totalElements) + (result2.averageErrorPercentage * result2.totalElements)) / totalElements
+      : 0;
+    console.log(
+  totalElements,
+  elementsWithinTolerance,
+  weightedRSD,
+  weightedError
+);
+
+
+    return {
+      totalElements,
+      elementsWithinTolerance,
+      averageRSD: +weightedRSD.toFixed(2),
+      averageErrorPercentage: +weightedError.toFixed(2)
+    };
+  } catch (err) {
+    console.error("Error in getSummaryForQCByDates:", err);
+    throw err;
+  }
+}
+
+
+}
+
+
 
 module.exports = QcCheckService;

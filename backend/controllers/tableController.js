@@ -176,7 +176,6 @@ class TableController {
 
   // Get QC table data by file ID
   static async getTableDataByFile(req, res) {
-    console.log("Received Query Params:", req.query);
   try {
     const { file_id, start_date, end_date } = req.query;
 
@@ -186,8 +185,7 @@ class TableController {
         message: 'A file_id or a start_date and end_date range is required'
       });
     }
-    console.log('sd',start_date,'ed', end_date);
-    console.log('file',file_id);
+
 
     let result;
     
@@ -224,7 +222,6 @@ class TableController {
 }
 
     static async getSJSTableDataByFile(req, res) {
-  console.log(" Received Query Params:", req.query);
 
   try {
     const { file_id, start_date, end_date } = req.query;

@@ -61,14 +61,27 @@ class QcCheckController {
 
   static async getSummary(req, res) {
     try {
-      const { file_id } = req.query;
+      const { file_id, start_date, end_date } = req.query;
       const solution_label =  await QcCheckService.getSolutionLabelsForFile(file_id);
 
-      if (!file_id || !solution_label) {
-        return res.status(400).json({ success: false, message: 'file_id and solution_label are required' });
+      if (!file_id && !(start_date && end_date)) {
+        return res.status(400).json({
+          success: false,
+          message: 'A file_id or a start_date and end_date range is required'
+        });
       }
 
-      const summary = await QcCheckService.getSummaryForQC(file_id, solution_label);
+      let summary;
+    
+    if (file_id) {
+      const solution_label =  await QcCheckService.getSolutionLabelsForFile(file_id);
+      summary = await QcCheckService.getSummaryForQC(file_id, solution_label);
+    } 
+    else if (start_date && end_date) {
+      summary = await QcCheckService.getSummaryForQCByDates(start_date, end_date);
+    }
+
+    
 
       return res.json({
         success: true,

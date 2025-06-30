@@ -71,29 +71,28 @@ static async getQCDataWithDateRange(startDate, endDate, elementColumns, solution
 
   return new Promise((resolve, reject) => {
     // Add this before db.all(query, ...) to log which files are included
-const debugParams = solutionLabel
-  ? [startDate, endDate, solutionLabel]
-  : [startDate, endDate];
+// const debugParams = solutionLabel
+//   ? [startDate, endDate, solutionLabel]
+//   : [startDate, endDate];
 
-const debugQuery = `
-  SELECT f.id AS file_id, f.type, f.uploaded_at, q."Solution Label"
-  FROM qc_data q
-  JOIN uploaded_files f ON q.file_id = f.id
-  WHERE f.uploaded_at >= ? AND f.uploaded_at <= ?
-    AND f.hidden = 0
-    AND q."Solution Label" ${solutionLabel ? "= ?" : "LIKE 'QC%'"}
-`;
+// const debugQuery = `
+//   SELECT f.id AS file_id, f.type, f.uploaded_at, q."Solution Label"
+//   FROM qc_data q
+//   JOIN uploaded_files f ON q.file_id = f.id
+//   WHERE f.uploaded_at >= ? AND f.uploaded_at <= ?
+//     AND f.hidden = 0
+//     AND q."Solution Label" ${solutionLabel ? "= ?" : "LIKE 'QC%'"}
+// `;
 
-db.all(debugQuery, debugParams, (debugErr, debugRows) => {
-  if (debugErr) {
-    console.error("⚠️ Debug query failed:", debugErr);
-  } else {
-    console.log("🔍 Files used in aggregation:");
-    debugRows.forEach(r =>
-      console.log(`- File ID: ${r.file_id}, Type: ${r.type}, Label: ${r["Solution Label"]}`)
-    );
-  }
-});
+// db.all(debugQuery, debugParams, (debugErr, debugRows) => {
+//   if (debugErr) {
+//     console.error("⚠️ Debug query failed:", debugErr);
+//   } else {
+//     debugRows.forEach(r =>
+//       console.log(`- File ID: ${r.file_id}, Type: ${r.type}, Label: ${r["Solution Label"]}`)
+//     );
+//   }
+// });
 
     db.all(query, params, (err, rows) => {
       if (err) {
