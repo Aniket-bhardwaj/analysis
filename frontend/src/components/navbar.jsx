@@ -26,6 +26,7 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [openQCSubMenu, setOpenQCSubMenu] = useState(false);
+  const [openAnalysisSubMenu, setOpenAnalysisSubMenu] = useState(false);
 
   useEffect(() => {
     // Automatically expand submenu if current route is under /qc-checks
@@ -36,6 +37,15 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
       }
     } else {
       setOpenQCSubMenu(false);
+    }
+
+    if (location.pathname.startsWith('/analysis')) {
+      setOpenAnalysisSubMenu(true);
+      if (selectedItem !== 'Sample Analysis') {
+        setSelectedItem('Analysis');
+      }
+    } else {
+      setOpenAnalysisSubMenu(false);
     }
   }, [location.pathname]);
 
@@ -51,11 +61,7 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
       classes={{ paper: 'dashboard-drawer-paper' }}
     >
       <Box className="logo-container">
-        <img
-          src="/images/bluelogoiitk.png"
-          alt="IITK Logo"
-          className="logo-image"
-        />
+        <img src="/images/bluelogoiitk.png" alt="IITK Logo" className="logo-image" />
         <List className="menu-list">
           {/* Dashboard */}
           <ListItem disablePadding className="menu-list-item">
@@ -63,10 +69,15 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
               onClick={() => handleItemClick('Dashboard', '/dashboard')}
               className={`menu-button ${selectedItem === 'Dashboard' ? 'menu-button-selected' : 'menu-button-default'}`}
             >
-              <ListItemIcon><DashboardIcon /></ListItemIcon>
+              <ListItemIcon>
+                <DashboardIcon />
+              </ListItemIcon>
               <ListItemText
                 primary="Dashboard"
-                primaryTypographyProps={{ className: selectedItem === 'Dashboard' ? 'menu-text-selected' : 'menu-text-default' }}
+                primaryTypographyProps={{
+                  className:
+                    selectedItem === 'Dashboard' ? 'menu-text-selected' : 'menu-text-default',
+                }}
               />
             </ListItemButton>
           </ListItem>
@@ -77,10 +88,15 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
               onClick={() => handleItemClick('QC Checks', '/qc-checks')}
               className={`menu-button ${selectedItem === 'QC Checks' ? 'menu-button-selected' : 'menu-button-default'}`}
             >
-              <ListItemIcon><QCChecksIcon /></ListItemIcon>
+              <ListItemIcon>
+                <QCChecksIcon />
+              </ListItemIcon>
               <ListItemText
                 primary="QC Checks"
-                primaryTypographyProps={{ className: selectedItem === 'QC Checks' ? 'menu-text-selected' : 'menu-text-default' }}
+                primaryTypographyProps={{
+                  className:
+                    selectedItem === 'QC Checks' ? 'menu-text-selected' : 'menu-text-default',
+                }}
               />
               {openQCSubMenu ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
             </ListItemButton>
@@ -103,7 +119,10 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
                       primary={subItem.text}
                       primaryTypographyProps={{
                         fontSize: '0.85rem',
-                        className: selectedItem === subItem.text ? 'menu-text-selected' : 'menu-text-default',
+                        className:
+                          selectedItem === subItem.text
+                            ? 'menu-text-selected'
+                            : 'menu-text-default',
                       }}
                     />
                   </ListItemButton>
@@ -112,19 +131,52 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
             </List>
           </Collapse>
 
-          {/* Analytics */}
+          {/* Analysis */}
           <ListItem disablePadding className="menu-list-item">
             <ListItemButton
-              onClick={() => handleItemClick('Analytics', '/analytics')}
-              className={`menu-button ${selectedItem === 'Analytics' ? 'menu-button-selected' : 'menu-button-default'}`}
+              onClick={() => setOpenAnalysisSubMenu(!openAnalysisSubMenu)}
+              className={`menu-button ${selectedItem === 'Analysis' ? 'menu-button-selected' : 'menu-button-default'}`}
             >
-              <ListItemIcon><AnalyticsIcon /></ListItemIcon>
+              <ListItemIcon>
+                <AnalyticsIcon />
+              </ListItemIcon>
               <ListItemText
-                primary="Analytics"
-                primaryTypographyProps={{ className: selectedItem === 'Analytics' ? 'menu-text-selected' : 'menu-text-default' }}
+                primary="Analysis"
+                primaryTypographyProps={{
+                  className:
+                    selectedItem === 'Analysis' ? 'menu-text-selected' : 'menu-text-default',
+                }}
               />
+              {openAnalysisSubMenu ? (
+                <ExpandLess fontSize="small" />
+              ) : (
+                <ExpandMore fontSize="small" />
+              )}
             </ListItemButton>
           </ListItem>
+
+          <Collapse in={openAnalysisSubMenu} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => handleItemClick('Sample Analysis', '/analysis')}
+                  className={`menu-button ${selectedItem === 'Sample Analysis' ? 'menu-button-selected' : 'menu-button-default'}`}
+                  sx={{ pl: 9, minHeight: 0 }}
+                >
+                  <ListItemText
+                    primary="Sample Analysis"
+                    primaryTypographyProps={{
+                      fontSize: '0.85rem',
+                      className:
+                        selectedItem === 'Sample Analysis'
+                          ? 'menu-text-selected'
+                          : 'menu-text-default',
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            </List>
+          </Collapse>
 
           {/* Data Manager */}
           <ListItem disablePadding className="menu-list-item">
@@ -132,10 +184,15 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
               onClick={() => handleItemClick('Data Manager', '/data-manager')}
               className={`menu-button ${selectedItem === 'Data Manager' ? 'menu-button-selected' : 'menu-button-default'}`}
             >
-              <ListItemIcon><DataManagerIcon /></ListItemIcon>
+              <ListItemIcon>
+                <DataManagerIcon />
+              </ListItemIcon>
               <ListItemText
                 primary="Data Manager"
-                primaryTypographyProps={{ className: selectedItem === 'Data Manager' ? 'menu-text-selected' : 'menu-text-default' }}
+                primaryTypographyProps={{
+                  className:
+                    selectedItem === 'Data Manager' ? 'menu-text-selected' : 'menu-text-default',
+                }}
               />
             </ListItemButton>
           </ListItem>
@@ -146,10 +203,14 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
               onClick={() => handleItemClick('Logout', '/')}
               className={`menu-button ${selectedItem === 'Logout' ? 'menu-button-selected' : 'menu-button-default'}`}
             >
-              <ListItemIcon><LogoutIcon /></ListItemIcon>
+              <ListItemIcon>
+                <LogoutIcon />
+              </ListItemIcon>
               <ListItemText
                 primary="Logout"
-                primaryTypographyProps={{ className: selectedItem === 'Logout' ? 'menu-text-selected' : 'menu-text-default' }}
+                primaryTypographyProps={{
+                  className: selectedItem === 'Logout' ? 'menu-text-selected' : 'menu-text-default',
+                }}
               />
             </ListItemButton>
           </ListItem>
