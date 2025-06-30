@@ -23,58 +23,58 @@ class QcCheckService {
   }
   
   static async getSummaryForQC(fileId, solutionLabel) {
-    const fileType = await fileModel.getTypeById(fileId);
-    const elementColumns = fileType === 2 ? TEconc : MEconc;
+  const fileType = await fileModel.getTypeById(fileId);
+  const elementColumns = fileType === 2 ? TEconc : MEconc;
 
-    const rows = await TableModel.getRawQCTableRows(fileId, solutionLabel, elementColumns);
+  // Fetch avg and rsd rows from your updated model function
+  const { avgRow, rsdRow } = await TableModel.getAvgAndRsdRows(fileId, solutionLabel, elementColumns);
 
-    const match = solutionLabel.match(/[\d.]+/);
-    const errorFactor = match ? parseFloat(match[0]) : 1;
+  const match = solutionLabel.match(/[\d.]+/);
+  const errorFactor = match ? parseFloat(match[0]) : 1;
 
-    let totalElements = 0;
-    let elementsWithinTolerance = 0;
-    let totalRSD = 0;
-    let rsdCount = 0;
-    let totalError = 0;
-    let errorCount = 0;
+  const totalElements = elementColumns.reduce((count, col) => {
+    return count + (avgRow[col] !== null && avgRow[col] !== undefined ? 1 : 0);
+  }, 0);
 
-    for (const col of elementColumns) {
-      const values = rows
-        .map(row => parseFloat(row[col]))
-        .filter(v => !isNaN(v));
+  let elementsWithinTolerance = 0;
+  let totalRSD = 0;
+  let rsdCount = 0;
+  let totalError = 0;
+  let errorCount = 0;
 
-      if (values.length === 0) continue;
-      totalElements++;
+  for (const col of elementColumns) {
+    const avg = avgRow[col];
+    const rsd = rsdRow[col];
 
-      const avg = values.reduce((a, b) => a + b, 0) / values.length;
-      const variance = values.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / values.length;
-      const stdDev = Math.sqrt(variance);
-      const rsd = avg !== 0 ? (stdDev / avg) * 100 : 0;
+    if (avg === null || avg === undefined) continue;
 
-      const errorPercent = errorFactor !== 0
-        ? values.reduce((a, b) => a + Math.abs(b - errorFactor) / errorFactor * 100, 0) / values.length
-        : 0;
+    const errorPercent = errorFactor !== 0
+      ? Math.abs(avg - errorFactor) / errorFactor * 100
+      : 0;
 
+    if (rsd !== null && rsd !== undefined && !isNaN(rsd)) {
       totalRSD += rsd;
       rsdCount++;
-
-      if (!isNaN(errorPercent)) {
-        totalError += errorPercent;
-        errorCount++;
-      }
-
-      if (errorPercent <= 10) {
-        elementsWithinTolerance++;
-      }
     }
 
-    return {
-      totalElements,
-      elementsWithinTolerance,
-      averageRSD: rsdCount > 0 ? +(totalRSD / rsdCount).toFixed(2) : 0,
-      averageErrorPercentage: errorCount > 0 ? +(totalError / errorCount).toFixed(2) : 0
-    };
+    if (!isNaN(errorPercent)) {
+      totalError += errorPercent;
+      errorCount++;
+    }
+
+    if (errorPercent <= 10) {
+      elementsWithinTolerance++;
+    }
   }
+
+  return {
+    totalElements,
+    elementsWithinTolerance,
+    averageRSD: rsdCount > 0 ? +(totalRSD / rsdCount).toFixed(2) : 0,
+    averageErrorPercentage: errorCount > 0 ? +(totalError / errorCount).toFixed(2) : 0
+  };
+}
+
 }
 
 module.exports = QcCheckService;
