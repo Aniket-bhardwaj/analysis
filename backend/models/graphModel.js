@@ -69,79 +69,56 @@ exports.fetchGraphDataByFileId = (fileId) => {
   });
 };
 
-exports.fetchGraphDataByDateRange = (startDate, endDate) => {
+exports.fetchGraphDataByDateRange = (startDate, endDate, solutionLabel = null) => {
   return new Promise((resolve, reject) => {
     const db = new sqlite3.Database(dbPath);
-
     const start = `${startDate} 00:00:00`;
     const end = `${endDate} 23:59:59`;
 
-    // First, fetch relevant file IDs
-    db.all(
-      `SELECT id, type FROM uploaded_files WHERE uploaded_at BETWEEN ? AND ? AND hidden = 0`,
-      [start, end],
-      (err, files) => {
-        if (err) {
-          db.close();
-          return reject(err);
-        }
+    const query = `
+      SELECT
+        q.*,
+        f.type,
+        f.uploaded_at
+      FROM qc_data q
+      JOIN uploaded_files f ON q.file_id = f.id
+      WHERE f.uploaded_at BETWEEN ? AND ?
+        AND f.hidden = 0
+        AND q."Solution Label" ${solutionLabel ? "= ?" : "LIKE 'QC%'"}
+      ORDER BY f.uploaded_at ASC
+    `;
 
-        if (files.length === 0) {
-          db.close();
-          return resolve({ success: true, graphData: {} });
-        }
+    const params = solutionLabel
+      ? [start, end, solutionLabel]
+      : [start, end];
 
-        const allGraphData = {};
+    db.all(query, params, (err, rows) => {
+      db.close();
+      if (err) return reject(err);
 
-        let completed = 0;
+      const allGraphData = {};
 
-        files.forEach(({ id: fileId, type }) => {
-          const qcLabel = VALID_LABELS[type];
-          const elementNames = ELEMENT_TABLES[type];
-          const timeColumn = type === 2 ? `"Acq. Date-Time"` : `"Timestamp"`;
+      for (const row of rows) {
+        const fileType = row.type;
+        const timestamp = fileType === 2 ? row["Acq. Date-Time"] : row["Timestamp"];
+        const elementNames = ELEMENT_TABLES[fileType];
 
-          if (!qcLabel || !Array.isArray(elementNames) || elementNames.length === 0) {
-            completed++;
-            if (completed === files.length) {
-              db.close();
-              resolve({ success: true, graphData: allGraphData });
-            }
-            return;
+        if (!Array.isArray(elementNames)) continue;
+
+        for (const el of elementNames) {
+          const val = parseFloat(row[el]);
+          if (!isNaN(val)) {
+            if (!allGraphData[el]) allGraphData[el] = [];
+            allGraphData[el].push({
+              sample: timestamp,
+              value: val,
+            });
           }
-
-          const query = `
-            SELECT ${timeColumn} AS timestamp, ${elementNames.map(el => `"${el}"`).join(', ')}
-            FROM qc_data
-            WHERE file_id = ? AND "Solution Label" = ?
-            ORDER BY ${timeColumn} ASC
-          `;
-
-          db.all(query, [fileId, qcLabel], (err2, rows) => {
-            if (!err2 && rows) {
-              elementNames.forEach(element => {
-                const dataPoints = rows
-                  .map(row => ({
-                    sample: row.timestamp,
-                    value: parseFloat(row[element]),
-                  }))
-                  .filter(point => !isNaN(point.value));
-
-                  if (dataPoints.length > 0) {
-                    if (!allGraphData[element]) allGraphData[element] = [];
-                    allGraphData[element].push(...dataPoints);
-                  }
-                });
-              }
-
-            completed++;
-            if (completed === files.length) {
-              db.close();
-              resolve({ success: true, graphData: allGraphData });
-            }
-          });
-        });
+        }
       }
-    );
+
+      resolve({ success: true, graphData: allGraphData });
+    });
   });
 };
 
@@ -217,96 +194,79 @@ exports.fetchSJSGraphDataByFileId = (fileId) => {
 };
 
 exports.fetchSJSGraphDataByDateRange = (startDate, endDate) => {
-  // console.log('[fetchSJSGraphDataByDateRange] called with:', startDate, endDate);
   return new Promise((resolve, reject) => {
     const db = new sqlite3.Database(dbPath);
     const start = `${startDate} 00:00:00`;
     const end = `${endDate} 23:59:59`;
 
-    const getFilesQuery = `
-  SELECT id, type FROM uploaded_files
-  WHERE uploaded_at BETWEEN ? AND ? AND hidden = 0
-  ORDER BY uploaded_at ASC
-`;
-
-    db.all(getFilesQuery, [start, end], async (err, files) => {
+    db.all('SELECT * FROM sjs', (err, sjsRows) => {
       if (err) return reject(err);
-      if (!files || files.length === 0) return reject(new Error('No files found in date range'));
 
-      db.all('SELECT * FROM sjs', async (err, sjsRows) => {
-        if (err) return reject(err);
+      const stdRow = sjsRows.find(r => r.label === 'SJS-Std');
+      const errorRow = sjsRows.find(r => r.label === 'Error');
+      if (!stdRow || !errorRow) return reject(new Error('SJS data incomplete'));
 
-        const stdRow = sjsRows.find(r => r.label === 'SJS-Std');
-        const errorRow = sjsRows.find(r => r.label === 'Error');
-        if (!stdRow || !errorRow) return reject(new Error('SJS data incomplete'));
+      const query = `
+        SELECT q.*, f.type, f.uploaded_at
+        FROM qc_data q
+        JOIN uploaded_files f ON q.file_id = f.id
+        WHERE f.uploaded_at BETWEEN ? AND ?
+          AND f.hidden = 0
+          AND q."Solution Label" LIKE 'SJS-Std%'
+        ORDER BY f.uploaded_at ASC
+      `;
 
-        const graphData = {};
-        let xLabel = 'Timestamp';
-        const allElements = new Set();
-
-        const processFile = (file) => {
-          return new Promise((resolveFile, rejectFile) => {
-            const sjsElements = file.type === 2 ? OTstdcleaned : OMstdcleaned;
-            const timeColumn = file.type === 2 ? `"Acq. Date-Time"` : `"Timestamp"`;
-            if (file.type === 2) xLabel = 'Acq. Date-Time';
-
-            const query = `
-          SELECT ${timeColumn} AS timestamp, ${sjsElements.map(el => `"${el}"`).join(', ')}
-          FROM qc_data
-          WHERE file_id = ? AND "Solution Label" LIKE 'SJS-Std%'
-          ORDER BY ${timeColumn} ASC
-        `;
-
-            db.all(query, [file.id], (err, rows) => {
-              if (err) return rejectFile(err);
-
-              sjsElements.forEach(el => {
-                const mid = parseFloat(stdRow[el]);
-                const error = parseFloat(errorRow[el]);
-                if (isNaN(mid) || isNaN(error)) return;
-
-                const elementPoints = rows.map(row => {
-                  const val = parseFloat(row[el]);
-                  return {
-                    x: row.timestamp,
-                    y: isNaN(val) ? null : val,
-                    mid,
-                    upper: mid + error,
-                    lower: mid - error
-                  };
-                }).filter(p => p.y !== null);
-
-                if (elementPoints.length > 0) {
-                  allElements.add(el);
-                  if (!graphData[el]) graphData[el] = [];
-                  graphData[el].push(...elementPoints);
-                }
-              });
-
-              resolveFile();
-            });
-          });
-        };
-
-        try {
-          await Promise.all(files.map(processFile));
-
-          console.log('Fetched files from DB:', files.length, files.map(f => ({ id: f.id, type: f.type })));
-          // console.log('Returning combined SJS elements:', Array.from(allElements));
-          db.close();
-          resolve({
+      db.all(query, [start, end], (err2, rows) => {
+        db.close();
+        if (err2) return reject(err2);
+        if (!rows || rows.length === 0) {
+          return resolve({
             success: true,
-            elements: Array.from(allElements),
-            data: graphData,
+            elements: [],
+            data: {},
             xLabel: 'Timestamp',
           });
-        } catch (e) {
-          db.close();
-          reject(e);
         }
+
+        const graphData = {};
+        const allElements = new Set();
+        let xLabel = 'Timestamp';
+
+        rows.forEach(row => {
+          const isType2 = row.type === 2;
+          const sjsElements = isType2 ? OTstdcleaned : OMstdcleaned;
+          const time = isType2 ? row["Acq. Date-Time"] : row["Timestamp"];
+          if (isType2) xLabel = 'Acq. Date-Time';
+
+          sjsElements.forEach(el => {
+            const mid = parseFloat(stdRow[el]);
+            const error = parseFloat(errorRow[el]);
+            const val = parseFloat(row[el]);
+
+            if (isNaN(mid) || isNaN(error) || isNaN(val)) return;
+
+            const point = {
+              x: time,
+              y: val,
+              mid,
+              upper: mid + error,
+              lower: mid - error
+            };
+
+            if (!graphData[el]) graphData[el] = [];
+            graphData[el].push(point);
+            allElements.add(el);
+          });
+        });
+
+        resolve({
+          success: true,
+          elements: Array.from(allElements),
+          data: graphData,
+          xLabel
+        });
       });
-    }
-    );
+    });
   });
 };
 
