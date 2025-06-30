@@ -127,12 +127,20 @@ const QCChecks = () => {
 
   const fetchSummaryData = async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/summary?file_id=${selectedFileId}`
-      );
+      let url = `${import.meta.env.VITE_API_URL}/summary`;
+      const params = new URLSearchParams();
+  
+      if (selectedFileId) params.append('file_id', selectedFileId);
+      if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
+        params.append('start_date', selectedDateRange.startDate);
+        params.append('end_date', selectedDateRange.endDate);
+      }
+  
+      const response = await fetch(`${url}?${params.toString()}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+  
       const result = await response.json();
       const summaryData = result.summary || {
         totalElements: 0,
@@ -144,18 +152,21 @@ const QCChecks = () => {
     } catch (err) {
       console.error('Error fetching summary:', err);
       setSummary(null);
-      // Optionally, set an error state here if summary data fetching is critical
     }
   };
 
   useEffect(() => {
-    if (selectedFileId) {
+    if (selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) {
       fetchSummaryData();
-      fetchFileMeta(selectedFileId); // 👈 added here
+  
+      if (selectedFileId) {
+        fetchFileMeta(selectedFileId); // keep this only when fileId is selected
+      }
     } else {
       setSummary(null);
     }
-  }, [selectedFileId]);
+  }, [selectedFileId, selectedDateRange]);
+  
 
   const handleApplyFilter = (filterData) => {
     setError(null);
