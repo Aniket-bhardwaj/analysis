@@ -182,7 +182,7 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
               { key: 'valueAvg', label: 'Value (avg)' },
               { key: 'rsd', label: 'RSD%' },
               { key: 'errorPercentage', label: 'Error%' },
-              { key: null, label: 'Distribution' },
+              //{ key: null, label: 'Distribution' },
               { key: null, label: 'Status' }
             ].map((col, idx) => {
               const isSortable = sortableKeys.includes(col.key);

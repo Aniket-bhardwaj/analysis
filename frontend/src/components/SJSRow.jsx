@@ -72,7 +72,7 @@ const SJSRow = ({
                         : 'No data'}
                 </TableCell>
                 <TableCell>
-                    <Typography>
+                    <Typography color={errorColor}>
                         {row.actualErrorPercent !== null && row.actualErrorPercent !== undefined ? `${row.actualErrorPercent}%` : 'No data'}
                     </Typography>
                 </TableCell>
@@ -87,13 +87,13 @@ const SJSRow = ({
                         {row.rsd !== null && row.rsd !== undefined ? `${row.rsd}%` : 'No data'}
                     </Typography>
                 </TableCell>
-                <TableCell>
+                {/* <TableCell>
                     {row.distributionData && row.distributionData.length > 0 ? (
                         <MiniChart data={row.distributionData} />
                     ) : (
                         <Chip label="No data" size="small" variant="outlined" />
                     )}
-                </TableCell>
+                </TableCell> */}
                 <TableCell>
                     <Chip
                         icon={statusInfo.icon}

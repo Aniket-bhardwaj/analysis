@@ -190,7 +190,7 @@ const SJSTable = ({ selectedFileId, startDate, endDate }) => {
                         { key: 'errorAllowedPercent', label: 'Tolerance (%)' },
                         { key: 'actualErrorPercent', label: 'Error (%)' },
                         { key: 'rsd', label: 'RSD%' },
-                        { key: null, label: 'Distribution' },
+                        //{ key: null, label: 'Distribution' },
                         { key: null, label: 'Status' }
                         ].map((col, idx) => {
                             const isSortable = sortableKeys.includes(col.key);

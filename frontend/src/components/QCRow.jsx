@@ -75,13 +75,13 @@ const QCRow = ({
             <Typography variant="body2" color="text.secondary">No data</Typography>
           )}
         </TableCell>
-        <TableCell>
+        {/* <TableCell>
           {row.distributionData && row.distributionData.length > 0 ? (
             <MiniChart data={row.distributionData} />
           ) : (
             <Chip label="No data" size="small" variant="outlined" />
           )}
-        </TableCell>
+        </TableCell> */}
         <TableCell>
           <Chip
             icon={statusInfo.icon}
