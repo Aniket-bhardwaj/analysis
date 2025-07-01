@@ -54,18 +54,26 @@ const QCRow = ({
             </Typography>
           </Box>
         </TableCell>
-        <TableCell>{row.valueAvg}</TableCell>
         <TableCell>
-          <Typography
-            color={row.rsd > 10 ? 'error' : row.rsd > 5 ? 'warning.main' : 'success.main'}
-          >
-            {row.rsd}%
-          </Typography>
+          {row.valueAvg != null ? row.valueAvg : <Typography variant="body2" color="text.secondary">No data</Typography>}
         </TableCell>
         <TableCell>
-          <Typography color={row.errorPercentage > 10 ? 'error' : 'success.main'}>
-            {row.errorPercentage}%
-          </Typography>
+          {row.rsd != null ? (
+            <Typography color={row.rsd > 10 ? 'error' : row.rsd > 5 ? 'warning.main' : 'success.main'}>
+              {row.rsd}%
+            </Typography>
+          ) : (
+            <Typography variant="body2" color="text.secondary">No data</Typography>
+          )}
+        </TableCell>
+        <TableCell>
+          {row.errorPercentage != null ? (
+            <Typography color={row.errorPercentage > 10 ? 'error' : 'success.main'}>
+              {row.errorPercentage}%
+            </Typography>
+          ) : (
+            <Typography variant="body2" color="text.secondary">No data</Typography>
+          )}
         </TableCell>
         <TableCell>
           {row.distributionData && row.distributionData.length > 0 ? (
@@ -132,8 +140,8 @@ const QCRow = ({
                         entry.status === 'Pass'
                           ? { icon: <CheckCircleIcon />, label: 'Pass', color: 'success' }
                           : entry.status === 'Fail'
-                          ? { icon: <ErrorIcon />, label: 'Fail', color: 'error' }
-                          : { icon: null, label: 'N/A', color: 'default' };
+                            ? { icon: <ErrorIcon />, label: 'Fail', color: 'error' }
+                            : { icon: null, label: 'N/A', color: 'default' };
 
                       return (
                         <TableRow key={i}>

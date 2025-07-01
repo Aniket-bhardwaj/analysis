@@ -64,17 +64,27 @@ const SJSRow = ({
                         </Typography>
                     </Box>
                 </TableCell>
-                <TableCell>{row.valueAvg}</TableCell>
-                <TableCell>{row.sjsStd}</TableCell>
-                <TableCell>{errorToleranceDisplay}</TableCell>
+                <TableCell>{row.valueAvg !== null && row.valueAvg !== undefined ? row.valueAvg : 'No data'}</TableCell>
+                <TableCell>{row.sjsStd !== null && row.sjsStd !== undefined ? row.sjsStd : 'No data'}</TableCell>
                 <TableCell>
-                    <Typography color={errorColor}>{errorDisplay}</Typography>
+                    {row.errorAllowedPercent !== null && row.errorAllowedPercent !== undefined
+                        ? `${row.errorAllowedPercent}%`
+                        : 'No data'}
                 </TableCell>
                 <TableCell>
-                    <Typography
-                        color={row.rsd > 10 ? 'error' : row.rsd > 5 ? 'warning.main' : 'success.main'}
-                    >
-                        {row.rsd}%
+                    <Typography>
+                        {row.actualErrorPercent !== null && row.actualErrorPercent !== undefined ? `${row.actualErrorPercent}%` : 'No data'}
+                    </Typography>
+                </TableCell>
+                <TableCell>
+                    <Typography color={row.rsd !== null && row.rsd !== undefined
+                        ? row.rsd > 10
+                            ? 'error'
+                            : row.rsd > 5
+                                ? 'warning.main'
+                                : 'success.main'
+                        : 'text.disabled'}>
+                        {row.rsd !== null && row.rsd !== undefined ? `${row.rsd}%` : 'No data'}
                     </Typography>
                 </TableCell>
                 <TableCell>
@@ -113,31 +123,31 @@ const SJSRow = ({
                                                 </TableSortLabel>
                                             </TableCell>
                                             {/* ... Other headers ... */}
-                                             <TableCell sx={{ fontWeight: 600 }}>
-                                                 <TableSortLabel
-                                                     active={miniSortConfig[row.element]?.key === 'value'}
-                                                     direction={miniSortConfig[row.element]?.direction || 'asc'}
-                                                     onClick={() => sortMiniTable(row.element, 'value')}
-                                                 >
-                                                     Value
-                                                 </TableSortLabel>
-                                             </TableCell>
-                                             <TableCell sx={{ fontWeight: 600 }}>
-                                                 SJS-Std
-                                             </TableCell>
-                                             <TableCell sx={{ fontWeight: 600 }}>
-                                                 Tolerance%
-                                             </TableCell>
-                                             <TableCell sx={{ fontWeight: 600 }}>
-                                                 <TableSortLabel
-                                                     active={miniSortConfig[row.element]?.key === 'actual'}
-                                                     direction={miniSortConfig[row.element]?.direction || 'asc'}
-                                                     onClick={() => sortMiniTable(row.element, 'actual')}
-                                                 >
-                                                     Error%
-                                                 </TableSortLabel>
-                                             </TableCell>
-                                             <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>
+                                                <TableSortLabel
+                                                    active={miniSortConfig[row.element]?.key === 'value'}
+                                                    direction={miniSortConfig[row.element]?.direction || 'asc'}
+                                                    onClick={() => sortMiniTable(row.element, 'value')}
+                                                >
+                                                    Value
+                                                </TableSortLabel>
+                                            </TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>
+                                                SJS-Std
+                                            </TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>
+                                                Tolerance%
+                                            </TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>
+                                                <TableSortLabel
+                                                    active={miniSortConfig[row.element]?.key === 'actual'}
+                                                    direction={miniSortConfig[row.element]?.direction || 'asc'}
+                                                    onClick={() => sortMiniTable(row.element, 'actual')}
+                                                >
+                                                    Error%
+                                                </TableSortLabel>
+                                            </TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                                         </TableRow>
                                     </TableHead>
 
@@ -161,7 +171,11 @@ const SJSRow = ({
                                                     <TableCell>{entry.timestamp}</TableCell>
                                                     <TableCell>{entry.value}</TableCell>
                                                     <TableCell>{entry.sjsStd}</TableCell>
-                                                    <TableCell>{entry.tolerance === 0 ? '-' : `${entry.tolerance}%`}</TableCell>
+                                                    <TableCell>
+                                                        {entry.tolerance !== null && entry.tolerance !== undefined
+                                                            ? `${entry.tolerance}%`
+                                                            : 'No data'}
+                                                    </TableCell>
                                                     <TableCell>
                                                         <Typography color={actualColor}>{actualDisplay}</Typography>
                                                     </TableCell>
