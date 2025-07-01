@@ -1,12 +1,38 @@
-const sampleService = require('../services/sampleService');
+const SampleService = require('../services/sampleService');
+const SampleModel = require('../models/sampleModel');
 
-exports.getSampleElementDetails = async (req, res) => {
+
+
+class SampleController{
+
+static getSampleElementDetails = async (req, res) => {
   try {
     const { sampleId, elementName } = req.body;
-    const result = await sampleService.getSampleElementDetails(sampleId, elementName);
+    const result = await SampleService.getSampleElementDetails(sampleId, elementName);
     res.json(result);
   } catch (error) {
     console.error('Controller Error:', error.message);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+static async getAllSamples(req,res){
+  try {
+      const rows = await SampleModel.getSamples();
+      const transformedFiles = rows.map(sample => ({
+        id: sample.sample_id,
+        name: sample.sample_name// Map filename to name
+        
+      }));
+      //console.log(transformedFiles);
+      
+      res.json(transformedFiles);
+    } catch (err) {
+      console.error('DB fetch error:', err.message);
+      res.status(500).json({ error: 'Failed to fetch files' });
+    }
+
+}
+}
+
+module.exports = SampleController;

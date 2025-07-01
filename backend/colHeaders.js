@@ -131,6 +131,8 @@ const Tcor = corrHeaders(OTstd);
 const Mcor = corrHeaders(OMstd);
 const OTstdcleaned = normalizeHeaders(Tcor);
 const OMstdcleaned = normalizeHeaders(Mcor);
+const TEcorr = corrHeaders(TEconc);
+const MEcorr = corrHeaders(MEconc);
 
 
  
@@ -153,5 +155,6 @@ module.exports = {
   rest_dataHeaders,
   OTstdcleaned,
   OMstdcleaned,
-  
+  TEcorr,
+  MEcorr
 };

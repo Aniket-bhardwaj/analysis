@@ -1,6 +1,4 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const dbPath = path.join(__dirname, '../database.sqlite');
+
 const { MEconc, TEconc } = require('../colHeaders');
 const db = require('../initialize_db');
 const { OTstdcleaned, OMstdcleaned } = require('../colHeaders');
@@ -18,7 +16,6 @@ const ELEMENT_TABLES = {
 
 exports.fetchGraphDataByFileId = (fileId) => {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(dbPath);
     console.log('Fetching file with id:', fileId);
 
     db.get('SELECT type FROM uploaded_files WHERE id = ?', [fileId], (err, fileRow) => {
@@ -71,7 +68,6 @@ exports.fetchGraphDataByFileId = (fileId) => {
 
 exports.fetchGraphDataByDateRange = (startDate, endDate, solutionLabel = null) => {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(dbPath);
     const start = `${startDate} 00:00:00`;
     const end = `${endDate} 23:59:59`;
 
