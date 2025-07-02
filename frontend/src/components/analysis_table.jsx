@@ -3,10 +3,11 @@ import { Box, Typography } from '@mui/material';
 import AnalysisRow from './AnalysisRow';
 
 const AnalysisTable = ({ sampleId }) => {
+  console.log("🔍 sampleId received in AnalysisTable:", sampleId);
+
   const [tableData, setTableData] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
   const [expandedRows, setExpandedRows] = useState(new Set());
-  const [details, setDetails] = useState({});
 
   useEffect(() => {
     if (sampleId) fetchTable();
@@ -15,7 +16,7 @@ const AnalysisTable = ({ sampleId }) => {
   const fetchTable = async () => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/analysis-table?sample_id=${sampleId}`
+        `http://localhost:5000/sample-table?sampleId=${sampleId}`
       );
       const json = await res.json();
       setTableData(json.tableData || []);
@@ -25,27 +26,10 @@ const AnalysisTable = ({ sampleId }) => {
     }
   };
 
-  const fetchDetail = async (element) => {
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/analysis-element-details?sample_id=${sampleId}&element=${encodeURIComponent(element)}`
-      );
-      const json = await res.json();
-      setDetails((prev) => ({ ...prev, [element]: json }));
-    } catch (err) {
-      console.error('Failed to fetch element detail', err);
-    }
-  };
-
   const toggleRowExpansion = (element) => {
     setExpandedRows((prev) => {
       const next = new Set(prev);
-      if (next.has(element)) {
-        next.delete(element);
-      } else {
-        next.add(element);
-        if (!details[element]) fetchDetail(element);
-      }
+      next.has(element) ? next.delete(element) : next.add(element);
       return next;
     });
   };
@@ -73,7 +57,8 @@ const AnalysisTable = ({ sampleId }) => {
     });
   }, [tableData, sortConfig]);
 
-  const sortableKeys = ['element', 'correctedValue'];
+  const sortableKeys = ['elem', 'corrected'];
+
 
   return (
     <Box sx={{ px: 2, pt: 2 }}>
@@ -102,70 +87,71 @@ const AnalysisTable = ({ sampleId }) => {
       >
         <thead>
           <tr>
-            {[
-              { key: 'element', label: 'Element' },
-              { key: 'correctedValue', label: 'Corrected Value' },
-              { key: null, label: 'Status' },
-            ].map((col, idx) => {
-              const isSortable = sortableKeys.includes(col.key);
-              const isActive = sortConfig.key === col.key;
-              const displayArrow = isActive ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅';
-              return (
-                <th
-                  key={idx}
-                  onClick={() => isSortable && handleSort(col.key)}
-                  style={{
-                    position: 'sticky',
-                    top: 48,
-                    background: '#f8f9fb',
-                    zIndex: 50,
-                    textAlign: 'left',
-                    padding: '10px 16px',
-                    fontWeight: 450,
-                    borderBottom: '1px solid #ccc',
-                    cursor: isSortable ? 'pointer' : 'default',
-                    userSelect: 'none',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      '&:hover .hoverArrow': { visibility: 'visible' },
+            {[{ key: 'elem', label: 'Element' },
+            { key: 'corrected', label: 'Corrected Value' },
+            { key: null, label: 'Status' }]
+
+              .map((col, idx) => {
+                const isSortable = sortableKeys.includes(col.key);
+                const isActive = sortConfig.key === col.key;
+                const displayArrow = isActive
+                  ? sortConfig.direction === 'asc' ? '▲' : '▼'
+                  : '⇅';
+                return (
+                  <th
+                    key={idx}
+                    onClick={() => isSortable && handleSort(col.key)}
+                    style={{
+                      position: 'sticky',
+                      top: 48,
+                      background: '#f8f9fb',
+                      zIndex: 50,
+                      textAlign: 'left',
+                      padding: '10px 16px',
+                      fontWeight: 450,
+                      borderBottom: '1px solid #ccc',
+                      cursor: isSortable ? 'pointer' : 'default',
+                      userSelect: 'none',
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    {col.label}
-                    {isSortable && (
-                      <Box
-                        className="hoverArrow"
-                        component="span"
-                        sx={{
-                          fontSize: '0.75rem',
-                          color: '#888',
-                          visibility: isActive ? 'visible' : 'hidden',
-                        }}
-                      >
-                        {displayArrow}
-                      </Box>
-                    )}
-                  </Box>
-                </th>
-              );
-            })}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        '&:hover .hoverArrow': { visibility: 'visible' },
+                      }}
+                    >
+                      {col.label}
+                      {isSortable && (
+                        <Box
+                          className="hoverArrow"
+                          component="span"
+                          sx={{
+                            fontSize: '0.75rem',
+                            color: '#888',
+                            visibility: isActive ? 'visible' : 'hidden',
+                          }}
+                        >
+                          {displayArrow}
+                        </Box>
+                      )}
+                    </Box>
+                  </th>
+                );
+              })}
           </tr>
         </thead>
 
         <tbody>
           {sortedData.map((row, index) => (
             <AnalysisRow
-              key={row.element || index}
-              row={row}
-              isExpanded={expandedRows.has(row.element)}
-              toggleRowExpansion={toggleRowExpansion}
-              detail={details[row.element]}
-            />
+            key={row.elem || index}
+            row={row}
+            isExpanded={expandedRows.has(row.elem)}   // ⬅️ fix here
+            toggleRowExpansion={toggleRowExpansion}
+          />
           ))}
         </tbody>
       </table>

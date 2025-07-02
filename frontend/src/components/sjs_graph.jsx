@@ -33,7 +33,7 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
   const [xLabel, setXLabel] = useState('Timestamp');
 
   const buildUrl = () => {
-    const baseUrl = `${import.meta.env.VITE_API_URL}/sjs-graph`;
+    const baseUrl = `http://localhost:5000/sjs-graph`;
     const params = new URLSearchParams();
   
     if (selectedDateRange?.startDate && selectedDateRange?.endDate) {

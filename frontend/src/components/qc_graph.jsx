@@ -45,7 +45,7 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
   const [error, setError] = useState(null);
 
   const buildUrl = () => {
-    const baseUrl = `${import.meta.env.VITE_API_URL}/graph-data`;
+    const baseUrl = `http://localhost:5000/graph-data`;
     const params = new URLSearchParams();
 
     if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
