@@ -1,10 +1,46 @@
 const SampleModel = require("../models/sampleModel");
 const TableModel = require("../models/tableModel");
-const { MEcorr, TEcorr } = require("../colHeaders");
+const { MEcorr, TEcorr , MEconc,TEconc} = require("../colHeaders");
 const qcl = {
   1: "QC MES 5 ppm",
   2: "QC MES 50 ppb",
 };
+const typeCorr = {
+  1: MEcorr,
+  2: TEcorr
+}
+const typeO = {
+  1: MEconc,
+  2: TEconc  
+}
+
+function generateErrorCheckRows(solutionLabel, avgRow) {
+  return new Promise((resolve) => {
+    const errorFactor = parseFloat(solutionLabel.match(/[\d.]+/)[0]);
+    const result = Object.entries(avgRow).map(([element, avg]) => {
+      const error = Math.abs((avg - errorFactor) / errorFactor) * 100;
+      return {
+        elem: element,
+        solutionLabel,
+        avg: +avg,
+        error: +error.toFixed(2),
+        withinLimit: error <= 10
+      };
+    });
+    resolve(result);
+  });
+}
+
+
+function mergeCorrectedValues(data, row) {
+  return data.map(obj => {
+    const correctedKey = `${obj.elem}_Corrected`;
+    return {
+      ...obj,
+      corrected: row[correctedKey] ?? null
+    };
+  });
+}
 
 class SampleService {
   static async getSampleElementDetails(sampleId, elementName) {
@@ -39,20 +75,63 @@ class SampleService {
   };
 
 
-  static async getVisibleFileTypes(sampleId) {
+
+
+
+
+  static async getSampleTableData(sampleId) {
     try {
-      const typeArr = await SampleModel.getVisibleFileTypesBySampleId(sampleId);
+      console.log("dflshvcj bv;,jcssc ,;c",sampleId);
 
-      let columnNames = [];
+      
 
-      if (typeArr.length === 1 && typeArr[0] === "1") {
-        columnNames = MEcorr;
-      } else if (typeArr.length === 1 && typeArr[0] === "2") {
-        columnNames = TEcorr;
-      } else if (typeArr.includes("1") && typeArr.includes("2")) {
-        columnNames = [...MEcorr, ...TEcorr];
-      }
-      const row = await SampleModel.getSampleRowByIdAndColumns(sampleId,columnNames);
+      const files = await SampleModel.getFileTypesWithIdBySampleId(sampleId);
+
+if (!files || files.length === 0) {
+  throw new Error(`No visible files found for sampleId: ${sampleId}`);
+}
+
+
+  if (files.length === 1) {
+    const { file_id, type} = files[0];
+    
+    const row = await SampleModel.getSampleRowByIdAndColumns(sampleId, typeCorr[type]);
+    const avgrow = await SampleModel.getAvg(file_id, qcl[type],typeO[type]);
+    const errorobj = await generateErrorCheckRows(qcl[type],avgrow);
+    const merged = await mergeCorrectedValues(errorobj, row);
+    return merged;
+
+
+
+
+  } else {
+    const file1 = files.find(f => f.type === 1);
+const file2 = files.find(f => f.type === 2);
+
+if (!file1 || !file2) {
+  throw new Error("Required file types 1 and 2 not found for sample");
+}
+
+const { file_id: file_id1, type: t1 } = file1;
+const { file_id: file_id2, type: t2 } = file2;
+
+
+    const row1 = await SampleModel.getSampleRowByIdAndColumns(sampleId,typeCorr[1]);
+    const row2 = await SampleModel.getSampleRowByIdAndColumns(sampleId, typeCorr[2]);
+    const avgrow1 = await SampleModel.getAvg(file_id1,qcl[1],typeO[1]);
+    const avgrow2 = await SampleModel.getAvg(file_id2,qcl[2],typeO[2]);
+    const errorobj1 = await generateErrorCheckRows(qcl[1],avgrow1);
+    const errorobj2 = await generateErrorCheckRows(qcl[2],avgrow2);
+    const merged1 = await mergeCorrectedValues(errorobj1, row1);
+    const merged2 = await mergeCorrectedValues(errorobj2, row2);
+    const finalMerged = [...merged1, ...merged2];
+    return finalMerged;
+
+
+
+  }
+
+
     } catch (error) {
       console.error("Error in sampleService.getVisibleFileTypes:", error);
       throw error;

@@ -55,23 +55,24 @@ static async getElementValueAndStatus (fileId, sampleId, elementName){
   });
 };
 
-static async getVisibleFileTypesBySampleId (sampleId) {
+static async getFileTypesWithIdBySampleId(sampleId) {
+  const sql = `
+    SELECT DISTINCT u.id AS file_id, u.type
+    FROM sample_id_X_file_id f
+    JOIN uploaded_files u ON f.file_id = u.id
+    WHERE f.sample_id = ? AND u.hidden = 0;
+  `;
+
   return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT DISTINCT u.type
-      FROM sample_id_X_file_id f
-      JOIN uploaded_files u ON f.file_id = u.id
-      WHERE f.sample_id = ? AND u.hidden = 0;
-    `;
-
     db.all(sql, [sampleId], (err, rows) => {
-      if (err) return reject(err);
-
-      const types = rows.map(row => row.type); // returns only distinct types
-      resolve(types);
+      if (err) {
+        reject(err);
+      } else {
+        resolve(rows); // rows = [ { file_id: ..., type: ... }, ... ]
+      }
     });
   });
-};
+}
 
 static async getSampleRowByIdAndColumns(sampleId, columnNames) {
     // Clean each column name: wrap in double quotes to prevent SQL issues
@@ -89,6 +90,26 @@ static async getSampleRowByIdAndColumns(sampleId, columnNames) {
       });
     });
   }
+
+  static async getAvg(fileId, solutionLabel, columnNames) {
+  const columnsSQL = columnNames.map(col => `AVG([${col}]) AS [${col}]`).join(', ');
+  const sql = `
+    SELECT ${columnsSQL}
+    FROM qc_data
+    WHERE file_id = ? AND "Solution Label" = ?
+  `;
+
+  return new Promise((resolve, reject) => {
+    db.get(sql, [fileId, solutionLabel], (err, row) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(row);
+      }
+    });
+  });
+}
+
 }
 
 module.exports = SampleModel;

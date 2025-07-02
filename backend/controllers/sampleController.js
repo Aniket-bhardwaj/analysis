@@ -33,6 +33,23 @@ static async getAllSamples(req,res){
     }
 
 }
+static async getSampleTable(req, res) {
+  try {
+    const sampleId = parseInt(req.query.sampleId, 10); // ← safely convert to number
+    console.log("🛠️ Controller received sampleId:", sampleId);
+
+    if (isNaN(sampleId)) {
+      return res.status(400).json({ error: 'Invalid or missing sampleId' });
+    }
+    const data = await SampleService.getSampleTableData(sampleId);
+    res.json({ tableData: data }); // wrap in an object like your frontend expects
+  } catch (error) {
+    console.error("Error in getSampleTableDataController:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+
+
 }
 
 module.exports = SampleController;
