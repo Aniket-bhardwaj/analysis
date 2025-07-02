@@ -52,7 +52,7 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
   const fetchQCData = async () => {
     try {
       // buildUrl for fetchQCData does not need page/pageSize for the main table
-      const url = buildUrl(`http://localhost:5000/table-data`); 
+      const url = buildUrl(`${import.meta.env.VITE_API_URL}/table-data`); 
       console.log("📡 Fetching QC data from:", url);
       const response = await fetch(url);
       const result = await response.json();
@@ -78,7 +78,7 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
 
   const fetchMiniTableData = async (element, page = 1) => {
     try {
-      const url = buildUrl(`http://localhost:5000/element-mini-table`, page, MINI_TABLE_PAGE_SIZE);
+      const url = buildUrl(`${import.meta.env.VITE_API_URL}/element-mini-table`, page, MINI_TABLE_PAGE_SIZE);
       const res = await fetch(`${url}&element=${encodeURIComponent(element)}`);
       const json = await res.json();
       if (json.success) {

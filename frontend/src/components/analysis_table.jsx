@@ -16,7 +16,7 @@ const AnalysisTable = ({ sampleId }) => {
   const fetchTable = async () => {
     try {
       const res = await fetch(
-        `http://localhost:5000/sample-table?sampleId=${sampleId}`
+        `${import.meta.env.VITE_API_URL}/sample-table?sampleId=${sampleId}`
       );
       const json = await res.json();
       setTableData(json.tableData || []);
