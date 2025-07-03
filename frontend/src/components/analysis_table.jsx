@@ -1,19 +1,39 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Box, Typography } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Autocomplete,
+  TextField,
+} from '@mui/material';
 import AnalysisRow from './AnalysisRow';
 
-const AnalysisTable = ({ sampleId }) => {
-  console.log("🔍 sampleId received in AnalysisTable:", sampleId);
-
+const AnalysisTable = () => {
+  const [samples, setSamples] = useState([]);
+  const [selectedSample, setSelectedSample] = useState(null);
   const [tableData, setTableData] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
   const [expandedRows, setExpandedRows] = useState(new Set());
 
+  // Fetch samples for dropdown
   useEffect(() => {
-    if (sampleId) fetchTable();
-  }, [sampleId]);
+    const fetchSamples = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/samples`);
+        const json = await res.json();
+        setSamples(json.samples || json);
+      } catch (err) {
+        console.error('Failed to fetch samples', err);
+      }
+    };
+    fetchSamples();
+  }, []);
 
-  const fetchTable = async () => {
+  // Fetch table data when a sample is selected
+  useEffect(() => {
+    if (selectedSample?.id) fetchTable(selectedSample.id);
+  }, [selectedSample]);
+
+  const fetchTable = async (sampleId) => {
     try {
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/sample-table?sampleId=${sampleId}`
@@ -59,102 +79,111 @@ const AnalysisTable = ({ sampleId }) => {
 
   const sortableKeys = ['elem', 'corrected'];
 
-
   return (
     <Box sx={{ px: 2, pt: 2 }}>
-      <Box
-        sx={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-          backgroundColor: '#f5f5f5',
-          borderBottom: '1px solid #ddd',
-          py: 1,
-        }}
-      >
-        <Typography variant="h6" sx={{ pl: 1 }}>
+      {/* Header and Search */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
           Sample Analysis
         </Typography>
+        <Autocomplete
+          disablePortal
+          id="sample-search"
+          options={samples}
+          getOptionLabel={(option) => option.name || ''}
+          sx={{ width: 300 }}
+          value={selectedSample}
+          onChange={(e, val) => setSelectedSample(val)}
+          renderInput={(params) => <TextField {...params} label="Search Sample" size="small" />}
+        />
       </Box>
 
-      <table
-        style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          marginTop: 0,
-          fontSize: '0.95rem',
-        }}
-      >
-        <thead>
-          <tr>
-            {[{ key: 'elem', label: 'Element' },
-            { key: 'corrected', label: 'Corrected Value' },
-            { key: null, label: 'Status' }]
+      {selectedSample && (
+        <Typography variant="subtitle2" sx={{ mb: 2 }}>
+          Showing data for: {selectedSample.name}
+        </Typography>
+      )}
 
-              .map((col, idx) => {
-                const isSortable = sortableKeys.includes(col.key);
-                const isActive = sortConfig.key === col.key;
-                const displayArrow = isActive
-                  ? sortConfig.direction === 'asc' ? '▲' : '▼'
-                  : '⇅';
-                return (
-                  <th
-                    key={idx}
-                    onClick={() => isSortable && handleSort(col.key)}
-                    style={{
-                      position: 'sticky',
-                      top: 48,
-                      background: '#f8f9fb',
-                      zIndex: 50,
-                      textAlign: 'left',
-                      padding: '10px 16px',
-                      fontWeight: 450,
-                      borderBottom: '1px solid #ccc',
-                      cursor: isSortable ? 'pointer' : 'default',
-                      userSelect: 'none',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        '&:hover .hoverArrow': { visibility: 'visible' },
+      {/* Table */}
+      {selectedSample && (
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            marginTop: 0,
+            fontSize: '0.95rem',
+          }}
+        >
+          <thead>
+            <tr>
+              {[{ key: 'elem', label: 'Element' },
+              { key: 'corrected', label: 'Corrected Value' },
+              { key: null, label: 'Status' }]
+                .map((col, idx) => {
+                  const isSortable = sortableKeys.includes(col.key);
+                  const isActive = sortConfig.key === col.key;
+                  const displayArrow = isActive
+                    ? sortConfig.direction === 'asc' ? '▲' : '▼'
+                    : '⇅';
+                  return (
+                    <th
+                      key={idx}
+                      onClick={() => isSortable && handleSort(col.key)}
+                      style={{
+                        position: 'sticky',
+                        top: 48,
+                        background: '#f8f9fb',
+                        zIndex: 50,
+                        textAlign: 'left',
+                        padding: '10px 16px',
+                        fontWeight: 450,
+                        borderBottom: '1px solid #ccc',
+                        cursor: isSortable ? 'pointer' : 'default',
+                        userSelect: 'none',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      {col.label}
-                      {isSortable && (
-                        <Box
-                          className="hoverArrow"
-                          component="span"
-                          sx={{
-                            fontSize: '0.75rem',
-                            color: '#888',
-                            visibility: isActive ? 'visible' : 'hidden',
-                          }}
-                        >
-                          {displayArrow}
-                        </Box>
-                      )}
-                    </Box>
-                  </th>
-                );
-              })}
-          </tr>
-        </thead>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          '&:hover .hoverArrow': { visibility: 'visible' },
+                        }}
+                      >
+                        {col.label}
+                        {isSortable && (
+                          <Box
+                            className="hoverArrow"
+                            component="span"
+                            sx={{
+                              fontSize: '0.75rem',
+                              color: '#888',
+                              visibility: isActive ? 'visible' : 'hidden',
+                            }}
+                          >
+                            {displayArrow}
+                          </Box>
+                        )}
+                      </Box>
+                    </th>
+                  );
+                })}
+            </tr>
+          </thead>
 
-        <tbody>
-          {sortedData.map((row, index) => (
-            <AnalysisRow
-            key={row.elem || index}
-            row={row}
-            isExpanded={expandedRows.has(row.elem)}   // ⬅️ fix here
-            toggleRowExpansion={toggleRowExpansion}
-          />
-          ))}
-        </tbody>
-      </table>
+          <tbody>
+            {sortedData.map((row, index) => (
+              <AnalysisRow
+                key={row.elem || index}
+                row={row}
+                isExpanded={expandedRows.has(row.elem)}
+                toggleRowExpansion={toggleRowExpansion}
+              />
+            ))}
+          </tbody>
+        </table>
+      )}
     </Box>
   );
 };

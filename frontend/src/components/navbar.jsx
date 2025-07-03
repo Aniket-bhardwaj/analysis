@@ -41,7 +41,7 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
 
     if (location.pathname.startsWith('/analysis')) {
       setOpenAnalysisSubMenu(true);
-      if (selectedItem !== 'Sample Analysis') {
+      if (!['Sample Analysis', 'Element Inspector'].includes(selectedItem)) {
         setSelectedItem('Analysis');
       }
     } else {
@@ -156,27 +156,49 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
           </ListItem>
 
           <Collapse in={openAnalysisSubMenu} timeout="auto" unmountOnExit>
-            <List component="div" disablePadding>
-              <ListItem disablePadding>
-                <ListItemButton
-                  onClick={() => handleItemClick('Sample Analysis', '/analysis')}
-                  className={`menu-button ${selectedItem === 'Sample Analysis' ? 'menu-button-selected' : 'menu-button-default'}`}
-                  sx={{ pl: 9, minHeight: 0 }}
-                >
-                  <ListItemText
-                    primary="Sample Analysis"
-                    primaryTypographyProps={{
-                      fontSize: '0.85rem',
-                      className:
-                        selectedItem === 'Sample Analysis'
-                          ? 'menu-text-selected'
-                          : 'menu-text-default',
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            </List>
-          </Collapse>
+  <List component="div" disablePadding>
+    {/* Sample Analysis */}
+    <ListItem disablePadding>
+      <ListItemButton
+        onClick={() => handleItemClick('Sample Analysis', '/analysis')}
+        className={`menu-button ${selectedItem === 'Sample Analysis' ? 'menu-button-selected' : 'menu-button-default'}`}
+        sx={{ pl: 9, minHeight: 0 }}
+      >
+        <ListItemText
+          primary="Sample Analysis"
+          primaryTypographyProps={{
+            fontSize: '0.85rem',
+            className:
+              selectedItem === 'Sample Analysis'
+                ? 'menu-text-selected'
+                : 'menu-text-default',
+          }}
+        />
+      </ListItemButton>
+    </ListItem>
+
+    {/* Element Inspector (NEW) */}
+    <ListItem disablePadding>
+      <ListItemButton
+        onClick={() => handleItemClick('Element Inspector', '/analysis/element-inspector')}
+        className={`menu-button ${selectedItem === 'Element Inspector' ? 'menu-button-selected' : 'menu-button-default'}`}
+        sx={{ pl: 9, minHeight: 0 }}
+      >
+        <ListItemText
+          primary="Element Inspector"
+          primaryTypographyProps={{
+            fontSize: '0.85rem',
+            className:
+              selectedItem === 'Element Inspector'
+                ? 'menu-text-selected'
+                : 'menu-text-default',
+          }}
+        />
+      </ListItemButton>
+    </ListItem>
+  </List>
+</Collapse>
+
 
           {/* Data Manager */}
           <ListItem disablePadding className="menu-list-item">
