@@ -1,10 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { Upload, TrendingUp, Database, CheckCircle, AlertCircle, Clock, FileText } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip as ChartTooltip,
+  Legend as ChartLegend
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+import {
+  Upload,
+  TrendingUp,
+  Database,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  FileText
+} from 'lucide-react';
 import Navbar from '@/components/navbar';
 import { Autocomplete, TextField } from '@mui/material';
 import '../styles/homepage.css';
 
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  ChartTooltip,
+  ChartLegend
+);
 
 const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -68,39 +96,106 @@ const DashboardPage = () => {
     if (isNaN(d.getTime())) return 'Invalid Date';
     return `${d.getDate()}/${d.getMonth() + 1}`;
   };
-
-  // Format time ago
-  const formatTimeAgo = (dateString) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffInMs = now - date;
-    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) {
-      const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
-      return `${diffInMinutes}m ago`;
-    } else if (diffInHours < 24) {
-      return `${diffInHours}h ago`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays}d ago`;
-    }
+  
+  // Format ms → "DD/MM" - Used by Chart.js
+  const fmtDateOnly = (ms) => {
+    const d = new Date(ms);
+    return isNaN(d) ? '' : d.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short'
+    });
   };
 
-  // Prepare chart data for selected element
-  const getChartData = () => {
-    if (!dashboardData?.qcGraphData?.success || !selectedElement) {
-      return [];
+  // Build sorted labels & values arrays for Chart.js
+  const { labels, values } = useMemo(() => {
+    if (
+      !dashboardData?.qcGraphData?.success ||
+      !selectedElement ||
+      !dashboardData.qcGraphData.graphData[selectedElement]
+    ) {
+      return { labels: [], values: [] };
     }
-  
-    const elementData = dashboardData.qcGraphData.graphData[selectedElement];
-    if (!Array.isArray(elementData)) return [];
-  
-    return elementData.map(item => ({
-      date: new Date(item.sample), // ✅ correct timestamp field + wrapped in Date
-      value: item.value
-    }));
-  };
+    const raw = dashboardData.qcGraphData.graphData[selectedElement];
+    const pts = raw
+      .map((r) => {
+        // NOTE: Ensure the source data has a 'timestamp' property.
+        // If the property is 'sample', change r.timestamp to r.sample
+        const ms = new Date(r.timestamp).getTime(); 
+        return { ms, value: Number(r.value) };
+      })
+      .filter((p) => !isNaN(p.ms) && !isNaN(p.value))
+      .sort((a, b) => a.ms - b.ms);
+
+    return {
+      labels: pts.map((p) => fmtDateOnly(p.ms)),
+      values: pts.map((p) => p.value)
+    };
+  }, [dashboardData, selectedElement]);
+
+  // Chart.js dataset
+  const chartData = useMemo(() => ({
+    labels,
+    datasets: [
+      {
+        label: selectedElement,
+        data: values,
+        borderColor: '#2563eb',
+        borderWidth: 2,
+        tension: 0.3,
+        fill: false,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHitRadius: 15
+      }
+    ]
+  }), [labels, values, selectedElement]);
+
+  // Chart.js options
+  const chartOptions = useMemo(() => {
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const variation = (max - min) || max * 0.1 || 1; // Add fallback for empty data
+    const yMin = min - variation;
+    const yMax = max + variation;
+
+    let lastTick = null;
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: 'category',
+          grid: { display: false },
+          ticks: {
+            autoSkip: false,
+            callback: (val, idx) => {
+              const lbl = labels[idx];
+              if (lbl !== lastTick) {
+                lastTick = lbl;
+                return lbl;
+              }
+              return '';
+            }
+          }
+        },
+        y: {
+          min: yMin,
+          max: yMax,
+          title: { display: true, text: 'Concentration' },
+          ticks: { precision: 2 }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => `Date: ${items[0].label}`,
+            label: (ctx) => `${selectedElement}: ${ctx.parsed.y.toFixed(2)}`
+          }
+        }
+      }
+    };
+  }, [labels, values, selectedElement]);
 
   if (loading && !dashboardData) {
     return (
@@ -131,8 +226,7 @@ const DashboardPage = () => {
     );
   }
 
-  const chartData = getChartData();
-  const availableElements = dashboardData?.qcGraphData?.success ? 
+  const availableElements = dashboardData?.qcGraphData?.success ?
     Object.keys(dashboardData.qcGraphData.graphData || {}) : [];
 
   return (
@@ -165,7 +259,6 @@ const DashboardPage = () => {
               </div>
             </div>
           </div>
-
           <div className="summary-card">
             <div className="card-content">
               <div className="card-icon">
@@ -177,7 +270,6 @@ const DashboardPage = () => {
               </div>
             </div>
           </div>
-
           <div className="summary-card">
             <div className="card-content">
               <div className="card-icon">
@@ -190,7 +282,6 @@ const DashboardPage = () => {
               </div>
             </div>
           </div>
-
           <div className="summary-card">
             <div className="card-content">
               <div className="card-icon">
@@ -213,65 +304,34 @@ const DashboardPage = () => {
               {availableElements.length > 0 && (
                 <div className="element-selector">
                   <Autocomplete
-  disablePortal
-  id="element-search"
-  options={availableElements}
-  sx={{ width: 300 }}
-  value={selectedElement}
-  onChange={(e, newValue) => setSelectedElement(newValue)}
-  renderInput={(params) => <TextField {...params} label="Select Element" variant="outlined" />}
-  size="small"
-/>
+                    disablePortal
+                    id="element-search"
+                    options={availableElements}
+                    sx={{ width: 300 }}
+                    value={selectedElement}
+                    onChange={(_, newValue) => setSelectedElement(newValue)}
+                    renderInput={(params) => <TextField {...params} label="Select Element" variant="outlined" />}
+                    size="small"
+                  />
                 </div>
               )}
             </div>
             
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={350}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date"
-                    tickFormatter={(date) =>
-                      date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-                    }
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12 }}
-                    label={{ value: 'Concentration', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Tooltip 
-                    formatter={(value, name) => [value, selectedElement]}
-                    labelFormatter={(label) => `Date: ${formatDate(label)}`}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #ccc',
-                      borderRadius: '6px'
-                    }}
-                  />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#2563eb" 
-                    strokeWidth={2}
-                    dot={{ fill: '#2563eb', strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: '#2563eb', strokeWidth: 2 }}
-                    name={selectedElement || 'Concentration'}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="no-data">
-                <div className="no-data-content">
-                  <TrendingUp className="no-data-icon" />
-                  <p>No QC data available for the past week</p>
-                  {availableElements.length === 0 && (
-                    <p className="no-data-subtitle">No elements found in QC data</p>
-                  )}
+            <div style={{ position: 'relative', height: '350px' }}>
+              {values.length > 0 ? (
+                <Line data={chartData} options={chartOptions} />
+              ) : (
+                <div className="no-data">
+                  <div className="no-data-content">
+                    <TrendingUp className="no-data-icon" />
+                    <p>No QC data available for the selected element</p>
+                    {availableElements.length === 0 && (
+                      <p className="no-data-subtitle">No elements found in QC data</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
