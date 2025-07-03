@@ -93,10 +93,8 @@ static async getSampleRowByIdAndColumns(sampleId, columnNames) {
 
   static async getAvg(fileId, solutionLabel, columnNames) {
     // Sanitize column names to avoid wrapping already quoted ones
-    const columnsSQL = columnNames.map(col => {
-      const cleanCol = col.replace(/["`[\]]/g, ''); // remove any existing quotes or brackets
-      return `AVG("${cleanCol}") AS "${cleanCol}"`;
-    }).join(', ');
+    const columnsSQL = columnNames.map(col => `AVG("${col}") AS "${col}"`).join(', ');
+
   
     const sql = `
       SELECT ${columnsSQL}
