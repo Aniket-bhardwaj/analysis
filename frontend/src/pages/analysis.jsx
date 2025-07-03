@@ -7,6 +7,10 @@ const AnalysisPage = () => {
   const [selectedItem, setSelectedItem] = useState('Analysis');
   const [samples, setSamples] = useState([]);
   const [selectedSample, setSelectedSample] = useState(null);
+  useEffect(() => {
+  console.log("🧪 selectedSample changed:", selectedSample);
+}, [selectedSample]);
+
 
   useEffect(() => {
     const fetchSamples = async () => {

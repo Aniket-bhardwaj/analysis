@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Box,
-  Chip,
   Collapse,
   IconButton,
   Table,
@@ -10,6 +9,7 @@ import {
   TableHead,
   TableRow,
   Typography,
+  Tooltip
 } from '@mui/material';
 import {
   ExpandLess as ExpandLessIcon,
@@ -18,41 +18,40 @@ import {
   Error as ErrorIcon,
 } from '@mui/icons-material';
 
-const AnalysisRow = ({ row, isExpanded, toggleRowExpansion, detail }) => {
-  const statusInfo =
-    row.status === 'Pass'
-      ? { icon: <CheckCircleIcon />, color: 'success', label: 'Pass' }
-      : { icon: <ErrorIcon />, color: 'error', label: 'Fail' };
+const AnalysisRow = ({ row, isExpanded, toggleRowExpansion }) => {
+  const isPass = row.withinLimit;
 
-  const detailStatus =
-    detail?.status === 'Pass'
-      ? { icon: <CheckCircleIcon />, color: 'success', label: 'Pass' }
-      : detail?.status === 'Fail'
-        ? { icon: <ErrorIcon />, color: 'error', label: 'Fail' }
-        : { icon: null, color: 'default', label: detail?.status || '-' };
+  const StatusIcon = isPass ? CheckCircleIcon : ErrorIcon;
+  const statusColor = isPass ? '#4caf50' : '#f44336';
+  const tooltipText = isPass
+    ? 'The value of QC for this file is in the error cap'
+    : 'The value of QC for this file is outside the error cap';
 
   return (
     <>
       <TableRow hover>
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton size="small" onClick={() => toggleRowExpansion(row.element)}>
+            <IconButton size="small" onClick={() => toggleRowExpansion(row.elem)}>
               {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </IconButton>
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              {row.element}
+              {row.elem}
             </Typography>
           </Box>
         </TableCell>
-        <TableCell>{row.correctedValue}</TableCell>
+
+        <TableCell>{row.corrected}</TableCell>
+
         <TableCell>
-          <Chip
-            icon={statusInfo.icon}
-            label={statusInfo.label}
-            color={statusInfo.color}
-            size="small"
-            variant="outlined"
-          />
+          <Tooltip title={tooltipText}>
+            <Box
+              onClick={() => toggleRowExpansion(row.elem)}
+              sx={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+            >
+              <StatusIcon sx={{ color: statusColor }} />
+            </Box>
+          </Tooltip>
         </TableCell>
       </TableRow>
 
@@ -63,31 +62,19 @@ const AnalysisRow = ({ row, isExpanded, toggleRowExpansion, detail }) => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Solution</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Avg QC value</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Error%</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {detail ? (
-                    <TableRow>
-                      <TableCell>{detail.avgQcValue}</TableCell>
-                      <TableCell>{detail.errorPercent}</TableCell>
-                      <TableCell>
-                        <Chip
-                          icon={detailStatus.icon}
-                          label={detailStatus.label}
-                          color={detailStatus.color}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={3}>Loading...</TableCell>
-                    </TableRow>
-                  )}
+                  <TableRow>
+                  <TableCell>{row.solutionLabel}</TableCell>
+                    <TableCell>{row.avg}</TableCell>
+                    <TableCell sx={{ color: row.withinLimit ? '#4caf50' : '#f44336' }}>
+                      {row.error}
+                    </TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </Box>

@@ -92,23 +92,30 @@ static async getSampleRowByIdAndColumns(sampleId, columnNames) {
   }
 
   static async getAvg(fileId, solutionLabel, columnNames) {
-  const columnsSQL = columnNames.map(col => `AVG([${col}]) AS [${col}]`).join(', ');
-  const sql = `
-    SELECT ${columnsSQL}
-    FROM qc_data
-    WHERE file_id = ? AND "Solution Label" = ?
-  `;
-
-  return new Promise((resolve, reject) => {
-    db.get(sql, [fileId, solutionLabel], (err, row) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(row);
-      }
+    // Sanitize column names to avoid wrapping already quoted ones
+    const columnsSQL = columnNames.map(col => {
+      const cleanCol = col.replace(/["`[\]]/g, ''); // remove any existing quotes or brackets
+      return `AVG("${cleanCol}") AS "${cleanCol}"`;
+    }).join(', ');
+  
+    const sql = `
+      SELECT ${columnsSQL}
+      FROM qc_data
+      WHERE file_id = ? AND "Solution Label" = ?
+    `;
+  
+    return new Promise((resolve, reject) => {
+      db.get(sql, [fileId, solutionLabel], (err, row) => {
+        if (err) {
+          console.error("Error in getAvg SQL:", sql); // Helpful debug log
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
     });
-  });
-}
+  }
+  
 
 }
 
