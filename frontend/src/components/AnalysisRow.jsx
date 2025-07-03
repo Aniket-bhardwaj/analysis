@@ -9,7 +9,8 @@ import {
   TableHead,
   TableRow,
   Typography,
-  Tooltip
+  Tooltip,
+  Chip,
 } from '@mui/material';
 import {
   ExpandLess as ExpandLessIcon,
@@ -21,8 +22,6 @@ import {
 const AnalysisRow = ({ row, isExpanded, toggleRowExpansion }) => {
   const isPass = row.withinLimit;
 
-  const StatusIcon = isPass ? CheckCircleIcon : ErrorIcon;
-  const statusColor = isPass ? '#4caf50' : '#f44336';
   const tooltipText = isPass
     ? 'The value of QC for this file is in the error cap'
     : 'The value of QC for this file is outside the error cap';
@@ -45,12 +44,14 @@ const AnalysisRow = ({ row, isExpanded, toggleRowExpansion }) => {
 
         <TableCell>
           <Tooltip title={tooltipText}>
-            <Box
-              onClick={() => toggleRowExpansion(row.elem)}
-              sx={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-            >
-              <StatusIcon sx={{ color: statusColor }} />
-            </Box>
+            <Chip
+              icon={isPass ? <CheckCircleIcon /> : <ErrorIcon />}
+              label={isPass ? 'Pass' : 'Fail'}
+              color={isPass ? 'success' : 'error'}
+              size="small"
+              variant="outlined"
+              sx={{ cursor: 'pointer' }}
+            />
           </Tooltip>
         </TableCell>
       </TableRow>
@@ -62,16 +63,16 @@ const AnalysisRow = ({ row, isExpanded, toggleRowExpansion }) => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Solution</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Solution</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Avg QC value</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Error%</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   <TableRow>
-                  <TableCell>{row.solutionLabel}</TableCell>
+                    <TableCell>{row.solutionLabel}</TableCell>
                     <TableCell>{row.avg}</TableCell>
-                    <TableCell sx={{ color: row.withinLimit ? '#4caf50' : '#f44336' }}>
+                    <TableCell sx={{ color: isPass ? '#4caf50' : '#f44336' }}>
                       {row.error}
                     </TableCell>
                   </TableRow>
