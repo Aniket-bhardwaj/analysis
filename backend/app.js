@@ -36,6 +36,7 @@ const downloadRoutes  = require('./routes/download');
 const qcCheckRoutes   = require('./routes/qcCheck');
 const dashboardRoutes = require('./routes/dashboard');
 const sampleRoutes = require('./routes/sample')
+const elementRoutes = require('./routes/element');
 
 //  Mount all app routes at `/` (except auth)
 app.use('/', uploadRoutes);
@@ -49,6 +50,8 @@ app.use('/', qcCheckRoutes);
 app.use('/auth', authRoutes);
 app.use('/', dashboardRoutes);
 app.use('/',sampleRoutes);
+app.use('/', elementRoutes);
+
 
 // Fallback for unknown routes
 app.use((req, res) => {
