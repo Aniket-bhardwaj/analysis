@@ -33,7 +33,7 @@ const ElementGraph = () => {
   useEffect(() => {
     const fetchElements = async () => {
       try {
-        const res = await fetch('${import.meta.env.VITE_API_URL}/element-options');
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/element-options`);
         const json = await res.json();
         const elements = json.elements || [];
         setElementOptions(elements);

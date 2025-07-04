@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Box,
   Collapse,
-  IconButton,
   Table,
   TableBody,
   TableCell,
@@ -13,8 +12,6 @@ import {
   Chip,
 } from '@mui/material';
 import {
-  ExpandLess as ExpandLessIcon,
-  ExpandMore as ExpandMoreIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
 } from '@mui/icons-material';
@@ -26,18 +23,18 @@ const AnalysisRow = ({ row, isExpanded, toggleRowExpansion }) => {
     ? 'The value of QC for this file is in the error cap'
     : 'The value of QC for this file is outside the error cap';
 
+  // Handler to toggle expansion when clicking the status chip
+  const handleStatusClick = () => {
+    toggleRowExpansion(row.elem);
+  };
+
   return (
     <>
       <TableRow hover>
         <TableCell>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton size="small" onClick={() => toggleRowExpansion(row.elem)}>
-              {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            </IconButton>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              {row.elem}
-            </Typography>
-          </Box>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            {row.elem}
+          </Typography>
         </TableCell>
 
         <TableCell>{row.corrected}</TableCell>
@@ -51,6 +48,7 @@ const AnalysisRow = ({ row, isExpanded, toggleRowExpansion }) => {
               size="small"
               variant="outlined"
               sx={{ cursor: 'pointer' }}
+              onClick={handleStatusClick}
             />
           </Tooltip>
         </TableCell>
