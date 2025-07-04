@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/navbar';
 import {
   Box,
@@ -17,24 +17,27 @@ import {
   Chip,
   IconButton,
   TextField,
-  Stack,
   CircularProgress,
   Tooltip,
   Pagination,
   InputAdornment,
+  Snackbar,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
-import { Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
-import DownloadIcon from '@mui/icons-material/Download';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-
 import {
+  Download as DownloadIcon,
+  ContentCopy as ContentCopyIcon,
   CloudUpload,
   Delete,
   CheckCircle,
   Error as ErrorIcon,
   Warning,
   Search as SearchIcon,
-  Clear as ClearIcon, // Added ClearIcon for clearing search
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 
 import '../styles/data_manager.css';
@@ -43,10 +46,8 @@ const DataManagerPage = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('error');
-
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState(null);
-
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -54,11 +55,11 @@ const DataManagerPage = () => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const ROWS_PER_PAGE = 10;
+  const navigate = useNavigate();
 
   const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
     } else if (e.type === 'dragleave') {
@@ -70,29 +71,19 @@ const DataManagerPage = () => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFileUpload(e.dataTransfer.files[0]);
     }
   };
 
-  const getQualityCheckStatus = (file) => {
-    const random = Math.random();
-    if (random > 0.7) return 'success';
-    if (random > 0.4) return 'warning';
-    return 'error';
-  };
-
   const handleFileUpload = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-
     setIsUploading(true);
     setUploadProgress(0);
 
     try {
       const xhr = new XMLHttpRequest();
-
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) {
           const percentComplete = (e.loaded / e.total) * 100;
@@ -108,18 +99,16 @@ const DataManagerPage = () => {
             reject(new Error(JSON.parse(xhr.responseText).error || 'Upload failed'));
           }
         };
-
         xhr.onerror = () => reject(new Error('Network error'));
       });
 
       xhr.open('POST', `${import.meta.env.VITE_API_URL}/upload-csv`);
       xhr.send(formData);
 
-      const result = await uploadPromise;
+      await uploadPromise;
       setSnackbarMessage('File uploaded successfully');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
-
       fetchUploadedFiles();
     } catch (err) {
       console.error('Error uploading file:', err);
@@ -134,9 +123,9 @@ const DataManagerPage = () => {
 
   const handleFileSelect = async (e) => {
     const selectedFiles = e.target.files;
-    if (!selectedFiles || selectedFiles.length === 0) return;
-
-    await handleFileUpload(selectedFiles[0]);
+    if (selectedFiles && selectedFiles.length > 0) {
+      await handleFileUpload(selectedFiles[0]);
+    }
     e.target.value = '';
   };
 
@@ -144,38 +133,33 @@ const DataManagerPage = () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`);
       const data = await res.json();
-      const files = data.files || data.data || data;
+      const filesData = data.files || data.data || data;
 
       const filesWithStatus = await Promise.all(
-        files.map(async (file) => {
+        filesData.map(async (file) => {
           const fileId = file.id || file.file_id;
           let qualityStatus = 'error';
-
           try {
             const summaryRes = await fetch(
               `${import.meta.env.VITE_API_URL}/summary?file_id=${fileId}`
             );
-            if (!summaryRes.ok) throw new Error('Summary fetch failed');
-
-            const result = await summaryRes.json();
-            const summary = result.summary || {};
-            const total = summary.totalElements || 0;
-            const within = summary.elementsWithinTolerance || 0;
-
-            if (total > 0 && total === within) {
-              qualityStatus = 'success';
+            if (summaryRes.ok) {
+              const result = await summaryRes.json();
+              const summary = result.summary || {};
+              const total = summary.totalElements || 0;
+              const within = summary.elementsWithinTolerance || 0;
+              if (total > 0 && total === within) {
+                qualityStatus = 'success';
+              }
+            } else {
+              throw new Error('Summary fetch failed');
             }
           } catch (err) {
             console.error(`❌ Failed to fetch summary for file ${fileId}:`, err.message);
           }
-
-          return {
-            ...file,
-            qualityStatus,
-          };
+          return { ...file, qualityStatus };
         })
       );
-
       setFiles(filesWithStatus);
     } catch (err) {
       console.error('❌ Failed to fetch uploaded files:', err.message);
@@ -187,41 +171,39 @@ const DataManagerPage = () => {
   }, []);
 
   const filteredFiles = useMemo(() => {
-    if (!searchQuery) {
-      return files;
-    }
-    return files.filter((file) => {
-      const query = searchQuery.toLowerCase();
-      return (
+    if (!searchQuery) return files;
+    const query = searchQuery.toLowerCase();
+    return files.filter(
+      (file) =>
         file.name.toLowerCase().includes(query) ||
-        file.type.toLowerCase().includes(query) ||
         file.user.toLowerCase().includes(query) ||
         file.email.toLowerCase().includes(query) ||
         file.uploadDate.toLowerCase().includes(query)
-      );
-    });
+    );
   }, [files, searchQuery]);
 
   useEffect(() => {
     setPage(1);
-  }, [filteredFiles]);
+  }, [searchQuery]);
 
   const handleDelete = async (id) => {
+    setConfirmDialogOpen(false);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/hide-file/${id}`, {
         method: 'POST',
       });
-
       const data = await res.json();
-
       if (res.ok && data.success) {
+        setSnackbarMessage('File deleted successfully.');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
         setFiles((prevFiles) => prevFiles.filter((file) => file.id !== id));
       } else {
-        alert(data.error || 'Failed to hide the file');
+        throw new Error(data.error || 'Failed to delete the file');
       }
     } catch (err) {
-      console.error('Error hiding file:', err);
-      setSnackbarMessage('Something went wrong while trying to hide the file');
+      console.error('Error deleting file:', err);
+      setSnackbarMessage(err.message || 'Something went wrong');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     }
@@ -245,22 +227,17 @@ const DataManagerPage = () => {
       success: {
         icon: <CheckCircle sx={{ color: '#4caf50', fontSize: 20 }} />,
         tooltip: `Quality check passed for ${filename}`,
-        color: '#4caf50',
       },
       warning: {
         icon: <Warning sx={{ color: '#ff9800', fontSize: 20 }} />,
-        tooltip: `Quality check completed with warnings for ${filename}`,
-        color: '#ff9800',
+        tooltip: `Quality check has warnings for ${filename}`,
       },
       error: {
         icon: <ErrorIcon sx={{ color: '#f44336', fontSize: 20 }} />,
         tooltip: `Quality check failed for ${filename}`,
-        color: '#f44336',
       },
     };
-
     const config = statusConfig[status] || statusConfig.error;
-
     return (
       <Tooltip title={config.tooltip} arrow>
         <Box
@@ -279,8 +256,10 @@ const DataManagerPage = () => {
   };
 
   const [selectedItem, setSelectedItem] = useState('Data Manager');
-  const navigate = useNavigate();
-  const paginatedFiles = filteredFiles.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+  const paginatedFiles = filteredFiles.slice(
+    (page - 1) * ROWS_PER_PAGE,
+    page * ROWS_PER_PAGE
+  );
 
   return (
     <Box className="dashboard-container file-upload-container">
@@ -291,51 +270,6 @@ const DataManagerPage = () => {
           <Typography variant="h4" className="page-title">
             Data Manager
           </Typography>
-
-          <TextField
-            variant="outlined"
-            size="small"
-            placeholder="Search files..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: '#9e9e9e' }} />
-                </InputAdornment>
-              ),
-              endAdornment: searchQuery ? ( // Show clear icon only if there's a search query
-                <InputAdornment position="end">
-                  <IconButton onClick={() => setSearchQuery('')} edge="end" size="small">
-                    <ClearIcon sx={{ color: '#9e9e9e' }} />
-                  </IconButton>
-                </InputAdornment>
-              ) : null,
-            }}
-            sx={{
-              width: { xs: '100%', sm: '300px', md: '400px' }, // Adjust width for better UI
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '25px', // Make it more pill-shaped
-                backgroundColor: '#ffffff',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)', // Subtle shadow
-                transition: 'box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out',
-                '&:hover fieldset': {
-                  borderColor: '#b0b0b0', // Lighter border on hover
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#1976d2', // Primary color on focus
-                  boxShadow: '0 0 0 3px rgba(25, 118, 210, 0.2)', // Focus ring effect
-                },
-              },
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#e0e0e0', // Default border color
-              },
-              '& .MuiInputBase-input': {
-                padding: '10px 14px', // Adjust padding for better look with pill shape
-              },
-            }}
-            className="search-bar"
-          />
         </Box>
 
         <Card className="upload-card">
@@ -371,7 +305,7 @@ const DataManagerPage = () => {
                     disabled={isUploading}
                   >
                     Choose file
-                    <input type="file" hidden multiple onChange={handleFileSelect} />
+                    <input type="file" hidden onChange={handleFileSelect} />
                   </Button>
                   <Typography variant="body2" className="upload-text">
                     or drag file in here
@@ -381,6 +315,48 @@ const DataManagerPage = () => {
             </Box>
           </CardContent>
         </Card>
+        
+        {/* Search Bar - Moved and updated */}
+        <Box sx={{ my: 2 }}>
+          <TextField
+            variant="outlined"
+            fullWidth
+            placeholder="Search by filename, upload date, or username"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: '#9e9e9e' }} />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery && (
+                <InputAdornment position="end">
+                  <IconButton onClick={() => setSearchQuery('')} edge="end" size="small">
+                    <ClearIcon sx={{ color: '#9e9e9e' }} />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '25px',
+                backgroundColor: '#ffffff',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+                '&:hover fieldset': {
+                  borderColor: '#b0b0b0',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#1976d2',
+                  boxShadow: '0 0 0 3px rgba(25, 118, 210, 0.2)',
+                },
+              },
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#e0e0e0',
+              },
+            }}
+          />
+        </Box>
 
         <Card className="files-table-card">
           <CardContent>
@@ -437,11 +413,12 @@ const DataManagerPage = () => {
                         </Typography>
                       </TableCell>
                       <TableCell className="table-cell">
-                        <>
+                        <Tooltip title="Download">
                           <IconButton onClick={() => handleDownload(file.id)}>
                             <DownloadIcon />
                           </IconButton>
-
+                        </Tooltip>
+                        <Tooltip title="Delete">
                           <IconButton
                             onClick={() => {
                               setFileToDelete(file.id);
@@ -452,7 +429,7 @@ const DataManagerPage = () => {
                           >
                             <Delete />
                           </IconButton>
-                        </>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -472,43 +449,30 @@ const DataManagerPage = () => {
           </CardContent>
         </Card>
       </Box>
+
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={5000}
+        autoHideDuration={6000}
         onClose={() => setSnackbarOpen(false)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert
           onClose={() => setSnackbarOpen(false)}
           severity={snackbarSeverity}
-          sx={{
-            width: '100%',
-            pl: 1,
-            pr: 1,
-            display: 'flex',
-            alignItems: 'flex-start',
-          }}
-          iconMapping={{
-            error: <ErrorIcon sx={{ mt: '4px' }} fontSize="small" />,
-          }}
-        >
-          <Box sx={{ display: 'flex', width: '100%' }}>
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                {snackbarMessage}
-              </Typography>
-            </Box>
+          sx={{ width: '100%', display: 'flex', alignItems: 'center' }}
+          action={
             <Tooltip title="Copy to clipboard">
               <IconButton
                 onClick={handleCopyToClipboard}
                 color="inherit"
                 size="small"
-                sx={{ ml: 4 }}
               >
-                <ContentCopyIcon sx={{ fontSize: 24 }} />
+                <ContentCopyIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-          </Box>
+          }
+        >
+          {snackbarMessage}
         </Alert>
       </Snackbar>
 
@@ -518,10 +482,7 @@ const DataManagerPage = () => {
         <DialogActions>
           <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
           <Button
-            onClick={() => {
-              handleDelete(fileToDelete);
-              setConfirmDialogOpen(false);
-            }}
+            onClick={() => handleDelete(fileToDelete)}
             color="error"
             variant="contained"
           >
