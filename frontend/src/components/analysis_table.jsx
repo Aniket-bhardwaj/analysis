@@ -1,73 +1,76 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import {
-  Box,
-  Typography,
-  Autocomplete,
-  TextField,
-} from '@mui/material';
+import { Box, Autocomplete, TextField } from '@mui/material';
 import AnalysisRow from './AnalysisRow';
 
 const AnalysisTable = () => {
-  const [samples, setSamples] = useState([]);
+  const [samples, setSamples]               = useState([]);
   const [selectedSample, setSelectedSample] = useState(null);
-  const [tableData, setTableData] = useState([]);
-  const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
-  const [expandedRows, setExpandedRows] = useState(new Set());
 
-  // Fetch samples for dropdown
+  const [tableData, setTableData]           = useState([]);
+  const [sortConfig, setSortConfig]         = useState({ key: '', direction: '' });
+  const [expandedRows, setExpandedRows]     = useState(new Set());
+
+  const API = import.meta.env.VITE_API_URL;
+
+  // Fetch samples list
   useEffect(() => {
     const fetchSamples = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/samples`);
-        const json = await res.json();
-        setSamples(json.samples || json);
+        const res  = await fetch(`${API}/samples`);
+        const data = await res.json();
+        setSamples(data.samples || data);
       } catch (err) {
         console.error('Failed to fetch samples', err);
       }
     };
     fetchSamples();
-  }, []);
+  }, [API]);
 
-  // Fetch table data when a sample is selected
+  // Auto-select the last sample
   useEffect(() => {
-    if (selectedSample?.id) fetchTable(selectedSample.id);
-  }, [selectedSample]);
-
-  const fetchTable = async (sampleId) => {
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/sample-table?sampleId=${sampleId}`
-      );
-      const json = await res.json();
-      setTableData(json.tableData || []);
-    } catch (err) {
-      console.error('Failed to fetch analysis table', err);
-      setTableData([]);
+    if (!selectedSample && samples.length) {
+      setSelectedSample(samples[samples.length - 1]);
     }
-  };
+  }, [samples, selectedSample]);
 
-  const toggleRowExpansion = (element) => {
-    setExpandedRows((prev) => {
+  // Fetch table data whenever the selected sample changes
+  useEffect(() => {
+    if (!selectedSample?.id) return;
+
+    (async () => {
+      try {
+        const res  = await fetch(
+          `${API}/sample-table?sampleId=${selectedSample.id}`
+        );
+        const data = await res.json();
+        setTableData(data.tableData || []);
+      } catch (err) {
+        console.error('Failed to fetch table data', err);
+        setTableData([]);
+      }
+    })();
+  }, [selectedSample, API]);
+
+  // Toggle row expansion
+  const toggleRowExpansion = (elem) => {
+    setExpandedRows(prev => {
       const next = new Set(prev);
-      next.has(element) ? next.delete(element) : next.add(element);
+      next.has(elem) ? next.delete(elem) : next.add(elem);
       return next;
     });
   };
 
+  // Sorting logic
   const handleSort = (key) => {
-    if (sortConfig.key !== key) {
-      setSortConfig({ key, direction: 'asc' });
-    } else if (sortConfig.direction === 'asc') {
-      setSortConfig({ key, direction: 'desc' });
-    } else if (sortConfig.direction === 'desc') {
-      setSortConfig({ key: '', direction: '' });
-    } else {
-      setSortConfig({ key, direction: 'asc' });
-    }
+    setSortConfig(prev => {
+      if (prev.key !== key) return { key, direction: 'asc' };
+      if (prev.direction === 'asc') return { key, direction: 'desc' };
+      return { key: '', direction: '' };
+    });
   };
 
   const sortedData = useMemo(() => {
-    if (!sortConfig.key || !sortConfig.direction) return tableData;
+    if (!sortConfig.key) return tableData;
     return [...tableData].sort((a, b) => {
       const aVal = a[sortConfig.key];
       const bVal = b[sortConfig.key];
@@ -81,101 +84,76 @@ const AnalysisTable = () => {
 
   return (
     <Box sx={{ px: 2, pt: 2 }}>
-      {/* Header and Search */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          Sample Analysis
-        </Typography>
+      {/* Full-width search bar */}
+      <Box sx={{ mb: 2, width: '100%' }}>
         <Autocomplete
           disablePortal
-          id="sample-search"
           options={samples}
-          getOptionLabel={(option) => option.name || ''}
-          sx={{ width: 300 }}
+          getOptionLabel={(opt) => opt.name || ''}
           value={selectedSample}
           onChange={(e, val) => setSelectedSample(val)}
-          renderInput={(params) => <TextField {...params} label="Search Sample" size="small" />}
+          renderInput={(params) =>
+            <TextField
+              {...params}
+              label="Search Sample"
+              size="small"
+              fullWidth
+            />
+          }
         />
       </Box>
 
+      {/* Data table */}
       {selectedSample && (
-        <Typography variant="subtitle2" sx={{ mb: 2 }}>
-          Showing data for: {selectedSample.name}
-        </Typography>
-      )}
-
-      {/* Table */}
-      {selectedSample && (
-        <table
-          style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            marginTop: 0,
-            fontSize: '0.95rem',
-          }}
-        >
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
           <thead>
             <tr>
-              {[{ key: 'elem', label: 'Element' },
-              { key: 'corrected', label: 'Corrected Value' },
-              { key: null, label: 'Status' }]
-                .map((col, idx) => {
-                  const isSortable = sortableKeys.includes(col.key);
-                  const isActive = sortConfig.key === col.key;
-                  const displayArrow = isActive
-                    ? sortConfig.direction === 'asc' ? '▲' : '▼'
-                    : '⇅';
-                  return (
-                    <th
-                      key={idx}
-                      onClick={() => isSortable && handleSort(col.key)}
-                      style={{
-                        position: 'sticky',
-                        top: 48,
-                        background: '#f8f9fb',
-                        zIndex: 50,
-                        textAlign: 'left',
-                        padding: '10px 16px',
-                        fontWeight: 450,
-                        borderBottom: '1px solid #ccc',
-                        cursor: isSortable ? 'pointer' : 'default',
-                        userSelect: 'none',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1,
-                          '&:hover .hoverArrow': { visibility: 'visible' },
-                        }}
-                      >
-                        {col.label}
-                        {isSortable && (
-                          <Box
-                            className="hoverArrow"
-                            component="span"
-                            sx={{
-                              fontSize: '0.75rem',
-                              color: '#888',
-                              visibility: isActive ? 'visible' : 'hidden',
-                            }}
-                          >
-                            {displayArrow}
-                          </Box>
-                        )}
-                      </Box>
-                    </th>
-                  );
-                })}
+              {[
+                { key: 'elem',      label: 'Element'         },
+                { key: 'corrected', label: 'Corrected Value' },
+                { key: null,        label: 'Status'          }
+              ].map((col, i) => {
+                const isSortable = sortableKeys.includes(col.key);
+                const isActive   = sortConfig.key === col.key;
+                const arrow      = isActive
+                  ? (sortConfig.direction === 'asc' ? '▲' : '▼')
+                  : '⇅';
+
+                return (
+                  <th
+                    key={i}
+                    onClick={() => isSortable && handleSort(col.key)}
+                    style={{
+                      position: 'sticky',
+                      top: 0,
+                      background: '#f8f9fb',
+                      zIndex: 50,
+                      textAlign: 'left',
+                      padding: '10px 16px',
+                      fontWeight: 600,
+                      borderBottom: '1px solid #ccc',
+                      cursor: isSortable ? 'pointer' : 'default',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {col.label}
+                      {isSortable && (
+                        <Box component="span"
+                             sx={{ fontSize: '0.75rem', visibility: isActive ? 'visible' : 'hidden' }}>
+                          {arrow}
+                        </Box>
+                      )}
+                    </Box>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
-
           <tbody>
-            {sortedData.map((row, index) => (
+            {sortedData.map((row, idx) => (
               <AnalysisRow
-                key={row.elem || index}
+                key={row.elem || idx}
                 row={row}
                 isExpanded={expandedRows.has(row.elem)}
                 toggleRowExpansion={toggleRowExpansion}
