@@ -1,153 +1,116 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Box,
-  CircularProgress,
-  Typography,
-  Autocomplete,
-  TextField,
-  Alert,
-  LinearProgress,
+  Box, CircularProgress, Typography, Autocomplete,
+  TextField, Alert, LinearProgress,
 } from '@mui/material';
 import { Line } from 'react-chartjs-2';
-import Filter from './common/Filter'; // ✅ same Filter drawer you’re already using
+import Filter from './common/Filter';
 
 import {
-  Chart as ChartJS,
-  LineElement,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend,
+  Chart as ChartJS, LineElement, CategoryScale,
+  LinearScale, PointElement, Title, Tooltip, Legend,
 } from 'chart.js';
 
 ChartJS.register(
-  LineElement,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend
+  LineElement, CategoryScale, LinearScale,
+  PointElement, Title, Tooltip, Legend
 );
 
 const ElementGraph = () => {
-  /* ────────────── UI / filter state ────────────── */
-  const [elementOptions, setElementOptions] = useState([]);
-  const [selectedElement, setSelectedElement] = useState(null);
-
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [selectedFileId, setSelectedFileId] = useState('');
+  /* ── UI / filter state ── */
+  const [elementOptions, setElementOptions]     = useState([]);
+  const [selectedElement, setSelectedElement]   = useState(null);
+  const [uploadedFiles, setUploadedFiles]       = useState([]);
+  const [selectedFileId, setSelectedFileId]     = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState(null);
 
-  /* ────────────── data state ────────────── */
+  /* ── data state ── */
   const [graphData, setGraphData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState(null);
 
-  /* ────────────────────────────────────────────────
-     1.  Fetch list of elements (for the autocomplete)
-  ──────────────────────────────────────────────── */
+  /* 1️⃣ fetch element list once */
   useEffect(() => {
-    const fetchElements = async () => {
+    (async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/element-options`);
-        const json = await res.json();
-        const elements = json.elements || [];
+        const res     = await fetch(`${import.meta.env.VITE_API_URL}/element-options`);
+        const { elements = [] } = await res.json();
         setElementOptions(elements);
-        if (elements.length > 0 && !selectedElement) setSelectedElement(elements[0]);
+        if (elements.length && !selectedElement) {
+          setSelectedElement(elements[0]);
+        }
       } catch (err) {
         console.error('Failed to fetch element options:', err);
       }
-    };
-    fetchElements();
-  }, [selectedElement]);
+    })();
+  }, []);
 
-  /* ────────────────────────────────────────────────
-     2.  Fetch list of uploaded files (shown in Filter)
-  ──────────────────────────────────────────────── */
-  const fetchUploadedFiles = async (filters) => {
+  /* 2️⃣ fetch uploaded-file list (for the File filter dropdown) */
+  const fetchUploadedFiles = async (filters = null) => {
     setError(null);
     let url = `${import.meta.env.VITE_API_URL}/uploaded-files`;
 
     if (filters?.startDate && filters?.endDate) {
-      const params = new URLSearchParams({
-        start_date: filters.startDate,
-        end_date: filters.endDate,
-      });
-      url += `?${params.toString()}`;
+      url += `?start_date=${filters.startDate}&end_date=${filters.endDate}`;
     }
 
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-      const data = await res.json();
+      const res   = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data  = await res.json();
       const files = data.files ?? data.data ?? (Array.isArray(data) ? data : []);
       setUploadedFiles(files);
-
-      // If user cleared file filter, keep things sane:
-      if (files.length && !selectedFileId) {
-        setSelectedFileId(files[0].id ?? files[0].file_id);
-      }
     } catch (err) {
-      console.error('❌ Failed to load files:', err);
+      console.error('Failed to load files:', err);
       setError(`Failed to load files: ${err.message}`);
     }
   };
 
   useEffect(() => {
     fetchUploadedFiles();
-  }, []); // initial load
+  }, []);
 
-  /* ────────────────────────────────────────────────
-     3.  Handle filter drawer actions
-  ──────────────────────────────────────────────── */
+  /* 3️⃣ handle Filter drawer actions */
   const handleFilter = (payload) => {
     setError(null);
 
     if (payload.type === 'clear') {
-      setSelectedFileId('');
+      setSelectedFileId(null);
       setSelectedDateRange(null);
-      fetchUploadedFiles(); // reload full list
+      fetchUploadedFiles();   // reset file list
     } else if (payload.type === 'date') {
-      setSelectedFileId('');
+      setSelectedFileId(null);
       setSelectedDateRange({
         startDate: payload.startDate,
-        endDate: payload.endDate,
+        endDate:   payload.endDate,
       });
       fetchUploadedFiles({ startDate: payload.startDate, endDate: payload.endDate });
     } else if (payload.type === 'file') {
-      const fileId = payload.file.id ?? payload.file.file_id;
-      setSelectedFileId(fileId);
+      setSelectedFileId(payload.file.id ?? payload.file.file_id);
       setSelectedDateRange(null);
     }
   };
 
-  /* ────────────────────────────────────────────────
-     4.  Fetch graph data whenever element OR filters change
-  ──────────────────────────────────────────────── */
+  /* 4️⃣ fetch graph data whenever element OR filters change */
   useEffect(() => {
     if (!selectedElement) return;
 
-    const fetchGraph = async () => {
+    (async () => {
       setLoading(true);
       setError(null);
-
       try {
-        const base = `${import.meta.env.VITE_API_URL}/element-graph`;
+        const base   = `${import.meta.env.VITE_API_URL}/element-graph`;
         const params = new URLSearchParams({ element: selectedElement });
 
-        // prioritise: file → date → nothing
-        if (selectedFileId) params.append('file_id', selectedFileId);
-        else if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
+        if (selectedFileId) {
+          params.append('file_id', selectedFileId);
+        } else if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
           params.append('start_date', selectedDateRange.startDate);
-          params.append('end_date', selectedDateRange.endDate);
+          params.append('end_date',   selectedDateRange.endDate);
         }
 
         const res = await fetch(`${base}?${params.toString()}`);
-        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const { graphData } = await res.json();
         setGraphData(graphData);
       } catch (err) {
@@ -157,47 +120,38 @@ const ElementGraph = () => {
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchGraph();
+    })();
   }, [selectedElement, selectedFileId, selectedDateRange]);
 
-  /* ────────────────────────────────────────────────
-     5.  Chart.js configuration
-  ──────────────────────────────────────────────── */
+  /* 5️⃣ chart config */
   const chartConfig = {
     labels: graphData?.map(d => d.sample) || [],
-    datasets: [
-      {
-        label: selectedElement ? `${selectedElement} (Corrected)` : '',
-        data: graphData?.map(d => d.value) || [],
-        borderColor: 'rgba(0,0,0,.4)',
-        borderWidth: 0.5,
-        backgroundColor: graphData?.map(d =>
-          d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
-        ),
-        pointBorderColor: graphData?.map(d =>
-          d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
-        ),
-        pointBackgroundColor: graphData?.map(d =>
-          d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
-        ),
-        fill: false,
-        tension: 0.3,
-        pointRadius: 4,
-        pointHoverRadius: 5,
-      },
-    ],
+    datasets: [{
+      label: selectedElement ? `${selectedElement} (Corrected)` : '',
+      data:  graphData?.map(d => d.value) || [],
+      borderColor: 'rgba(0,0,0,.4)',
+      borderWidth: .5,
+      backgroundColor: graphData?.map(d =>
+        d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
+      ),
+      pointBorderColor: graphData?.map(d =>
+        d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
+      ),
+      pointBackgroundColor: graphData?.map(d =>
+        d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
+      ),
+      fill: false,
+      tension: .3,
+      pointRadius: 4,
+      pointHoverRadius: 5,
+    }],
   };
 
   const chartOptions = {
     responsive: true,
     plugins: {
       legend: { position: 'top' },
-      title: {
-        display: true,
-        text: selectedElement ? `Element: ${selectedElement}` : '',
-      },
+      title:  { display: !!selectedElement, text: `Element: ${selectedElement}` },
     },
     scales: {
       x: {
@@ -211,21 +165,16 @@ const ElementGraph = () => {
     },
   };
 
-  /* ────────────────────────────────────────────────
-     6.  Render
-  ──────────────────────────────────────────────── */
+  /* 6️⃣ render */
   return (
     <Box sx={{ p: 3 }}>
-      {/* search + filter row */}
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
         <Autocomplete
           options={elementOptions}
           value={selectedElement}
-          onChange={(_, newVal) => setSelectedElement(newVal)}
+          onChange={(_, v) => setSelectedElement(v)}
           sx={{ flexGrow: 1 }}
-          renderInput={(params) => (
-            <TextField {...params} label="Select Element" variant="outlined" size="small" />
-          )}
+          renderInput={(p) => <TextField {...p} label="Select Element" size="small" />}
         />
 
         <Filter
@@ -236,11 +185,7 @@ const ElementGraph = () => {
         />
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+      {error   && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading && <LinearProgress sx={{ mb: 2 }} />}
 
       <Box

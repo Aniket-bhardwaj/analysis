@@ -6,7 +6,10 @@ class ElementController {
   try {
     const { element, file_id, start_date, end_date } = req.query;
 
-    // Pass everything to a single service method:
+    // Only one of these will be set at a time:
+    // • element                              → no filters
+    // • element + start_date + end_date      → date filter
+    // • element + file_id                    → file filter
     const graphData = await ElementService.fetchElementData(element, {
       file_id,
       start_date,

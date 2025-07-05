@@ -17,22 +17,27 @@ class ElementService {
     return [...new Set([...MEconc, ...TEconc])];
   }
 
-  static async fetchElementData(elementName, { file_id = null, start_date = null, end_date = null } = {}) {
+  // services/ElementService.js
+static async fetchElementData(
+  elementName,
+  { file_id = null, start_date = null, end_date = null } = {}
+) {
   try {
-    // build the name of the “corrected” column:
     const correctedElement = `${elementName}_Corrected`;
 
-    // this one call handles all filtering internally:
+    // Pass the filter options down to the model
     const rawRows = await ElementModel.getElementCorrectedValuesDetailed(
       correctedElement,
       { file_id, start_date, end_date }
     );
 
     const result = [];
+
     for (const row of rawRows) {
       const { sample_name, value, type, file_id: rowFileId } = row;
       const qcl = qclMap[type];
       const elementList = concMap[type];
+
       if (!qcl || !elementList.includes(elementName)) continue;
 
       const avgRow = await SampleModel.getAvg(rowFileId, qcl, [elementName]);
@@ -40,6 +45,7 @@ class ElementService {
 
       let status = '-';
       let error  = null;
+
       if (avg != null) {
         const target = type === 1 ? 5 : 50;
         const lower  = target * 0.9;
@@ -48,7 +54,12 @@ class ElementService {
         error  = ((Math.abs(avg - target) / target) * 100).toFixed(2);
       }
 
-      result.push({ sample: sample_name, value, status, error });
+      result.push({
+        sample: sample_name,
+        value,
+        status,
+        error
+      });
     }
 
     return result;
