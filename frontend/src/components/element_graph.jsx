@@ -75,22 +75,31 @@ const ElementGraph = () => {
   }, [selectedElement]);
 
   const chartConfig = {
-    labels: graphData?.labels || [],
+    labels: graphData?.map(d => d.sample) || [],
     datasets: [
       {
         label: selectedElement ? `${selectedElement} (Corrected)` : '',
-        data: graphData?.data || [],
-        borderColor: '#1976d2',
-        backgroundColor: '#1976d2',
+        data: graphData?.map(d => d.value) || [],
+        borderColor: 'rgba(0, 0, 0, 0.4)', // light grey line
+        borderWidth: 0.5,      // <- Thicker line
+        backgroundColor: graphData?.map(d =>
+          d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
+        ),
+        pointBorderColor: graphData?.map(d =>
+          d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
+        ),
+        pointBackgroundColor: graphData?.map(d =>
+          d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
+        ),
         fill: false,
         tension: 0.3,
         pointRadius: 4,
-        pointHoverRadius: 6,
+        pointHoverRadius: 5,
       }
     ]
-    
   };
-//   console.log('graphData for chart config:', graphData);
+  
+  //   console.log('graphData for chart config:', graphData);
   
   
 

@@ -59,7 +59,7 @@ class SampleService {
       }
 
       // Fetch value and status from avg & rsd tables
-      const { avgRow, rsdRow } = await TableModel.getAvgAndRsdRows(fileId, qcl[csvType], cleanedElementName);
+      const { avgRow, rsdRow } = await TableModel.getAvgAndRsdRows(fileId, qcl[csvType], cleanedElementName); 
 
       return {
         element: cleanedElementName,

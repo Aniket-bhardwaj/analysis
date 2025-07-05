@@ -6,12 +6,13 @@ class ElementController {
     try {
       const elementName = req.query.element;
       const graphData = await ElementService.fetchElementData(elementName);
-      res.json({ graphData });
+      res.json({ graphData });  // Now includes status, value, error, sample
     } catch (error) {
       console.error('Error in getElementInspectorData:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   }
+  
 
   static async getElementOptions(req, res) {
     try {
