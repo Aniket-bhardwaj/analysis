@@ -17,52 +17,46 @@ class ElementService {
     return [...new Set([...MEconc, ...TEconc])];
   }
 
-  static async fetchElementData(elementName) {
-    try {
-      const correctedElement = `${elementName}_Corrected`;
-      const rawRows = await ElementModel.getElementCorrectedValuesDetailed(correctedElement);
-  
-      const result = [];
-  
-      for (const row of rawRows) {
-        const { sample_name, value, type, file_id } = row;
-        const qcl = qclMap[type];
-        const elementList = concMap[type];
-  
-        if (!qcl || !elementList.includes(elementName)) continue;
-  
-        const avgRow = await SampleModel.getAvg(file_id, qcl, [elementName]);
-        const avg = avgRow[elementName];
-  
-        let error = null;
-        let status = '-';
-  
-        if (avg != null) {
-          // ✅ Use fixed target (5 or 50) depending on type
-          const target = type === 1 ? 5 : 50;
-          const lower = target * 0.9;
-          const upper = target * 1.1;
-  
-          status = avg >= lower && avg <= upper ? 'Pass' : 'Fail';
-  
-        }
-  
-        result.push({
-          sample: sample_name,
-          value,
-          status,
-          error: error?.toFixed(2) || null
-        });
+  static async fetchElementData(elementName, { file_id = null, start_date = null, end_date = null } = {}) {
+  try {
+    // build the name of the “corrected” column:
+    const correctedElement = `${elementName}_Corrected`;
+
+    // this one call handles all filtering internally:
+    const rawRows = await ElementModel.getElementCorrectedValuesDetailed(
+      correctedElement,
+      { file_id, start_date, end_date }
+    );
+
+    const result = [];
+    for (const row of rawRows) {
+      const { sample_name, value, type, file_id: rowFileId } = row;
+      const qcl = qclMap[type];
+      const elementList = concMap[type];
+      if (!qcl || !elementList.includes(elementName)) continue;
+
+      const avgRow = await SampleModel.getAvg(rowFileId, qcl, [elementName]);
+      const avg = avgRow[elementName];
+
+      let status = '-';
+      let error  = null;
+      if (avg != null) {
+        const target = type === 1 ? 5 : 50;
+        const lower  = target * 0.9;
+        const upper  = target * 1.1;
+        status = avg >= lower && avg <= upper ? 'Pass' : 'Fail';
+        error  = ((Math.abs(avg - target) / target) * 100).toFixed(2);
       }
-      // console.log('result:' ,result);
-  
-      return result;
-  
-    } catch (err) {
-      console.error('Error in fetchElementData:', err);
-      throw err;
+
+      result.push({ sample: sample_name, value, status, error });
     }
+
+    return result;
+  } catch (err) {
+    console.error('Error in fetchElementData:', err);
+    throw err;
   }
+}
   
 }
 
