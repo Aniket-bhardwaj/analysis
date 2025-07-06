@@ -39,18 +39,20 @@ const sampleRoutes = require('./routes/sample')
 const elementRoutes = require('./routes/element');
 
 //  Mount all app routes at `/` (except auth)
-app.use('/', uploadRoutes);
-app.use('/', listRoutes);
-app.use('/', previewRoutes);
-app.use('/', hideRoutes);
-app.use('/', graphRoutes);
-app.use('/', tableRoutes);
-app.use('/', downloadRoutes);
-app.use('/', qcCheckRoutes);
-app.use('/auth', authRoutes);
-app.use('/', dashboardRoutes);
-app.use('/',sampleRoutes);
-app.use('/', elementRoutes);
+// Mount all app routes at `/api` (except auth which is under /api/auth)
+app.use('/api', uploadRoutes);
+app.use('/api', listRoutes);
+app.use('/api', previewRoutes);
+app.use('/api', hideRoutes);
+app.use('/api', graphRoutes);
+app.use('/api', tableRoutes);
+app.use('/api', downloadRoutes);
+app.use('/api', qcCheckRoutes);
+app.use('/api', dashboardRoutes);
+app.use('/api', sampleRoutes);
+app.use('/api', elementRoutes);
+app.use('/api/auth', authRoutes); 
+
 
 
 // Fallback for unknown routes
