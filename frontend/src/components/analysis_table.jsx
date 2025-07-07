@@ -9,6 +9,8 @@ const AnalysisTable = () => {
   const [tableData, setTableData]           = useState([]);
   const [sortConfig, setSortConfig]         = useState({ key: '', direction: '' });
   const [expandedRows, setExpandedRows]     = useState(new Set());
+  const [fileLinks, setFileLinks] = useState([]);
+
 
   const API = import.meta.env.VITE_API_URL;
 
@@ -43,7 +45,8 @@ const AnalysisTable = () => {
           `${API}/sample-table?sampleId=${selectedSample.id}`
         );
         const data = await res.json();
-        setTableData(data.tableData || []);
+        setTableData(Array.isArray(data.tableData) ? data.tableData : []);
+setFileLinks(Array.isArray(data.fileLinks) ? data.fileLinks : []);
       } catch (err) {
         console.error('Failed to fetch table data', err);
         setTableData([]);
@@ -101,6 +104,33 @@ const AnalysisTable = () => {
             />
           }
         />
+
+{fileLinks.length > 0 && (
+  <Box sx={{ mt: 1, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+    {fileLinks.map((file) => (
+      <Box
+        key={file.id}
+        component="a"
+        href={`/data-manager?fileId=${file.id}`}
+        sx={{
+          padding: '6px 12px',
+          backgroundColor: '#f1f5f9',
+          borderRadius: '8px',
+          fontSize: '0.85rem',
+          textDecoration: 'none',
+          color: '#333',
+          border: '1px solid #ccc',
+          '&:hover': {
+            backgroundColor: '#e2e8f0',
+          },
+        }}
+      >
+        {file.filename}
+      </Box>
+    ))}
+  </Box>
+)}
+
       </Box>
 
       {/* Data table */}
@@ -111,7 +141,7 @@ const AnalysisTable = () => {
               {[
                 { key: 'elem',      label: 'Element'         },
                 { key: 'corrected', label: 'Corrected Value' },
-                { key: null,        label: 'Status'          }
+                { key: null,        label: 'QC Check'          }
               ].map((col, i) => {
                 const isSortable = sortableKeys.includes(col.key);
                 const isActive   = sortConfig.key === col.key;

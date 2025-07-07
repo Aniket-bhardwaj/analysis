@@ -113,6 +113,22 @@ static async getSampleRowByIdAndColumns(sampleId, columnNames) {
       });
     });
   }
+
+  static async getFileNamesByFileIds(fileIds) {
+    const placeholders = fileIds.map(() => '?').join(', ');
+    const sql = `
+      SELECT id, filename
+      FROM uploaded_files
+      WHERE id IN (${placeholders})
+    `;
+  
+    return new Promise((resolve, reject) => {
+      db.all(sql, fileIds, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows); // [{ id: 1, filename: 'abc.csv' }, ...]
+      });
+    });
+  }
   
 
 }

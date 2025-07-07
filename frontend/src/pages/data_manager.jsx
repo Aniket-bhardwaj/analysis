@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/navbar';
+import { useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -56,6 +57,12 @@ const DataManagerPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const ROWS_PER_PAGE = 10;
   const navigate = useNavigate();
+
+
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const selectedFileIdFromRoute = searchParams.get('fileId');
+  
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -185,6 +192,23 @@ const DataManagerPage = () => {
   useEffect(() => {
     setPage(1);
   }, [searchQuery]);
+
+  const [selectedFileId, setSelectedFileId] = useState(null);
+  useEffect(() => {
+    if (selectedFileIdFromRoute && files.length > 0) {
+      const id = Number(selectedFileIdFromRoute);
+      const exists = files.some((file) => file.id === id);
+      if (exists) setSelectedFileId(id);
+    }
+  }, [selectedFileIdFromRoute, files]); // ✅ now also runs when files update
+
+  // useEffect(() => {
+  //   console.log('Files loaded:', files.map(f => f.id));
+  //   console.log('SelectedFileIdFromRoute:', selectedFileIdFromRoute);
+  //   console.log('SelectedFileId:', selectedFileId);
+  // }, [files, selectedFileIdFromRoute, selectedFileId]);
+  
+
 
   const handleDelete = async (id) => {
     setConfirmDialogOpen(false);
@@ -380,7 +404,11 @@ const DataManagerPage = () => {
                 </TableHead>
                 <TableBody>
                   {paginatedFiles.map((file, index) => (
-                    <TableRow key={file.id} className="table-row">
+                     <TableRow
+                     key={file.id}
+                     className={`table-row ${file.id === selectedFileId ? 'highlighted-row' : ''}`}
+                   >
+                      {/* {console.log('Row:', file.id, '==', selectedFileId, file.id === selectedFileId)} */}
                       <TableCell className="table-cell">
                         {(page - 1) * ROWS_PER_PAGE + index + 1}
                       </TableCell>

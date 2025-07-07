@@ -469,6 +469,10 @@
   border-spacing: 0 8px !important;
 }
 
+.highlighted-row {
+  background-color: #d2ebfc !important;
+}
+
 .table-row {
   background-color: #fff;
   border-radius: 6px;
