@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Box, Autocomplete, TextField } from '@mui/material';
+import { Box, Autocomplete, TextField, Typography  } from '@mui/material';
 import AnalysisRow from './AnalysisRow';
 
 const AnalysisTable = () => {
@@ -95,41 +95,49 @@ setFileLinks(Array.isArray(data.fileLinks) ? data.fileLinks : []);
           getOptionLabel={(opt) => opt.name || ''}
           value={selectedSample}
           onChange={(e, val) => setSelectedSample(val)}
+          sx={{ width: 300 }} // Set desired width here
           renderInput={(params) =>
             <TextField
               {...params}
               label="Search Sample"
               size="small"
-              fullWidth
             />
           }
         />
 
 {fileLinks.length > 0 && (
-  <Box sx={{ mt: 1, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-    {fileLinks.map((file) => (
-      <Box
-        key={file.id}
-        component="a"
-        href={`/data-manager?fileId=${file.id}`}
-        sx={{
-          padding: '6px 12px',
-          backgroundColor: '#f1f5f9',
-          borderRadius: '8px',
-          fontSize: '0.85rem',
-          textDecoration: 'none',
-          color: '#333',
-          border: '1px solid #ccc',
-          '&:hover': {
-            backgroundColor: '#e2e8f0',
-          },
-        }}
-      >
-        {file.filename}
-      </Box>
+  <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+    <Typography
+      variant="body2"
+      sx={{
+        fontWeight: 'normal',
+        fontFamily: 'Poppins, sans-serif',
+      }}
+    >
+      Source Filename:
+    </Typography>
+
+    {fileLinks.map((file, index) => (
+      <span key={file.id} style={{ fontFamily: 'Poppins, sans-serif', fontSize: '0.85rem' }}>
+        <Box
+          component="a"
+          href={`/data-manager?fileId=${file.id}`}
+          sx={{
+            color: '#1e40af',
+            textDecoration: 'none',
+            '&:hover': {
+              textDecoration: 'underline',
+            },
+          }}
+        >
+          {file.filename}
+        </Box>
+        {index < fileLinks.length - 1 && ','}
+      </span>
     ))}
   </Box>
 )}
+
 
       </Box>
 

@@ -167,15 +167,15 @@ const ElementGraph = () => {
 
   /* 6️⃣ render */
   return (
-    <Box sx={{ p: 3 }}>
+   <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
         <Autocomplete
           options={elementOptions}
           value={selectedElement}
           onChange={(_, v) => setSelectedElement(v)}
-          sx={{ flexGrow: 1 }}
+          sx={{ width: 300 }} // Set desired width here
           renderInput={(p) => <TextField {...p} label="Select Element" size="small" />}
-        />
+        /> 
 
         <Filter
           uploadedFiles={uploadedFiles}
