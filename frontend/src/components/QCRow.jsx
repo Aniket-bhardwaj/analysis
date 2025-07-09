@@ -18,7 +18,6 @@ import {
   Error as ErrorIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
-  RemoveCircleOutline as RemoveCircleOutlineIcon,  // ← import the minus-circle
 } from '@mui/icons-material';
 import MiniChart from './MiniChart';
 
@@ -32,12 +31,13 @@ const QCRow = ({
   miniSortConfig,
   sortMiniTable,
 }) => {
-  // Main‐row status: if isWithinTolerance is null/undefined → minus icon
-  const statusInfo = row.isWithinTolerance == null
-    ? { icon: <RemoveCircleOutlineIcon />, label: '', color: 'default' }
-    : row.isWithinTolerance
-      ? { icon: <CheckCircleIcon />,     label: 'Pass', color: 'success' }
-      : { icon: <ErrorIcon />,           label: 'Fail', color: 'error' };
+  // Main-row status: if isWithinTolerance is null/undefined → N/A
+  const statusInfo =
+    row.isWithinTolerance == null
+      ? { icon: null, label: 'N/A', color: 'default' }
+      : row.isWithinTolerance
+      ? { icon: <CheckCircleIcon />, label: 'Pass', color: 'success' }
+      : { icon: <ErrorIcon />, label: 'Fail', color: 'error' };
 
   return (
     <>
@@ -52,24 +52,30 @@ const QCRow = ({
             </Typography>
           </Box>
         </TableCell>
+        <TableCell>{row.valueAvg != null ? row.valueAvg : 'N/A'}</TableCell>
         <TableCell>
-          {row.valueAvg != null
-            ? row.valueAvg
-            : <RemoveCircleOutlineIcon fontSize="small" />}   {/* no-data icon */}
+          {row.rsd != null ? (
+            <Typography
+              color={
+                row.rsd > 10 ? 'error' : row.rsd > 5 ? 'warning.main' : 'success.main'
+              }
+            >
+              {row.rsd}%
+            </Typography>
+          ) : (
+            'N/A'
+          )}
         </TableCell>
         <TableCell>
-          {row.rsd != null
-            ? <Typography color={row.rsd > 10 ? 'error' : row.rsd > 5 ? 'warning.main' : 'success.main'}>
-                {row.rsd}%
-              </Typography>
-            : <RemoveCircleOutlineIcon fontSize="small" />}
-        </TableCell>
-        <TableCell>
-          {row.errorPercentage != null
-            ? <Typography color={row.errorPercentage > 10 ? 'error' : 'success.main'}>
-                {row.errorPercentage}%
-              </Typography>
-            : <RemoveCircleOutlineIcon fontSize="small" />}
+          {row.errorPercentage != null ? (
+            <Typography
+              color={row.errorPercentage > 10 ? 'error' : 'success.main'}
+            >
+              {row.errorPercentage}%
+            </Typography>
+          ) : (
+            'N/A'
+          )}
         </TableCell>
         <TableCell>
           <Chip
@@ -77,7 +83,7 @@ const QCRow = ({
             label={statusInfo.label}
             color={statusInfo.color}
             size="small"
-            variant="outlined"
+            variant={statusInfo.label === 'N/A' ? 'filled' : 'outlined'}
           />
         </TableCell>
       </TableRow>
@@ -86,14 +92,25 @@ const QCRow = ({
         <TableCell colSpan={6} sx={{ py: 0 }}>
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
             <Box sx={{ px: 4, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
-              <Box sx={{ maxHeight: 400, overflowY: 'auto', position: 'relative' }}>
+              <Box
+                sx={{ maxHeight: 400, overflowY: 'auto', position: 'relative' }}
+              >
                 <Table size="small">
-                  <TableHead sx={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: '#f0f0f0' }}>
+                  <TableHead
+                    sx={{
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 2,
+                      backgroundColor: '#f0f0f0',
+                    }}
+                  >
                     <TableRow>
                       <TableCell sx={{ fontWeight: 600 }}>
                         <TableSortLabel
                           active={miniSortConfig[row.element]?.key === 'timestamp'}
-                          direction={miniSortConfig[row.element]?.direction || 'asc'}
+                          direction={
+                            miniSortConfig[row.element]?.direction || 'asc'
+                          }
                           onClick={() => sortMiniTable(row.element, 'timestamp')}
                         >
                           Timestamp
@@ -102,7 +119,9 @@ const QCRow = ({
                       <TableCell sx={{ fontWeight: 600 }}>
                         <TableSortLabel
                           active={miniSortConfig[row.element]?.key === 'value'}
-                          direction={miniSortConfig[row.element]?.direction || 'asc'}
+                          direction={
+                            miniSortConfig[row.element]?.direction || 'asc'
+                          }
                           onClick={() => sortMiniTable(row.element, 'value')}
                         >
                           Value
@@ -110,9 +129,15 @@ const QCRow = ({
                       </TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>
                         <TableSortLabel
-                          active={miniSortConfig[row.element]?.key === 'errorPercentage'}
-                          direction={miniSortConfig[row.element]?.direction || 'asc'}
-                          onClick={() => sortMiniTable(row.element, 'errorPercentage')}
+                          active={
+                            miniSortConfig[row.element]?.key === 'errorPercentage'
+                          }
+                          direction={
+                            miniSortConfig[row.element]?.direction || 'asc'
+                          }
+                          onClick={() =>
+                            sortMiniTable(row.element, 'errorPercentage')
+                          }
                         >
                           Error%
                         </TableSortLabel>
@@ -123,13 +148,17 @@ const QCRow = ({
 
                   <TableBody>
                     {(miniTableData.data || []).map((entry, i) => {
-                      // mini-row status: undefined/null → minus icon
+                      // mini-row status: undefined/null → N/A
                       const miniStatus =
                         entry.status == null
-                          ? { icon: <RemoveCircleOutlineIcon />, label: '',       color: 'default' }
+                          ? { icon: null, label: 'N/A', color: 'default' }
                           : entry.status === 'Pass'
-                            ? { icon: <CheckCircleIcon />,     label: 'Pass',   color: 'success' }
-                            : { icon: <ErrorIcon />,           label: 'Fail',   color: 'error' };
+                          ? {
+                              icon: <CheckCircleIcon />,
+                              label: 'Pass',
+                              color: 'success',
+                            }
+                          : { icon: <ErrorIcon />, label: 'Fail', color: 'error' };
 
                       return (
                         <TableRow key={i}>
@@ -142,7 +171,7 @@ const QCRow = ({
                               label={miniStatus.label}
                               color={miniStatus.color}
                               size="small"
-                              variant="outlined"
+                              variant={miniStatus.label === 'N/A' ? 'filled' : 'outlined'}
                             />
                           </TableCell>
                         </TableRow>
