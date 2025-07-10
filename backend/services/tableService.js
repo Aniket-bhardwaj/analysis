@@ -104,7 +104,7 @@ static generateSJSTableFromRows(avgRow, rsdRow, sjsStdRow, errorRow) {
     const isWithinTolerance = sjsValid ? actualErrorPercent <= errorAllowedPercent : null;
 
     return {
-      element: col,
+      element: col.replace('_Corrected', ''),
       valueAvg: avg !== null && avg !== undefined ? +avg.toFixed(3) : null,
       sjsStd: !isNaN(sjsStd) ? +sjsStd.toFixed(3) : null,
       errorAllowedPercent: errorAllowedPercent !== null ? +errorAllowedPercent.toFixed(2) : null,

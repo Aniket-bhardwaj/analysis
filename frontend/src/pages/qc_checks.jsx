@@ -45,16 +45,38 @@ const QCChecks = () => {
   const sjsTableRef = useRef(null);
 
   useEffect(() => {
-    if (!selectedFileId || !section) return;
+    if (!section) return;
     const scrollTarget =
       section === 'lab-standards' ? qcTableRef : section === 'sjs-standards' ? sjsTableRef : null;
-
+  
     if (scrollTarget?.current) {
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         scrollTarget.current.scrollIntoView({ behavior: 'auto', block: 'start' });
-      }, 100);
+      });
     }
-  }, [selectedFileId, section]);
+  }, [section]);
+
+
+  useEffect(() => {
+    const handler = (e) => {
+      const targetRoute = e.detail; // e.g. "/qc-checks/lab-standards"
+      const section = targetRoute.split('/').pop(); // "lab-standards" or "sjs-standards"
+  
+      const scrollTarget =
+        section === 'lab-standards' ? qcTableRef : section === 'sjs-standards' ? sjsTableRef : null;
+  
+      if (scrollTarget?.current) {
+        requestAnimationFrame(() => {
+          scrollTarget.current.scrollIntoView({ behavior: 'auto', block: 'start' });
+        });
+      }
+    };
+  
+    window.addEventListener('forceScrollToSection', handler);
+    return () => window.removeEventListener('forceScrollToSection', handler);
+  }, []);
+  
+  
 
   const fetchFileMeta = async (fileId) => {
     try {

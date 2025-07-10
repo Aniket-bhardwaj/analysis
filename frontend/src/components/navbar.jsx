@@ -111,7 +111,10 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
               ].map((subItem) => (
                 <ListItem key={subItem.text} disablePadding>
                   <ListItemButton
-                    onClick={() => handleItemClick(subItem.text, subItem.route)}
+                    onClick={() => {
+                      handleItemClick(subItem.text, subItem.route);
+                      window.dispatchEvent(new CustomEvent('forceScrollToSection', { detail: subItem.route }));
+                    }}
                     className={`menu-button ${selectedItem === subItem.text ? 'menu-button-selected' : 'menu-button-default'}`}
                     sx={{ pl: 9, minHeight: 0 }}
                   >

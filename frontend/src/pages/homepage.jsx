@@ -1,5 +1,3 @@
-
-//
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Chart as ChartJS,
@@ -8,8 +6,9 @@ import {
   PointElement,
   LineElement,
   Title,
-  Tooltip as ChartTooltip,
-  Legend as ChartLegend
+  Tooltip,
+  Legend,
+  Filler,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import {
@@ -32,8 +31,9 @@ ChartJS.register(
   PointElement,
   LineElement,
   Title,
-  ChartTooltip,
-  ChartLegend
+  Tooltip,
+  Legend,
+  Filler
 );
 
 const DashboardPage = () => {
@@ -99,17 +99,22 @@ const DashboardPage = () => {
     return `${d.getDate()}/${d.getMonth() + 1}`;
   };
   
-  // Format ms → "DD/MM" - Used by Chart.js
-  const fmtDateOnly = (ms) => {
+  // ✅ Format date+time → "2 Jul, 10:00 AM"
+  const fmtDateTime = (ms) => {
     const d = new Date(ms);
-    return isNaN(d) ? '' : d.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short'
-    });
+    return isNaN(d)
+      ? ''
+      : d.toLocaleString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
   };
 
-  // Build sorted labels & values arrays for Chart.js
-  const { labels, values } = useMemo(() => {
+   // Build sorted labels & values arrays
+   const { labels, values } = useMemo(() => {
     if (
       !dashboardData?.qcGraphData?.success ||
       !selectedElement ||
@@ -120,21 +125,18 @@ const DashboardPage = () => {
     const raw = dashboardData.qcGraphData.graphData[selectedElement];
     const pts = raw
       .map((r) => {
-        // NOTE: Ensure the source data has a 'timestamp' property.
-        // If the property is 'sample', change r.timestamp to r.sample
-        const ms = new Date(r.timestamp).getTime(); 
+        const ms = new Date(r.timestamp).getTime();
         return { ms, value: Number(r.value) };
       })
       .filter((p) => !isNaN(p.ms) && !isNaN(p.value))
       .sort((a, b) => a.ms - b.ms);
 
     return {
-      labels: pts.map((p) => fmtDateOnly(p.ms)),
+      labels: pts.map((p) => fmtDateTime(p.ms)),
       values: pts.map((p) => p.value)
     };
   }, [dashboardData, selectedElement]);
 
-  // Chart.js dataset
   const chartData = useMemo(() => ({
     labels,
     datasets: [
@@ -145,22 +147,20 @@ const DashboardPage = () => {
         borderWidth: 2,
         tension: 0.3,
         fill: false,
-        pointRadius: 0,
+        pointRadius: 3,
         pointHoverRadius: 6,
         pointHitRadius: 15
       }
     ]
   }), [labels, values, selectedElement]);
 
-  // Chart.js options
   const chartOptions = useMemo(() => {
     const min = Math.min(...values);
     const max = Math.max(...values);
-    const variation = (max - min) || max * 0.1 || 1; // Add fallback for empty data
+    const variation = (max - min) || max * 0.1 || 1;
     const yMin = min - variation;
     const yMax = max + variation;
 
-    let lastTick = null;
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -169,15 +169,9 @@ const DashboardPage = () => {
           type: 'category',
           grid: { display: false },
           ticks: {
-            autoSkip: false,
-            callback: (val, idx) => {
-              const lbl = labels[idx];
-              if (lbl !== lastTick) {
-                lastTick = lbl;
-                return lbl;
-              }
-              return '';
-            }
+            autoSkip: true,
+            maxTicksLimit: 10, // adjust as needed
+            callback: (val, idx) => labels[idx] || ''
           }
         },
         y: {
@@ -191,13 +185,19 @@ const DashboardPage = () => {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            title: (items) => `Date: ${items[0].label}`,
+            title: (items) => {
+              const idx = items[0].dataIndex;
+              const rawTimestamp = dashboardData?.qcGraphData?.graphData?.[selectedElement]?.[idx]?.timestamp;
+              return rawTimestamp
+                ? `Timestamp: ${new Date(rawTimestamp).toLocaleString()}`
+                : items[0].label;
+            },
             label: (ctx) => `${selectedElement}: ${ctx.parsed.y.toFixed(2)}`
           }
         }
       }
     };
-  }, [labels, values, selectedElement]);
+  }, [labels, values, selectedElement, dashboardData]);
 
   if (loading && !dashboardData) {
     return (
@@ -301,7 +301,7 @@ const DashboardPage = () => {
         <div className="charts-container">
           {/* QC Graph Chart */}
           <div className="chart-card chart-main">
-            <div className="chart-header">
+          <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 className="chart-title">QC Element Trends (Past Week)</h3>
               {availableElements.length > 0 && (
                 <div className="element-selector">

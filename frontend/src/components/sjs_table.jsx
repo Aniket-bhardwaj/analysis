@@ -169,9 +169,14 @@ const SJSTable = ({ selectedFileId, startDate, endDate }) => {
                     py: 1
                 }}
             >
-                <Typography variant="h6" sx={{ pl: 1 }}>
-                    SJS Table
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'baseline', pl: 1 }}>
+    <Typography variant="h6">
+        Standard Quality Analysis
+    </Typography>
+    <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+        (*All values shown below are corrected)
+    </Typography>
+</Box>
             </Box>
 
             <table
