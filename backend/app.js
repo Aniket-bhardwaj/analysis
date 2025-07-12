@@ -3,7 +3,6 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 
-const { generateFakeFiles } = require('./populatedb'); 
 
 // Initialize app
 const app = express();
@@ -40,18 +39,18 @@ const elementRoutes = require('./routes/element');
 
 //  Mount all app routes at `/` (except auth)
 // Mount all app routes at `/api` (except auth which is under /api/auth)
-app.use('/api', uploadRoutes);
-app.use('/api', listRoutes);
-app.use('/api', previewRoutes);
-app.use('/api', hideRoutes);
-app.use('/api', graphRoutes);
-app.use('/api', tableRoutes);
-app.use('/api', downloadRoutes);
-app.use('/api', qcCheckRoutes);
-app.use('/api', dashboardRoutes);
-app.use('/api', sampleRoutes);
-app.use('/api', elementRoutes);
-app.use('/api/auth', authRoutes); 
+app.use('/', uploadRoutes);
+app.use('/', listRoutes);
+app.use('/', previewRoutes);
+app.use('/', hideRoutes);
+app.use('/', graphRoutes);
+app.use('/', tableRoutes);
+app.use('/', downloadRoutes);
+app.use('/', qcCheckRoutes);
+app.use('/', dashboardRoutes);
+app.use('/', sampleRoutes);
+app.use('/', elementRoutes);
+app.use('/auth', authRoutes);
 
 
 
@@ -61,26 +60,6 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-async function insertFakeData() {
-  try{
-    console.log('Generating fake data...');
-    await generateFakeFiles();
-    console.log('Fake data generation completed');
-    
-    // Start server
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-    
-  } catch (error) {
-    console.error('Failed to generate fake data:', error);
-    console.log('Starting server anyway...');
-    
-    // Start server even if fake data generation fails
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }
-}
-
-insertFakeData();
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
