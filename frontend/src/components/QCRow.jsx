@@ -44,11 +44,11 @@ const QCRow = ({
       <TableRow hover>
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton size="small" onClick={() => toggleRowExpansion(row.element)}>
+            <IconButton size="small" onClick={() => toggleRowExpansion(row.fullElementName)}>
               {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </IconButton>
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              {row.element}
+              {row.fullElementName}
             </Typography>
           </Box>
         </TableCell>
@@ -107,22 +107,22 @@ const QCRow = ({
                     <TableRow>
                       <TableCell sx={{ fontWeight: 600 }}>
                         <TableSortLabel
-                          active={miniSortConfig[row.element]?.key === 'timestamp'}
+                          active={miniSortConfig[row.fullElementName]?.key === 'timestamp'}
                           direction={
-                            miniSortConfig[row.element]?.direction || 'asc'
+                            miniSortConfig[row.fullElementName]?.direction || 'asc'
                           }
-                          onClick={() => sortMiniTable(row.element, 'timestamp')}
+                          onClick={() => sortMiniTable(row.fullElementName, 'timestamp')}
                         >
                           Timestamp
                         </TableSortLabel>
                       </TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>
                         <TableSortLabel
-                          active={miniSortConfig[row.element]?.key === 'value'}
+                          active={miniSortConfig[row.fullElementName]?.key === 'value'}
                           direction={
-                            miniSortConfig[row.element]?.direction || 'asc'
+                            miniSortConfig[row.fullElementName]?.direction || 'asc'
                           }
-                          onClick={() => sortMiniTable(row.element, 'value')}
+                          onClick={() => sortMiniTable(row.fullElementName, 'value')}
                         >
                           Value
                         </TableSortLabel>
@@ -130,13 +130,13 @@ const QCRow = ({
                       <TableCell sx={{ fontWeight: 600 }}>
                         <TableSortLabel
                           active={
-                            miniSortConfig[row.element]?.key === 'errorPercentage'
+                            miniSortConfig[row.fullElementName]?.key === 'errorPercentage'
                           }
                           direction={
-                            miniSortConfig[row.element]?.direction || 'asc'
+                            miniSortConfig[row.fullElementName]?.direction || 'asc'
                           }
                           onClick={() =>
-                            sortMiniTable(row.element, 'errorPercentage')
+                            sortMiniTable(row.fullElementName, 'errorPercentage')
                           }
                         >
                           Error%
@@ -185,7 +185,7 @@ const QCRow = ({
                   <Pagination
                     count={Math.ceil(miniTableData.totalItems / pageSize)}
                     page={miniTableData.currentPage}
-                    onChange={(e, v) => handleMiniTablePageChange(row.element, v)}
+                    onChange={(e, v) => handleMiniTablePageChange(row.fullElementName, v)}
                     color="primary"
                     size="small"
                   />

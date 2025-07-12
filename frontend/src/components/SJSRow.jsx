@@ -71,7 +71,7 @@ const SJSRow = ({
               {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </IconButton>
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              {row.element}
+              {row.fullElementName}
             </Typography>
           </Box>
         </TableCell>

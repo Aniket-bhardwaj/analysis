@@ -7,42 +7,76 @@ const qcl = {
 };
 
 class TableService {
-static generateQCTableRowsFromData(avgRow, rsdRow, solutionLabel) {
-  if (!avgRow || Object.keys(avgRow).length === 0) {
+  static generateQCTableRowsFromData(avgRow, rsdRow, solutionLabel) {
+    if (!avgRow || Object.keys(avgRow).length === 0) {
+      return {
+        tableData: [],
+        elements: []
+      };
+    }
+  
+    const TOLERANCE = 10;
+    const elementColumns = Object.keys(avgRow);
+    const errorFactor = parseFloat(solutionLabel.match(/[\d.]+/)[0]);
+  
+    const tableData = elementColumns.map((col) => {
+      const avg = avgRow[col];
+      const rsd = rsdRow ? rsdRow[col] : null;
+  
+      const errorPercentage = avg !== null
+        ? (Math.abs(avg - errorFactor) / errorFactor) * 100
+        : null;
+  
+      const isWithinTolerance = errorPercentage !== null ? errorPercentage <= TOLERANCE : null;
+  
+      return {
+        fullElementName: col,                        // e.g., 'Al 237.312 nm ppm' (unique)
+        element: col.split(' ')[0],                  // e.g., 'Al'
+        valueAvg: avg !== null ? +avg.toFixed(3) : null,
+        correctedValueAvg: avg !== null ? +avg.toFixed(3) : null,
+        rsd: rsd !== null && rsd !== undefined ? +rsd.toFixed(2) : null,
+        errorPercentage: errorPercentage !== null ? +errorPercentage.toFixed(2) : null,
+        errorFactor,
+        isWithinTolerance,
+        distributionData: []
+      };
+    });
+  
+    // Group rows by short element name (e.g., 'Al')
+    const groupedData = {};
+    tableData.forEach((row) => {
+      if (!groupedData[row.element]) {
+        groupedData[row.element] = [];
+      }
+      groupedData[row.element].push(row);
+    });
+  
+    let finalData = [];
+    for (const rows of Object.values(groupedData)) {
+      if (rows.length === 1) {
+        finalData.push(rows[0]);
+      } else if (rows.length === 2) {
+        const passRows = rows.filter(r => r.isWithinTolerance);
+        const failRows = rows.filter(r => !r.isWithinTolerance);
+        if (passRows.length === 2 || failRows.length === 2) {
+          finalData = finalData.concat(rows); // keep both
+        } else if (passRows.length === 1) {
+          finalData.push(passRows[0]); // keep only the passing one
+        } else {
+          finalData = finalData.concat(rows); // fallback, keep both
+        }
+      } else {
+        finalData = finalData.concat(rows);
+      }
+    }
+  
     return {
-      tableData: [],
-      elements: []
+      tableData: finalData,
+      elements: Array.from(new Set(finalData.map(r => r.fullElementName)))
     };
   }
-
-  const TOLERANCE = 10; // ±10% error allowed
-  const elementColumns = Object.keys(avgRow);
-  const errorFactor = parseFloat(solutionLabel.match(/[\d.]+/)[0]);
-
-  const tableData = elementColumns.map((col) => {
-    const avg = avgRow[col];
-    const rsd = rsdRow ? rsdRow[col] : null;
-
-    const errorPercentage = avg !== null
-      ? (Math.abs(avg - errorFactor) / errorFactor) * 100
-      : null;
-
-    const isWithinTolerance = errorPercentage !== null ? errorPercentage <= TOLERANCE : null;
-
-    return {
-      element: col.replace(/[_-].*$/, ''),
-      valueAvg: avg !== null ? +avg.toFixed(3) : null,
-      correctedValueAvg: avg !== null ? +avg.toFixed(3) : null,
-      rsd: rsd !== null && rsd !== undefined ? +rsd.toFixed(2) : null,
-      errorPercentage: errorPercentage !== null ? +errorPercentage.toFixed(2) : null,
-      errorFactor,
-      isWithinTolerance,
-      distributionData: []
-    };
-  });
-
-  return { tableData, elements: elementColumns };
-}
+  
+  
 
 
 static async getQCTableData(fileId) {
@@ -91,35 +125,66 @@ static generateSJSTableFromRows(avgRow, rsdRow, sjsStdRow, errorRow) {
 
   const elementColumns = Object.keys(avgRow);
 
+  // Step 1: build initial rows
   const tableData = elementColumns.map((col) => {
+    const cleanFullName = col.replace(/_Corrected$/, ''); // remove _Corrected
     const avg = avgRow[col];
     const rsd = rsdRow ? rsdRow[col] : null;
-
     const sjsStd = parseFloat(sjsStdRow[col]);
     const errorVal = parseFloat(errorRow[col]);
-    const sjsValid = !isNaN(sjsStd) && !isNaN(errorVal) && sjsStd !== 0 && avg !== null && avg !== undefined;
+    const sjsValid = !isNaN(sjsStd) && !isNaN(errorVal) && sjsStd !== 0 && avg != null;
 
-    const errorAllowedPercent = sjsValid ? (errorVal / sjsStd) * 100 : null;
+    const errorAllowedPercent = sjsValid ? 10 : null;
     const actualErrorPercent = sjsValid ? (Math.abs(avg - sjsStd) / sjsStd) * 100 : null;
     const isWithinTolerance = sjsValid ? actualErrorPercent <= errorAllowedPercent : null;
 
     return {
-      element: col.replace('_Corrected', ''),
-      valueAvg: avg !== null && avg !== undefined ? +avg.toFixed(3) : null,
+      fullElementName: cleanFullName, // e.g. '45 Sc [ No Gas ] Conc. [ ppb ]'
+      element: cleanFullName.split(' ')[0], // e.g. '45' or 'Al'
+      valueAvg: avg != null ? +avg.toFixed(3) : null,
       sjsStd: !isNaN(sjsStd) ? +sjsStd.toFixed(3) : null,
-      errorAllowedPercent: errorAllowedPercent !== null ? +errorAllowedPercent.toFixed(2) : null,
-      actualErrorPercent: actualErrorPercent !== null ? +actualErrorPercent.toFixed(2) : null,
+      errorAllowedPercent: errorAllowedPercent != null ? +errorAllowedPercent.toFixed(2) : null,
+      actualErrorPercent: actualErrorPercent != null ? +actualErrorPercent.toFixed(2) : null,
       isWithinTolerance,
-      rsd: rsd !== null && rsd !== undefined ? +rsd.toFixed(2) : null,
+      rsd: rsd != null ? +rsd.toFixed(2) : null,
       distributionData: []
     };
   });
 
+  // Step 2: group by short element name
+  const grouped = {};
+  for (const row of tableData) {
+    if (!grouped[row.element]) grouped[row.element] = [];
+    grouped[row.element].push(row);
+  }
+
+  // Step 3: filter based on pass/fail logic
+  let finalData = [];
+  for (const groupRows of Object.values(grouped)) {
+    if (groupRows.length === 1) {
+      finalData.push(groupRows[0]);
+    } else if (groupRows.length === 2) {
+      const passRows = groupRows.filter(r => r.isWithinTolerance);
+      const failRows = groupRows.filter(r => r.isWithinTolerance === false);
+      if (passRows.length === 2 || failRows.length === 2) {
+        finalData = finalData.concat(groupRows); // keep both
+      } else if (passRows.length === 1) {
+        finalData.push(passRows[0]); // keep only the passing one
+      } else {
+        finalData = finalData.concat(groupRows); // fallback
+      }
+    } else {
+      finalData = finalData.concat(groupRows); // unexpected case
+    }
+  }
+
   return {
-    tableData,
-    elements: elementColumns
+    tableData: finalData,
+    elements: Array.from(new Set(finalData.map(r => r.fullElementName)))
   };
 }
+
+
 
 
 

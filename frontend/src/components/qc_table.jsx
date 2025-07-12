@@ -106,19 +106,19 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
     }
   };
 
-  const toggleRowExpansion = (element) => {
+  const toggleRowExpansion = (fullElementName) => {
     const next = new Set(expandedRows);
-    if (next.has(element)) {
-      next.delete(element);
+    if (next.has(fullElementName)) {
+      next.delete(fullElementName);
     } else {
-      next.add(element);
-      // Fetch data if not already fetched or if it's empty (e.g. after an error)
-      if (!miniTables[element] || !miniTables[element].data || miniTables[element].data.length === 0 && miniTables[element].totalItems === 0) {
-        fetchMiniTableData(element, 1); // Fetch first page on expand
+      next.add(fullElementName);
+      if (!miniTables[fullElementName] || !miniTables[fullElementName].data || miniTables[fullElementName].data.length === 0) {
+        fetchMiniTableData(fullElementName, 1); // directly pass full name
       }
     }
     setExpandedRows(next);
   };
+  
 
   const sortMiniTable = (element, key) => {
     const current = miniSortConfig[element] || { key: '', direction: 'asc' };
@@ -243,12 +243,12 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
         <tbody>
           {sortedData.map((row, index) => (
             <QCRow
-              key={row.element || index}
+              key={row.fullElementName || index}
               row={row}
-              isExpanded={expandedRows.has(row.element)}
+              isExpanded={expandedRows.has(row.fullElementName)}
               toggleRowExpansion={toggleRowExpansion}
               // Pass the specific miniTable object for the element, or a default structure
-              miniTableData={miniTables[row.element] || { data: [], totalItems: 0, currentPage: 1 }}
+              miniTableData={miniTables[row.fullElementName] || { data: [], totalItems: 0, currentPage: 1 }}
               pageSize={MINI_TABLE_PAGE_SIZE}
               handleMiniTablePageChange={handleMiniTablePageChange}
               miniSortConfig={miniSortConfig} // Keep this for client-side sort state
