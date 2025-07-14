@@ -101,7 +101,7 @@ static async getSampleRowByIdAndColumns(sampleId, columnNames) {
       FROM qc_data
       WHERE file_id = ? AND "Solution Label" = ?
     `;
-  
+
     return new Promise((resolve, reject) => {
       db.get(sql, [fileId, solutionLabel], (err, row) => {
         if (err) {

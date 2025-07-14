@@ -142,7 +142,7 @@ function getQCGraphDataLastWeek() {
         const timestamp = parseTimestamp(rawTimestamp);
 
         if (!timestamp) {
-          console.warn(`Skipping invalid timestamp: ${rawTimestamp}`);
+          // console.warn(`Skipping invalid timestamp: ${rawTimestamp}`);
           continue;
         }
 

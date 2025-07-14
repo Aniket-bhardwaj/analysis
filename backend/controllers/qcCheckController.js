@@ -80,8 +80,8 @@ class QcCheckController {
     else if (start_date && end_date) {
       summary = await QcCheckService.getSummaryForQCByDates(start_date, end_date);
     }
+    // console.log('Summary:', summary); 
 
-    
 
       return res.json({
         success: true,

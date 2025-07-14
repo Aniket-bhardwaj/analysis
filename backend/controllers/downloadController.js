@@ -1,26 +1,19 @@
-const path = require('path');
-const fileModel = require('../models/fileModel');
+const DownloadService = require('../services/downloadService');
 
 exports.downloadFile = async (req, res) => {
   try {
     const fileId = req.params.id;
-    const row = await fileModel.getFileById(fileId); // gets { filename, path }
+    const { buffer, filename } = await DownloadService.createZipWithCSVs(fileId);
 
-    if (!row) {
-      return res.status(404).json({ error: 'File not found' });
-    }
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length
+    });
 
-    const absoluteFilePath = path.join(__dirname, '..', row.path);
-    // console.log("Download request:", {
-    //   file: row.filename,
-    //   path: row.path
-    // });
-
-    // ✅ Use res.download to set filename correctly
-    return res.download(absoluteFilePath, row.filename);
+    return res.send(buffer);
   } catch (err) {
     console.error('Download error:', err);
     res.status(500).json({ error: 'Failed to download file' });
   }
-  
 };

@@ -4,6 +4,8 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
+    "adm-zip": "^0.5.16",
+    "json2csv": "^6.0.0-alpha.2",
     "react-chartjs-2": "^5.3.0"
   }
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/navbar';
 import { useLocation } from 'react-router-dom';
+import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import {
   Box,
   Typography,
@@ -57,6 +58,10 @@ const DataManagerPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const ROWS_PER_PAGE = 10;
   const navigate = useNavigate();
+  const [expandedFileId, setExpandedFileId] = useState(null);
+  const [fileIdToReplace, setFileIdToReplace] = useState(null);
+
+
 
 
   const location = useLocation();
@@ -146,6 +151,7 @@ const DataManagerPage = () => {
         filesData.map(async (file) => {
           const fileId = file.id || file.file_id;
           let qualityStatus = 'error';
+          let failedElements = [];
           try {
             const summaryRes = await fetch(
               `${import.meta.env.VITE_API_URL}/summary?file_id=${fileId}`
@@ -158,13 +164,16 @@ const DataManagerPage = () => {
               if (total > 0 && total === within) {
                 qualityStatus = 'success';
               }
+              failedElements = summary.failedElements || [];
+  // console.log('file.id:', file.id, 'failedElements:', failedElements);
+
             } else {
               throw new Error('Summary fetch failed');
             }
           } catch (err) {
             console.error(`❌ Failed to fetch summary for file ${fileId}:`, err.message);
           }
-          return { ...file, qualityStatus };
+          return { ...file, qualityStatus, failedElements };
         })
       );
       setFiles(filesWithStatus);
@@ -245,6 +254,32 @@ const DataManagerPage = () => {
     link.click();
     document.body.removeChild(link);
   };
+
+  const handleFileReplaceSelect = async (e) => {
+    const newFile = e.target.files[0];
+    if (newFile && fileIdToReplace) {
+      try {
+        // Delete old file using your existing logic
+        await handleDelete(fileIdToReplace);
+  
+        // Upload new file using your existing upload function
+        await handleFileUpload(newFile);
+  
+        setSnackbarMessage('File replaced successfully');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+      } catch (err) {
+        console.error('Re-upload error:', err);
+        setSnackbarMessage(err.message || 'Re-upload failed');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      } finally {
+        setFileIdToReplace(null);
+        e.target.value = ''; // reset file input
+      }
+    }
+  };
+  
 
   const renderQualityStatus = (status, filename, fileId) => {
     const statusConfig = {
@@ -403,63 +438,112 @@ const DataManagerPage = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {paginatedFiles.map((file, index) => (
-                     <TableRow
-                     key={file.id}
-                     className={`table-row ${file.id === selectedFileId ? 'highlighted-row' : ''}`}
-                   >
-                      {/* {console.log('Row:', file.id, '==', selectedFileId, file.id === selectedFileId)} */}
-                      <TableCell className="table-cell">
-                        {(page - 1) * ROWS_PER_PAGE + index + 1}
-                      </TableCell>
-                      <TableCell className="filename-cell">
-                        <Typography variant="body2" className="filename-text">
-                          {file.name}
-                        </Typography>
-                      </TableCell>
-                      <TableCell className="table-cell" align="center">
-                        {renderQualityStatus(file.qualityStatus, file.name, file.id)}
-                      </TableCell>
-                      <TableCell className="table-cell">
-                        <Chip label={file.type} className="file-type-chip" size="small" />
-                      </TableCell>
-                      <TableCell className="table-cell">
-                        <Box className="user-cell">
-                          <Box className="user-info">
-                            <Typography variant="body2" className="user-name">
-                              {file.user}
-                            </Typography>
-                            <Typography variant="caption" className="user-email">
-                              {file.email}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell className="table-cell">
-                        <Typography variant="body2" className="date-text">
-                          {file.uploadDate}
-                        </Typography>
-                      </TableCell>
-                      <TableCell className="table-cell">
-                        <Tooltip title="Download">
-                          <IconButton onClick={() => handleDownload(file.id)}>
-                            <DownloadIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton
-                            onClick={() => {
-                              setFileToDelete(file.id);
-                              setConfirmDialogOpen(true);
-                            }}
-                            className="delete-button"
-                            size="small"
-                          >
-                            <Delete />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
+                {paginatedFiles.map((file, index) => (
+  <React.Fragment key={file.id}>
+    <TableRow
+      className={`table-row ${file.id === selectedFileId ? 'highlighted-row' : ''}`}
+    >
+      <TableCell className="table-cell">
+        {(page - 1) * ROWS_PER_PAGE + index + 1}
+      </TableCell>
+      <TableCell className="filename-cell">
+  {Array.isArray(file.failedElements) && file.failedElements.length > 0 && (
+    <IconButton
+      onClick={() => setExpandedFileId(expandedFileId === file.id ? null : file.id)}
+      size="small"
+    >
+      {expandedFileId === file.id ? <ExpandLess /> : <ExpandMore />}
+    </IconButton>
+  )}
+  <Typography variant="body2" className="filename-text" sx={{ display: 'inline', ml: 1 }}>
+    {file.name}
+  </Typography>
+</TableCell>
+
+      <TableCell className="table-cell" align="center">
+        {renderQualityStatus(file.qualityStatus, file.name, file.id)}
+      </TableCell>
+      <TableCell className="table-cell">
+        <Chip label={file.type} className="file-type-chip" size="small" />
+      </TableCell>
+      <TableCell className="table-cell">
+        <Box className="user-cell">
+          <Box className="user-info">
+            <Typography variant="body2" className="user-name">
+              {file.user}
+            </Typography>
+            <Typography variant="caption" className="user-email">
+              {file.email}
+            </Typography>
+          </Box>
+        </Box>
+      </TableCell>
+      <TableCell className="table-cell">
+        <Typography variant="body2" className="date-text">
+          {file.uploadDate}
+        </Typography>
+      </TableCell>
+      <TableCell className="table-cell">
+        <Tooltip title="Download">
+          <IconButton onClick={() => handleDownload(file.id)}>
+            <DownloadIcon />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Delete">
+          <IconButton
+            onClick={() => {
+              setFileToDelete(file.id);
+              setConfirmDialogOpen(true);
+            }}
+            className="delete-button"
+            size="small"
+          >
+            <Delete />
+          </IconButton>
+        </Tooltip>
+      </TableCell>
+    </TableRow>
+
+    {/* Collapsible row showing failed elements */}
+    {expandedFileId === file.id && (
+  <TableRow className="failed-elements-row">
+    <TableCell colSpan={7}>
+      <Box sx={{ pl: 13, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+        <Typography variant="body2" sx={{ fontWeight: 500, mr: 1 }}>
+          Failed Elements:
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+          {file.failedElements.map((elem, idx) => (
+            <Typography key={idx} variant="body2" sx={{ color: 'red' }}>
+              {elem}{idx !== file.failedElements.length - 1 ? ', ' : ''}
+            </Typography>
+          ))}
+          <Tooltip title="Re-upload file">
+            <IconButton
+              size="small"
+              onClick={() => {
+                setFileIdToReplace(file.id);
+                document.getElementById(`replace-input-${file.id}`).click();
+              }}
+            >
+              <CloudUpload fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          {/* hidden file input */}
+          <input
+            id={`replace-input-${file.id}`}
+            type="file"
+            style={{ display: 'none' }}
+            onChange={handleFileReplaceSelect}
+          />
+        </Box>
+      </Box>
+    </TableCell>
+  </TableRow>
+)}
+
+
+  </React.Fragment>
                   ))}
                 </TableBody>
               </Table>

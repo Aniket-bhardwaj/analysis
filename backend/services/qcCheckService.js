@@ -62,7 +62,7 @@ class QcCheckService {
     const match = solutionLabel.match(/[\d.]+/);
     const errorFactor = match ? parseFloat(match[0]) : 1;
   
-    // Use the same grouping logic as table:
+    // Generate QC table rows
     const { tableData } = TableService.generateQCTableRowsFromData(avgRow, rsdRow, solutionLabel);
   
     const totalElements = tableData.length;
@@ -76,13 +76,20 @@ class QcCheckService {
       ? +(tableData.reduce((sum, r) => sum + (r.errorPercentage || 0), 0) / tableData.length).toFixed(2)
       : 0;
   
+    // 🟩 Add failed elements list:
+    const failedElements = tableData
+      .filter(r => r.isWithinTolerance === false)
+      .map(r => r.fullElementName); // or use r.fullElementName for detailed label
+
     return {
       totalElements,
       elementsWithinTolerance,
       averageRSD,
-      averageErrorPercentage
+      averageErrorPercentage,
+      failedElements
     };
   }
+  
   
 
 

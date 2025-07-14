@@ -492,10 +492,21 @@
 }
 
 .table-cell,
+
 .filename-cell {
   padding: 1rem !important;
   border-bottom: none !important;
 }
+
+.failed-elements-row {
+  background: transparent; /* transparent, since box has background */
+}
+
+.failed-elements-row .MuiTableCell-root {
+  border: none !important;
+  padding: 0 !important;
+}
+
 
 /* --- New and improved Search Bar Styles --- */
 /* The primary styling for the search bar is now inline within the TextField's `sx` prop
