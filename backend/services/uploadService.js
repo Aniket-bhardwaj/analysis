@@ -69,23 +69,25 @@ async function validate(filePath, originalName) {
 
 /**
  * Insert validated data into DB.
- * - Insert file metadata
+ * - Insert file metadata (including optional PDF info)
  * - Insert QC data
  * - Insert/update sample rows
  * - Map sample IDs to file
  */
-async function insertAllData(originalName, savedFilePath, samples, qc, csvType,headers) {
+async function insertAllData(originalName, savedFilePath, samples, qc, csvType, headers, pdfOriginalName, pdfSavedPath) {
   let fileId;
 
-  // Step 1: Insert file info
+  // Step 1: Insert file info, now including PDF details.
+  // The fileModel.insertFile will need to be updated to handle these new optional arguments.
+  // For the old route, pdfOriginalName and pdfSavedPath will be null/undefined.
   try {
-    const fileRow = await fileModel.insertFile(originalName, savedFilePath, csvType);
+    const fileRow = await fileModel.insertFile(originalName, savedFilePath, csvType, pdfOriginalName, pdfSavedPath);
     fileId = fileRow.id;
   } catch (err) {
     return { error: 'Failed to insert file metadata: ' + err.message, fileId: null };
   }
 
-  // Step 2: Insert QC data
+  // Step 2: Insert QC data (No changes needed here)
   try {
     for (const row of qc) {
       const columns = ['file_id', ...Object.keys(row)];
@@ -96,10 +98,10 @@ async function insertAllData(originalName, savedFilePath, samples, qc, csvType,h
     return { error: 'Failed to insert QC data: ' + err.message, fileId };
   }
 
-  // Step 3: Filter relevant sample columns
-  const filteredRows = csvHandler.filterColumnsByKeys(samples, csvType,headers);
+  // Step 3: Filter relevant sample columns (No changes needed here)
+  const filteredRows = csvHandler.filterColumnsByKeys(samples, csvType, headers);
 
-  // Step 4: Insert or update sample data + mapping
+  // Step 4: Insert or update sample data + mapping (No changes needed here)
   try {
     for (const { filtered1, filtered2 } of filteredRows) {
       const label = filtered1['Solution Label'];
@@ -112,30 +114,30 @@ async function insertAllData(originalName, savedFilePath, samples, qc, csvType,h
           : await dataModel.insertSample(filtered1);
 
         if (!sampleId) {
-        return { error: `Failed to handle sample "${label}"`, fileId };
+          return { error: `Failed to handle sample "${label}"`, fileId };
         }
 
-      // ✅ Insert or update rest_data (filtered2)
+        // ✅ Insert or update rest_data (filtered2)
         if (exists) {
-        await dataModel.updateRestData(label, filtered2);
+          await dataModel.updateRestData(label, filtered2);
         } else {
-        await dataModel.insertRestData(filtered2);
+          await dataModel.insertRestData(filtered2);
         }
 
       } catch (err) {
-      return { error: `Failed to process sample "${label}": ${err.message}`, fileId };
+        return { error: `Failed to process sample "${label}": ${err.message}`, fileId };
       }
 
       try {
-      await dataModel.insertSampleFileMapping(sampleId, fileId);
+        await dataModel.insertSampleFileMapping(sampleId, fileId);
       } catch (err) {
-      return { error: `Failed to map sample "${label}" to file: ${err.message}`, fileId };
+        return { error: `Failed to map sample "${label}" to file: ${err.message}`, fileId };
       }
     }
   } catch (err) {
-  return { error: 'Failed to process sample data: ' + err.message, fileId };
+    return { error: 'Failed to process sample data: ' + err.message, fileId };
   }
-  
+
 
   return { error: null, fileId };
 }
@@ -150,7 +152,7 @@ async function insertAllData(originalName, savedFilePath, samples, qc, csvType,h
  * - Calculates % deviation from known value
  * - Applies correction to sample_data and SJS-Std
  */
-async function insertCorrected(fileId, csvType,headers) {
+async function insertCorrected(fileId, csvType, headers) {
 
 
   try {
@@ -168,7 +170,7 @@ async function insertCorrected(fileId, csvType,headers) {
     // Step 3: Get average measured values
     const averages = await dataModel.getQCAveragesByLabel(fileId, qcl[csvType], elementCols);
 
-    
+
 
     const known = csvType === 1 ? 5 : 50; // e.g., extract 50 from "QC MES 50"
 
@@ -182,10 +184,10 @@ async function insertCorrected(fileId, csvType,headers) {
 
     // Step 5: Apply correction to samples
     const sampleIds = await dataModel.getSampleIdsForFile(fileId);
-    
+
 
     for (const sampleId of sampleIds) {
-      const row = await dataModel.getSampleById(sampleId,elementCols);
+      const row = await dataModel.getSampleById(sampleId, elementCols);
 
 
       if (!row) continue;
@@ -207,7 +209,7 @@ async function insertCorrected(fileId, csvType,headers) {
     const stdIds = await dataModel.getStdIdsForFile(fileId);
 
     for (const stdId of stdIds) {
-      const row = await dataModel.getStdById(stdId,elementCols);
+      const row = await dataModel.getStdById(stdId, elementCols);
       if (!row) continue;
 
       const updates = {};

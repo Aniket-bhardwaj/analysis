@@ -4,13 +4,29 @@ const db = require('../initialize_db');
 // ==========================
 // 1. Insert a New File
 // ==========================
-function insertFile(filename, filePath, csvType) {
-  const sql = `INSERT INTO uploaded_files (filename, path, type) VALUES (?, ?, ?)`;
+/**
+ * Inserts a record into the uploaded_files table.
+ * Handles both legacy CSV-only uploads and new CSV+PDF uploads.
+ * @param {string} filename - The original name of the CSV file.
+ * @param {string} filePath - The path where the CSV file is stored.
+ * @param {number} csvType - The type identifier for the CSV.
+ * @param {string|null} pdfName - The original name of the PDF file (or null).
+ * @param {string|null} pdfPath - The path where the PDF file is stored (or null).
+ * @returns {Promise<object>} A promise that resolves with the newly inserted row.
+ */
+function insertFile(filename, filePath, csvType, pdfName, pdfPath) {
+  // SQL statement now includes the optional PDF columns.
+  const sql = `INSERT INTO uploaded_files (filename, path, type, pdfname, pdf_path) VALUES (?, ?, ?, ?, ?)`;
 
   return new Promise((resolve, reject) => {
-    db.run(sql, [filename, filePath, csvType], function (err) {
+    // The parameters array includes the PDF details.
+    // If pdfName or pdfPath are undefined/null, they will be inserted as NULL in the database.
+    const params = [filename, filePath, csvType, pdfName || null, pdfPath || null];
+
+    db.run(sql, params, function (err) {
       if (err) return reject(err);
 
+      // Fetch the complete row that was just inserted to return it.
       const selectSql = `SELECT * FROM uploaded_files WHERE id = ?`;
       db.get(selectSql, [this.lastID], (err, row) => {
         if (err) reject(err);
