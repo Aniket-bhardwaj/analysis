@@ -48,7 +48,7 @@ const QCChecks = () => {
     if (!section) return;
     const scrollTarget =
       section === 'lab-standards' ? qcTableRef : section === 'sjs-standards' ? sjsTableRef : null;
-  
+
     if (scrollTarget?.current) {
       requestAnimationFrame(() => {
         scrollTarget.current.scrollIntoView({ behavior: 'auto', block: 'start' });
@@ -56,27 +56,24 @@ const QCChecks = () => {
     }
   }, [section]);
 
-
   useEffect(() => {
-  const handler = (e) => {
-    const targetRoute = e.detail; // e.g. "/qc-checks/lab-standards"
-    const section = targetRoute.split('/').pop(); // "lab-standards" or "sjs-standards"
+    const handler = (e) => {
+      const targetRoute = e.detail; // e.g. "/qc-checks/lab-standards"
+      const section = targetRoute.split('/').pop(); // "lab-standards" or "sjs-standards"
 
-    const scrollTarget =
-      section === 'lab-standards' ? qcTableRef : section === 'sjs-standards' ? sjsTableRef : null;
+      const scrollTarget =
+        section === 'lab-standards' ? qcTableRef : section === 'sjs-standards' ? sjsTableRef : null;
 
-    if (scrollTarget?.current) {
-      requestAnimationFrame(() => {
-        scrollTarget.current.scrollIntoView({ behavior: 'auto', block: 'start' });
-      });
-    }
-  };
+      if (scrollTarget?.current) {
+        requestAnimationFrame(() => {
+          scrollTarget.current.scrollIntoView({ behavior: 'auto', block: 'start' });
+        });
+      }
+    };
 
-  window.addEventListener('forceScrollToSection', handler);
-  return () => window.removeEventListener('forceScrollToSection', handler);
-}, []);
-
-  
+    window.addEventListener('forceScrollToSection', handler);
+    return () => window.removeEventListener('forceScrollToSection', handler);
+  }, []);
 
   const fetchFileMeta = async (fileId) => {
     try {
@@ -151,18 +148,18 @@ const QCChecks = () => {
     try {
       let url = `${import.meta.env.VITE_API_URL}/summary`;
       const params = new URLSearchParams();
-  
+
       if (selectedFileId) params.append('file_id', selectedFileId);
       if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
         params.append('start_date', selectedDateRange.startDate);
         params.append('end_date', selectedDateRange.endDate);
       }
-  
+
       const response = await fetch(`${url}?${params.toString()}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-  
+
       const result = await response.json();
       const summaryData = result.summary || {
         totalElements: 0,
@@ -180,7 +177,7 @@ const QCChecks = () => {
   useEffect(() => {
     if (selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) {
       fetchSummaryData();
-  
+
       if (selectedFileId) {
         fetchFileMeta(selectedFileId); // keep this only when fileId is selected
       }
@@ -188,7 +185,6 @@ const QCChecks = () => {
       setSummary(null);
     }
   }, [selectedFileId, selectedDateRange]);
-  
 
   const handleApplyFilter = (filterData) => {
     setError(null);
@@ -230,8 +226,11 @@ const QCChecks = () => {
             </Typography>
 
             {/* This Stack now contains the view mode buttons AND the filter */}
-            <Stack direction="row" spacing={2} alignItems="center"
-               sx={{ pr: 0.5 }} // Adjust this value as needed for fine-tuning
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              sx={{ pr: 0.5 }} // Adjust this value as needed for fine-tuning
             >
               {/* View mode buttons first */}
               <Stack direction="row" spacing={1}>
@@ -344,7 +343,7 @@ const QCChecks = () => {
                   <Typography variant="summaryLabel">Total Elements</Typography>
                 </CardContent>
               </Card>
-              {/* Card 2: Outside Tolerance */}
+              {/* Card 2: Outside Tolerance (Unchanged) */}
               <Card elevation={2} className="summary-card">
                 <CardContent className="card-content">
                   <div className="card-icon" style={{ backgroundColor: '#ffebee' }}>
@@ -370,25 +369,25 @@ const QCChecks = () => {
                   />
                 </CardContent>
               </Card>
-              {/* Card 3: Average RSD */}
+              {/* Card 3: Average RSD (Changed to Blue) */}
               <Card elevation={2} className="summary-card">
                 <CardContent className="card-content">
-                  <div className="card-icon" style={{ backgroundColor: '#fff3e0' }}>
-                    <Activity size={24} color="#ff9800" />
+                  <div className="card-icon" style={{ backgroundColor: '#e3f2fd' }}>
+                    <Activity size={24} color="#1976d2" />
                   </div>
-                  <Typography variant="summaryValue" sx={{ color: '#ff9800', mb: 0.5 }}>
+                  <Typography variant="summaryValue" sx={{ color: '#1976d2', mb: 0.5 }}>
                     {summary.averageRSD}%
                   </Typography>
                   <Typography variant="summaryLabel">Average RSD</Typography>
                 </CardContent>
               </Card>
-              {/* Card 4: Average Error */}
+              {/* Card 4: Average Error (Changed to Blue) */}
               <Card elevation={2} className="summary-card">
                 <CardContent className="card-content">
-                  <div className="card-icon" style={{ backgroundColor: '#f3e5f5' }}>
-                    <AlertTriangle size={24} color="#9c27b0" />
+                  <div className="card-icon" style={{ backgroundColor: '#e3f2fd' }}>
+                    <AlertTriangle size={24} color="#1976d2" />
                   </div>
-                  <Typography variant="summaryValue" sx={{ color: '#9c27b0', mb: 0.5 }}>
+                  <Typography variant="summaryValue" sx={{ color: '#1976d2', mb: 0.5 }}>
                     {summary.averageErrorPercentage}%
                   </Typography>
                   <Typography variant="summaryLabel">Average Error</Typography>
