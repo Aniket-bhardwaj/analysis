@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '@/components/navbar';
-import { useLocation } from 'react-router-dom';
 import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import {
   Box,
@@ -40,11 +39,13 @@ import {
   Warning,
   Search as SearchIcon,
   Clear as ClearIcon,
+  InsertDriveFile,
 } from '@mui/icons-material';
 
 import '../styles/data_manager.css';
 
 const DataManagerPage = () => {
+  // --- STATE MANAGEMENT ---
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('error');
@@ -56,91 +57,24 @@ const DataManagerPage = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedFileId, setExpandedFileId] = useState(null);
+  const [selectedFileId, setSelectedFileId] = useState(null);
+
+  // State for the new upload flow (CSV + PDF)
+  const [csvFile, setCsvFile] = useState(null);
+  const [pdfFile, setPdfFile] = useState(null);
+
+  // State for the new re-upload dialog
+  const [replaceDialogOpen, setReplaceDialogOpen] = useState(false);
+  const [fileIdToReplace, setFileIdToReplace] = useState(null);
+  const [csvToReplace, setCsvToReplace] = useState(null);
+  const [pdfToReplace, setPdfToReplace] = useState(null);
+  
   const ROWS_PER_PAGE = 10;
   const navigate = useNavigate();
-  const [expandedFileId, setExpandedFileId] = useState(null);
-  const [fileIdToReplace, setFileIdToReplace] = useState(null);
-
-
-
-
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const selectedFileIdFromRoute = searchParams.get('fileId');
-  
 
-  const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileUpload = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    try {
-      const xhr = new XMLHttpRequest();
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const percentComplete = (e.loaded / e.total) * 100;
-          setUploadProgress(Math.round(percentComplete));
-        }
-      });
-
-      const uploadPromise = new Promise((resolve, reject) => {
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            resolve(JSON.parse(xhr.responseText));
-          } else {
-            reject(new Error(JSON.parse(xhr.responseText).error || 'Upload failed'));
-          }
-        };
-        xhr.onerror = () => reject(new Error('Network error'));
-      });
-
-      xhr.open('POST', `${import.meta.env.VITE_API_URL}/upload-csv`);
-      xhr.send(formData);
-
-      await uploadPromise;
-      setSnackbarMessage('File uploaded successfully');
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
-      fetchUploadedFiles();
-    } catch (err) {
-      console.error('Error uploading file:', err);
-      setSnackbarMessage(err.message || 'Something went wrong');
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
-    }
-  };
-
-  const handleFileSelect = async (e) => {
-    const selectedFiles = e.target.files;
-    if (selectedFiles && selectedFiles.length > 0) {
-      await handleFileUpload(selectedFiles[0]);
-    }
-    e.target.value = '';
-  };
-
+  // --- DATA FETCHING & PROCESSING ---
   const fetchUploadedFiles = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/uploaded-files`);
@@ -165,10 +99,8 @@ const DataManagerPage = () => {
                 qualityStatus = 'success';
               }
               failedElements = summary.failedElements || [];
-  // console.log('file.id:', file.id, 'failedElements:', failedElements);
-
             } else {
-              throw new Error('Summary fetch failed');
+               // Silently fail if summary isn't available, default to error status
             }
           } catch (err) {
             console.error(`❌ Failed to fetch summary for file ${fileId}:`, err.message);
@@ -186,40 +118,121 @@ const DataManagerPage = () => {
     fetchUploadedFiles();
   }, []);
 
-  const filteredFiles = useMemo(() => {
-    if (!searchQuery) return files;
-    const query = searchQuery.toLowerCase();
-    return files.filter(
-      (file) =>
-        file.name.toLowerCase().includes(query) ||
-        file.user.toLowerCase().includes(query) ||
-        file.email.toLowerCase().includes(query) ||
-        file.uploadDate.toLowerCase().includes(query)
-    );
-  }, [files, searchQuery]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery]);
-
-  const [selectedFileId, setSelectedFileId] = useState(null);
-  useEffect(() => {
-    if (selectedFileIdFromRoute && files.length > 0) {
-      const id = Number(selectedFileIdFromRoute);
-      const exists = files.some((file) => file.id === id);
-      if (exists) setSelectedFileId(id);
+  // --- UPLOAD LOGIC (NEW: CSV + PDF) ---
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
     }
-  }, [selectedFileIdFromRoute, files]); // ✅ now also runs when files update
+  };
 
-  // useEffect(() => {
-  //   console.log('Files loaded:', files.map(f => f.id));
-  //   console.log('SelectedFileIdFromRoute:', selectedFileIdFromRoute);
-  //   console.log('SelectedFileId:', selectedFileId);
-  // }, [files, selectedFileIdFromRoute, selectedFileId]);
+  const processFiles = (fileList) => {
+    const csv = Array.from(fileList).find(f => f.name.toLowerCase().endsWith('.csv'));
+    const pdf = Array.from(fileList).find(f => f.name.toLowerCase().endsWith('.pdf'));
+
+    if (csv) setCsvFile(csv);
+    if (pdf) setPdfFile(pdf);
+
+    if (fileList.length > 2 || (fileList.length > 0 && !csv && !pdf)) {
+        setSnackbarMessage('Please select one CSV and one PDF file.');
+        setSnackbarSeverity('warning');
+        setSnackbarOpen(true);
+    } else if (fileList.length === 2 && (!csv || !pdf)) {
+        setSnackbarMessage('Invalid file combination. Please provide one CSV and one PDF.');
+        setSnackbarSeverity('warning');
+        setSnackbarOpen(true);
+    }
+  };
   
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files) {
+      processFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    const selectedFiles = e.target.files;
+    if (selectedFiles) {
+        processFiles(selectedFiles);
+    }
+    e.target.value = ''; // Reset input to allow re-selecting the same files
+  };
+
+  const handleFileUpload = async (csv, pdf, isReplacement = false) => {
+    if (!csv || !pdf) {
+      setSnackbarMessage('Both a CSV and a PDF file are required.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('csvfile', csv);
+    formData.append('pdffile', pdf);
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = (e.loaded / e.total) * 100;
+          setUploadProgress(Math.round(percentComplete));
+        }
+      });
+
+      const uploadPromise = new Promise((resolve, reject) => {
+        xhr.onload = () => {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            if (xhr.status === 200) {
+              resolve(response);
+            } else {
+              reject(new Error(response.error || 'Upload failed'));
+            }
+          } catch (e) {
+             reject(new Error('Invalid server response.'));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Network error during upload.'));
+      });
+
+      xhr.open('POST', `${import.meta.env.VITE_API_URL}/upload-files`);
+      xhr.send(formData);
+
+      await uploadPromise;
+      setSnackbarMessage(`File${isReplacement ? ' replaced' : 's uploaded'} successfully`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      fetchUploadedFiles();
+      
+      // Clear selected files after successful upload
+      setCsvFile(null);
+      setPdfFile(null);
+
+    } catch (err) {
+      console.error('Error uploading files:', err);
+      setSnackbarMessage(err.message || 'Something went wrong during upload.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
 
 
+  // --- FILE ACTIONS (DELETE, DOWNLOAD, REPLACE) ---
   const handleDelete = async (id) => {
+    // This function will be called by both the delete button and the replace logic
+    if (!id) return;
     setConfirmDialogOpen(false);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/hide-file/${id}`, {
@@ -239,11 +252,8 @@ const DataManagerPage = () => {
       setSnackbarMessage(err.message || 'Something went wrong');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
+      throw err; // Re-throw to be caught by replacement logic if needed
     }
-  };
-
-  const handleCopyToClipboard = () => {
-    navigator.clipboard.writeText(snackbarMessage);
   };
 
   const handleDownload = (fileId) => {
@@ -255,31 +265,78 @@ const DataManagerPage = () => {
     document.body.removeChild(link);
   };
 
-  const handleFileReplaceSelect = async (e) => {
-    const newFile = e.target.files[0];
-    if (newFile && fileIdToReplace) {
-      try {
-        // Delete old file using your existing logic
-        await handleDelete(fileIdToReplace);
-  
-        // Upload new file using your existing upload function
-        await handleFileUpload(newFile);
-  
-        setSnackbarMessage('File replaced successfully');
-        setSnackbarSeverity('success');
+  const handleOpenReplaceDialog = (fileId) => {
+      setFileIdToReplace(fileId);
+      setReplaceDialogOpen(true);
+  };
+
+  const handleCloseReplaceDialog = () => {
+      setReplaceDialogOpen(false);
+      setFileIdToReplace(null);
+      setCsvToReplace(null);
+      setPdfToReplace(null);
+  };
+
+  const handleFileReplaceUpload = async () => {
+    if (csvToReplace && pdfToReplace && fileIdToReplace) {
+        try {
+            // 1. Delete the old file entry
+            await handleDelete(fileIdToReplace);
+            // 2. Upload the new files
+            await handleFileUpload(csvToReplace, pdfToReplace, true);
+        } catch (err) {
+            console.error('Re-upload process failed:', err);
+            // Snackbar message is likely already set by handleDelete or handleFileUpload
+        } finally {
+            // 3. Close dialog and reset state regardless of outcome
+            handleCloseReplaceDialog();
+        }
+    } else {
+        setSnackbarMessage('Please select both a new CSV and a new PDF file.');
+        setSnackbarSeverity('warning');
         setSnackbarOpen(true);
-      } catch (err) {
-        console.error('Re-upload error:', err);
-        setSnackbarMessage(err.message || 'Re-upload failed');
-        setSnackbarSeverity('error');
-        setSnackbarOpen(true);
-      } finally {
-        setFileIdToReplace(null);
-        e.target.value = ''; // reset file input
-      }
     }
   };
-  
+
+  // --- MEMOIZED FILTERING & DERIVED STATE ---
+  const filteredFiles = useMemo(() => {
+    if (!searchQuery) return files;
+    const query = searchQuery.toLowerCase();
+    // Using the original, correct file properties for filtering
+    return files.filter(
+      (file) =>
+        file.name.toLowerCase().includes(query) ||
+        file.user.toLowerCase().includes(query) ||
+        file.email.toLowerCase().includes(query) ||
+        file.uploadDate.toLowerCase().includes(query)
+    );
+  }, [files, searchQuery]);
+
+  const paginatedFiles = filteredFiles.slice(
+    (page - 1) * ROWS_PER_PAGE,
+    page * ROWS_PER_PAGE
+  );
+
+  // --- EFFECTS ---
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const selectedFileIdFromRoute = searchParams.get('fileId');
+    if (selectedFileIdFromRoute && files.length > 0) {
+      const id = Number(selectedFileIdFromRoute);
+      const exists = files.some((file) => file.id === id);
+      if (exists) setSelectedFileId(id);
+    }
+  }, [location.search, files]);
+
+
+  // --- RENDER LOGIC ---
+  const handleCopyToClipboard = () => {
+    navigator.clipboard.writeText(snackbarMessage);
+  };
 
   const renderQualityStatus = (status, filename, fileId) => {
     const statusConfig = {
@@ -315,10 +372,6 @@ const DataManagerPage = () => {
   };
 
   const [selectedItem, setSelectedItem] = useState('Data Manager');
-  const paginatedFiles = filteredFiles.slice(
-    (page - 1) * ROWS_PER_PAGE,
-    page * ROWS_PER_PAGE
-  );
 
   return (
     <Box className="dashboard-container file-upload-container">
@@ -331,6 +384,7 @@ const DataManagerPage = () => {
           </Typography>
         </Box>
 
+        {/* --- UPLOAD CARD (NEW UI) --- */}
         <Card className="upload-card">
           <CardContent>
             <Box
@@ -363,19 +417,34 @@ const DataManagerPage = () => {
                     size="large"
                     disabled={isUploading}
                   >
-                    Choose file
-                    <input type="file" hidden onChange={handleFileSelect} />
+                    Choose CSV & PDF
+                    <input type="file" hidden multiple onChange={handleFileSelect} accept=".csv,.pdf"/>
                   </Button>
                   <Typography variant="body2" className="upload-text">
-                    or drag file in here
+                    or drag files in here
                   </Typography>
+                  {(csvFile || pdfFile) && (
+                      <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'center', alignItems: 'center' }}>
+                          {csvFile && <Chip icon={<InsertDriveFile />} label={csvFile.name} onDelete={() => setCsvFile(null)} />}
+                          {pdfFile && <Chip icon={<InsertDriveFile />} label={pdfFile.name} onDelete={() => setPdfFile(null)} />}
+                      </Box>
+                  )}
+                  <Button
+                      variant="contained"
+                      color="primary"
+                      sx={{ mt: 2 }}
+                      disabled={!csvFile || !pdfFile || isUploading}
+                      onClick={() => handleFileUpload(csvFile, pdfFile)}
+                  >
+                      Upload
+                  </Button>
                 </Box>
               )}
             </Box>
           </CardContent>
         </Card>
         
-        {/* Search Bar - Moved and updated */}
+        {/* --- SEARCH BAR --- */}
         <Box sx={{ my: 2 }}>
           <TextField
             variant="outlined"
@@ -417,6 +486,7 @@ const DataManagerPage = () => {
           />
         </Box>
 
+        {/* --- FILES TABLE (ORIGINAL STRUCTURE) --- */}
         <Card className="files-table-card">
           <CardContent>
             <TableContainer component={Paper} elevation={0}>
@@ -439,111 +509,99 @@ const DataManagerPage = () => {
                 </TableHead>
                 <TableBody>
                 {paginatedFiles.map((file, index) => (
-  <React.Fragment key={file.id}>
-    <TableRow
-      className={`table-row ${file.id === selectedFileId ? 'highlighted-row' : ''}`}
-    >
-      <TableCell className="table-cell">
-        {(page - 1) * ROWS_PER_PAGE + index + 1}
-      </TableCell>
-      <TableCell className="filename-cell">
-  {Array.isArray(file.failedElements) && file.failedElements.length > 0 && (
-    <IconButton
-      onClick={() => setExpandedFileId(expandedFileId === file.id ? null : file.id)}
-      size="small"
-    >
-      {expandedFileId === file.id ? <ExpandLess /> : <ExpandMore />}
-    </IconButton>
-  )}
-  <Typography variant="body2" className="filename-text" sx={{ display: 'inline', ml: 1 }}>
-    {file.name}
-  </Typography>
-</TableCell>
+                  <React.Fragment key={file.id}>
+                    <TableRow
+                      className={`table-row ${file.id === selectedFileId ? 'highlighted-row' : ''}`}
+                    >
+                      <TableCell className="table-cell">
+                        {(page - 1) * ROWS_PER_PAGE + index + 1}
+                      </TableCell>
+                      <TableCell className="filename-cell">
+                        {Array.isArray(file.failedElements) && file.failedElements.length > 0 && (
+                          <IconButton
+                            onClick={() => setExpandedFileId(expandedFileId === file.id ? null : file.id)}
+                            size="small"
+                          >
+                            {expandedFileId === file.id ? <ExpandLess /> : <ExpandMore />}
+                          </IconButton>
+                        )}
+                        <Typography variant="body2" className="filename-text" sx={{ display: 'inline', ml: 1 }}>
+                          {file.name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell className="table-cell" align="center">
+                        {renderQualityStatus(file.qualityStatus, file.name, file.id)}
+                      </TableCell>
+                      <TableCell className="table-cell">
+                        <Chip label={file.type} className="file-type-chip" size="small" />
+                      </TableCell>
+                      <TableCell className="table-cell">
+                        <Box className="user-cell">
+                          <Box className="user-info">
+                            <Typography variant="body2" className="user-name">
+                              {file.user}
+                            </Typography>
+                            <Typography variant="caption" className="user-email">
+                              {file.email}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell className="table-cell">
+                        <Typography variant="body2" className="date-text">
+                          {file.uploadDate}
+                        </Typography>
+                      </TableCell>
+                      <TableCell className="table-cell">
+                        <Tooltip title="Download">
+                          <IconButton onClick={() => handleDownload(file.id)}>
+                            <DownloadIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton
+                            onClick={() => {
+                              setFileToDelete(file.id);
+                              setConfirmDialogOpen(true);
+                            }}
+                            className="delete-button"
+                            size="small"
+                          >
+                            <Delete />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
 
-      <TableCell className="table-cell" align="center">
-        {renderQualityStatus(file.qualityStatus, file.name, file.id)}
-      </TableCell>
-      <TableCell className="table-cell">
-        <Chip label={file.type} className="file-type-chip" size="small" />
-      </TableCell>
-      <TableCell className="table-cell">
-        <Box className="user-cell">
-          <Box className="user-info">
-            <Typography variant="body2" className="user-name">
-              {file.user}
-            </Typography>
-            <Typography variant="caption" className="user-email">
-              {file.email}
-            </Typography>
-          </Box>
-        </Box>
-      </TableCell>
-      <TableCell className="table-cell">
-        <Typography variant="body2" className="date-text">
-          {file.uploadDate}
-        </Typography>
-      </TableCell>
-      <TableCell className="table-cell">
-        <Tooltip title="Download">
-          <IconButton onClick={() => handleDownload(file.id)}>
-            <DownloadIcon />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Delete">
-          <IconButton
-            onClick={() => {
-              setFileToDelete(file.id);
-              setConfirmDialogOpen(true);
-            }}
-            className="delete-button"
-            size="small"
-          >
-            <Delete />
-          </IconButton>
-        </Tooltip>
-      </TableCell>
-    </TableRow>
-
-    {/* Collapsible row showing failed elements */}
-    {expandedFileId === file.id && (
-  <TableRow className="failed-elements-row">
-    <TableCell colSpan={7}>
-      <Box sx={{ pl: 13, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
-        <Typography variant="body2" sx={{ fontWeight: 500, mr: 1 }}>
-          Failed Elements:
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-          {file.failedElements.map((elem, idx) => (
-            <Typography key={idx} variant="body2" sx={{ color: 'red' }}>
-              {elem}{idx !== file.failedElements.length - 1 ? ', ' : ''}
-            </Typography>
-          ))}
-          <Tooltip title="Re-upload file">
-            <IconButton
-              size="small"
-              onClick={() => {
-                setFileIdToReplace(file.id);
-                document.getElementById(`replace-input-${file.id}`).click();
-              }}
-            >
-              <CloudUpload fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          {/* hidden file input */}
-          <input
-            id={`replace-input-${file.id}`}
-            type="file"
-            style={{ display: 'none' }}
-            onChange={handleFileReplaceSelect}
-          />
-        </Box>
-      </Box>
-    </TableCell>
-  </TableRow>
-)}
-
-
-  </React.Fragment>
+                    {/* Collapsible row showing failed elements */}
+                    {expandedFileId === file.id && (
+                      <TableRow className="failed-elements-row">
+                        <TableCell colSpan={7}>
+                          <Box sx={{ pl: 13, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <Typography variant="body2" sx={{ fontWeight: 500, mr: 1 }}>
+                              Failed Elements:
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                              {file.failedElements.map((elem, idx) => (
+                                <Typography key={idx} variant="body2" sx={{ color: 'red' }}>
+                                  {elem}{idx !== file.failedElements.length - 1 ? ', ' : ''}
+                                </Typography>
+                              ))}
+                              {/* NEW: Re-upload button opens a dialog */}
+                              <Tooltip title="Re-upload file">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleOpenReplaceDialog(file.id)}
+                                >
+                                  <CloudUpload fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
                   ))}
                 </TableBody>
               </Table>
@@ -562,6 +620,7 @@ const DataManagerPage = () => {
         </Card>
       </Box>
 
+      {/* --- NOTIFICATIONS & DIALOGS --- */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}
@@ -599,6 +658,35 @@ const DataManagerPage = () => {
             variant="contained"
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* NEW: Dialog for Re-uploading Files */}
+      <Dialog open={replaceDialogOpen} onClose={handleCloseReplaceDialog}>
+        <DialogTitle>Replace File</DialogTitle>
+        <DialogContent>
+            <Typography variant="body2" sx={{mb: 2}}>Please select the new CSV and PDF files to replace the old ones.</Typography>
+            <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
+                <Button variant="outlined" component="label">
+                    {csvToReplace ? csvToReplace.name : 'Select New CSV'}
+                    <input type="file" hidden accept=".csv" onChange={(e) => setCsvToReplace(e.target.files[0])} />
+                </Button>
+                <Button variant="outlined" component="label">
+                    {pdfToReplace ? pdfToReplace.name : 'Select New PDF'}
+                    <input type="file" hidden accept=".pdf" onChange={(e) => setPdfToReplace(e.target.files[0])} />
+                </Button>
+            </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseReplaceDialog}>Cancel</Button>
+          <Button
+            onClick={handleFileReplaceUpload}
+            color="primary"
+            variant="contained"
+            disabled={!csvToReplace || !pdfToReplace}
+          >
+            Upload Replacement
           </Button>
         </DialogActions>
       </Dialog>
