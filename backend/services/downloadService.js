@@ -1,4 +1,3 @@
-// services/downloadService.js
 const path = require('path');
 const { Parser } = require('json2csv');
 const AdmZip = require('adm-zip');
@@ -20,9 +19,10 @@ class DownloadService {
     const elementList = concMap[type];
     if (!qcl || !elementList) throw new Error('Invalid type for QC');
 
+    // Steps 1-7 remain unchanged...
+
     // ✅ Step 1: Get averages
     const avgRow = await downloadModel.getAvg(fileId, qcl, elementList);
-    // console.log(`➡️ avgRow:`, avgRow);
 
     // ✅ Step 2: Pass/Fail check
     const target = type === 1 ? 5 : 50;
@@ -32,19 +32,15 @@ class DownloadService {
     const elementStatusMap = {};
     for (const elementName of elementList) {
       const avg = avgRow ? avgRow[elementName] : null;
-      // console.log(`\n🔍 element: ${elementName}, avg:`, avg);
 
       let status = '-';
       if (avg != null) {
         status = avg >= lower && avg <= upper ? 'Pass' : 'Fail';
-        // console.log(`✅ target range: ${lower} - ${upper}, status: ${status}`);
-      } else {
-        // console.log(`⚠️ avg is null → status stays: ${status}`);
       }
       elementStatusMap[elementName] = status;
     }
 
-    // ✅ Step 3: Get passed and failed elements (original names)
+    // ✅ Step 3: Get passed and failed elements
     const passedElements = Object.entries(elementStatusMap)
       .filter(([_, status]) => status === 'Pass')
       .map(([name]) => name);
@@ -53,25 +49,23 @@ class DownloadService {
       .filter(([_, status]) => status === 'Fail')
       .map(([name]) => name);
 
-    // ✅ Step 4: Add _Corrected suffix for querying data
+    // ✅ Step 4: Add _Corrected suffix
     const passedElementsCorr = passedElements.map(name => `${name}_Corrected`);
     const failedElementsCorr = failedElements.map(name => `${name}_Corrected`);
 
     // ✅ Step 5: Query data
     const qcPassedRows = await downloadModel.getQCDataRows(fileId, passedElements, passedElementsCorr);
     const qcFailedRows = await downloadModel.getQCDataRowsForFailed(fileId, failedElements, failedElementsCorr);
-
     const samplePassedRows = await downloadModel.getSampleDataRows(fileId, passedElementsCorr);
     const sampleFailedRows = await downloadModel.getSampleDataRows(fileId, failedElementsCorr);
 
     function isQCRow(row) {
       return row['Solution Label']?.startsWith('QC');
     }
-    
+
     function renameKeysForQCOnly(rows, originalElements) {
       return rows.map(row => {
         if (!isQCRow(row)) return row;
-    
         const newRow = { ...row };
         for (const key of originalElements) {
           if (key in newRow) {
@@ -82,39 +76,55 @@ class DownloadService {
         return newRow;
       });
     }
-    
 
     // ✅ Step 6: Combine rows
     const qcPassedRenamed = renameKeysForQCOnly(qcPassedRows, passedElements);
-const qcFailedRenamed = renameKeysForQCOnly(qcFailedRows, failedElements);
+    const qcFailedRenamed = renameKeysForQCOnly(qcFailedRows, failedElements);
+    const passedRows = qcPassedRenamed.concat(samplePassedRows);
+    const failedRows = qcFailedRenamed.concat(sampleFailedRows);
 
-const passedRows = qcPassedRenamed.concat(samplePassedRows);
-const failedRows = qcFailedRenamed.concat(sampleFailedRows);
-
-
-    // ✅ Step 7: Create CSVs — use original element names for headers
+    // ✅ Step 7: Create CSVs
     const passedFields = ['Solution Label', 'Timestamp', ...passedElementsCorr];
     const failedFields = ['Solution Label', 'Timestamp', ...failedElementsCorr];
-
     const parserPass = new Parser({ fields: passedFields, header: true });
     const parserFail = new Parser({ fields: failedFields, header: true });
-
     const passedCsv = parserPass.parse(passedRows);
     const failedCsv = parserFail.parse(failedRows);
 
     // ✅ Step 8: Zip
     const zip = new AdmZip();
-    const originalPath = path.join(__dirname, '..', fileInfo.path);
+    const projectRoot = path.join(__dirname, '..');
+
+    // Add original CSV file
+    const originalPath = path.isAbsolute(fileInfo.path)
+        ? fileInfo.path
+        : path.join(projectRoot, fileInfo.path);
     zip.addLocalFile(originalPath);
+
+    // Add generated CSV files
     zip.addFile('Passed_Elements.csv', Buffer.from(passedCsv, 'utf-8'));
     zip.addFile('Failed_Elements.csv', Buffer.from(failedCsv, 'utf-8'));
+    
+    // 💡 CHANGE: Add the PDF file to the zip if its path exists
+    if (fileInfo.pdf_path) {
+        const pdfPath = path.isAbsolute(fileInfo.pdf_path)
+            ? fileInfo.pdf_path
+            : path.join(projectRoot, fileInfo.pdf_path);
+        
+        try {
+            zip.addLocalFile(pdfPath);
+        } catch (err) {
+            // Log an error if PDF is not found, but don't crash the whole process
+            console.error(`Could not find or add PDF file: ${pdfPath}`, err);
+        }
+    }
 
     const zipBuffer = zip.toBuffer();
 
-return {
-  buffer: zipBuffer,
-  filename: `${path.parse(fileInfo.filename).name}_bundle.zip`
-};
+    return {
+      buffer: zipBuffer,
+      filename: `${path.parse(fileInfo.filename).name}_bundle.zip`
+    };
   }
 }
 

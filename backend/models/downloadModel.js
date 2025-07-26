@@ -1,4 +1,3 @@
-// models/downloadModel.js
 const db = require('../initialize_db');
 
 module.exports = {
@@ -17,8 +16,9 @@ module.exports = {
 
   getFileInfo(fileId) {
     return new Promise((resolve, reject) => {
+      // 💡 CHANGE: Added pdf_path to the SELECT statement
       db.get(
-        'SELECT filename, path FROM uploaded_files WHERE id = ?',
+        'SELECT filename, path, pdf_path FROM uploaded_files WHERE id = ?',
         [fileId],
         (err, row) => {
           if (err) reject(err);
@@ -30,11 +30,10 @@ module.exports = {
 
   async getQCDataRows(fileId, passedElements, passedElementsCorr) {
     if (!passedElements || passedElements.length === 0) return [];
-  
-    const colsQC = ['"Solution Label"', 'Timestamp', ...passedElements.map(col => `"${col}"`)].join(', ');
-const colsSJS = ['"Solution Label"', 'Timestamp', ...passedElementsCorr.map(col => `"${col}"`)].join(', ');
 
-  
+    const colsQC = ['"Solution Label"', 'Timestamp', ...passedElements.map(col => `"${col}"`)].join(', ');
+    const colsSJS = ['"Solution Label"', 'Timestamp', ...passedElementsCorr.map(col => `"${col}"`)].join(', ');
+
     // QC rows: only "QC%" Solution Label
     const sqlQC = `
       SELECT ${colsQC}
@@ -42,7 +41,7 @@ const colsSJS = ['"Solution Label"', 'Timestamp', ...passedElementsCorr.map(col 
       WHERE file_id = ?
         AND "Solution Label" LIKE 'QC%'
     `;
-  
+
     // SJS + MCS rows: only "SJS%" or "MCS%"
     const sqlSJS = `
       SELECT ${colsSJS}
@@ -50,64 +49,61 @@ const colsSJS = ['"Solution Label"', 'Timestamp', ...passedElementsCorr.map(col 
       WHERE file_id = ?
         AND "Solution Label" LIKE 'SJS%'
     `;
-  
+
     const rowsQC = await new Promise((resolve, reject) => {
       db.all(sqlQC, [fileId], (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
     });
-  
+
     const rowsSJS = await new Promise((resolve, reject) => {
       db.all(sqlSJS, [fileId], (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
     });
-  
+
     return rowsQC.concat(rowsSJS);
   },
 
   async getQCDataRowsForFailed(fileId, failedElements, failedElementsCorr) {
     if (!failedElements || failedElements.length === 0) return [];
-  
-    const colsQC = ['"Solution Label"', 'Timestamp', ...failedElements.map(col => `"${col}"`)].join(', ');
-const colsSJS = ['"Solution Label"', 'Timestamp', ...failedElementsCorr.map(col => `"${col}"`)].join(', ');
 
-  
+    const colsQC = ['"Solution Label"', 'Timestamp', ...failedElements.map(col => `"${col}"`)].join(', ');
+    const colsSJS = ['"Solution Label"', 'Timestamp', ...failedElementsCorr.map(col => `"${col}"`)].join(', ');
+
+
     const sqlQC = `
       SELECT ${colsQC}
       FROM qc_data
       WHERE file_id = ?
         AND "Solution Label" LIKE 'QC%'
     `;
-  
+
     const sqlSJS = `
       SELECT ${colsSJS}
       FROM qc_data
       WHERE file_id = ?
         AND "Solution Label" LIKE 'SJS%'
     `;
-  
+
     const rowsQC = await new Promise((resolve, reject) => {
       db.all(sqlQC, [fileId], (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
     });
-  
+
     const rowsSJS = await new Promise((resolve, reject) => {
       db.all(sqlSJS, [fileId], (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
     });
-    // console.log('rowQC',rowsQC);
-    // console.log('rowSJS',rowsSJS);
-  
+
     return rowsQC.concat(rowsSJS);
   },
-  
 
   async getSampleDataRows(fileId, elementList) {
     if (!elementList || elementList.length === 0) return [];
@@ -128,7 +124,7 @@ const colsSJS = ['"Solution Label"', 'Timestamp', ...failedElementsCorr.map(col 
   },
 
   getSampleIdsForFile(fileId) {
-    return new   Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       db.all(
         'SELECT sample_id FROM sample_id_X_file_id WHERE file_id = ?',
         [fileId],
