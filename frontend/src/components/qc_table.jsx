@@ -17,42 +17,39 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
   const MINI_TABLE_PAGE_SIZE = 10; // Define page size
 
   useEffect(() => {
-  console.log("📣 [useEffect] selectedFileId:", selectedFileId);
-  console.log("📣 [useEffect] selectedDateRange:", selectedDateRange);
+    console.log("📣 [useEffect] selectedFileId:", selectedFileId);
+    console.log("📣 [useEffect] selectedDateRange:", selectedDateRange);
 
-  if (selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) {
-    fetchQCData();
-  }
-}, [selectedFileId, selectedDateRange]);
+    if (selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) {
+      fetchQCData();
+    }
+  }, [selectedFileId, selectedDateRange]);
 
   const buildUrl = (baseUrl, page, pageSize) => {
-  const params = new URLSearchParams();
+    const params = new URLSearchParams();
 
-  // Only one should be active at a time:
-  if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
-    const start = formatDate(new Date(selectedDateRange.startDate));
-    const end = formatDate(new Date(selectedDateRange.endDate));
-    params.append('start_date', start);
-    params.append('end_date', end);
-  } else if (selectedFileId) {
-    params.append('file_id', selectedFileId);
-  }
+    // Only one should be active at a time:
+    if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
+      const start = formatDate(new Date(selectedDateRange.startDate));
+      const end = formatDate(new Date(selectedDateRange.endDate));
+      params.append('start_date', start);
+      params.append('end_date', end);
+    } else if (selectedFileId) {
+      params.append('file_id', selectedFileId);
+    }
 
-  if (page && pageSize) {
-    params.append('page', page);
-    params.append('pageSize', pageSize);
-  }
+    if (page && pageSize) {
+      params.append('page', page);
+      params.append('pageSize', pageSize);
+    }
 
-  return `${baseUrl}?${params.toString()}`;
-};
-
-
-
+    return `${baseUrl}?${params.toString()}`;
+  };
 
   const fetchQCData = async () => {
     try {
       // buildUrl for fetchQCData does not need page/pageSize for the main table
-      const url = buildUrl(`${import.meta.env.VITE_API_URL}/table-data`); 
+      const url = buildUrl(`${import.meta.env.VITE_API_URL}/table-data`);
       console.log("📡 Fetching QC data from:", url);
       const response = await fetch(url);
       const result = await response.json();
@@ -100,9 +97,9 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
     } catch (err) {
       console.error("❌ [Frontend] Error fetching mini table:", err);
       setMiniTables(prev => ({
-          ...prev,
-          [element]: { data: [], totalItems: 0, currentPage: 1 }
-        }));
+        ...prev,
+        [element]: { data: [], totalItems: 0, currentPage: 1 }
+      }));
     }
   };
 
@@ -118,7 +115,7 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
     }
     setExpandedRows(next);
   };
-  
+
 
   const sortMiniTable = (element, key) => {
     const current = miniSortConfig[element] || { key: '', direction: 'asc' };
@@ -137,19 +134,34 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
   const handleMiniTablePageChange = (element, newPage) => {
     fetchMiniTableData(element, newPage);
   };
-
+  
+  // ✨ CHANGED: Updated the sorting logic to handle 'status' and correctly sort string vs. numeric values.
   const sortedData = useMemo(() => {
     if (!sortConfig.key || !sortConfig.direction) return qcData;
+
+    // When sorting by 'status', we use the data from 'errorPercentage'.
+    const keyForSorting = sortConfig.key === 'status' ? 'errorPercentage' : sortConfig.key;
+
     return [...qcData].sort((a, b) => {
-      const aVal = Number(a[sortConfig.key]);
-      const bVal = Number(b[sortConfig.key]);
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      const aVal = a[keyForSorting];
+      const bVal = b[keyForSorting];
+
+      // Handle string sorting for the 'element' column
+      if (keyForSorting === 'element') {
+        return sortConfig.direction === 'asc'
+          ? String(aVal).localeCompare(String(bVal))
+          : String(bVal).localeCompare(String(aVal));
+      }
+
+      // Handle numeric sorting for all other columns
+      if (Number(aVal) < Number(bVal)) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (Number(aVal) > Number(bVal)) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
   }, [qcData, sortConfig]);
 
-  const sortableKeys = ['element', 'valueAvg', 'rsd', 'errorPercentage'];
+  // ✨ ADDED: 'status' to the array of sortable keys.
+  const sortableKeys = ['element', 'valueAvg', 'rsd', 'errorPercentage', 'status'];
 
   return (
     <Box sx={{ px: 2, pt: 2 }}>
@@ -182,8 +194,8 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
               { key: 'valueAvg', label: 'Value (avg)' },
               { key: 'rsd', label: 'RSD%' },
               { key: 'errorPercentage', label: 'Error%' },
-              //{ key: null, label: 'Distribution' },
-              { key: null, label: 'Status' }
+              // ✨ CHANGED: Assigned a key to the 'Status' column to make it sortable.
+              { key: 'status', label: 'Status' }
             ].map((col, idx) => {
               const isSortable = sortableKeys.includes(col.key);
               const isActive = sortConfig.key === col.key;
