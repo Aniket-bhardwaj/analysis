@@ -6,6 +6,8 @@ import {
   Typography,
   TextField,
   Autocomplete,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import {
@@ -20,6 +22,7 @@ import {
   Filler,
 } from 'chart.js';
 
+// Register Chart.js components
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Title, Tooltip, Legend, Filler);
 
 // 🔧 helper to format date as YYYY-MM-DD
@@ -31,11 +34,14 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
   const [availableElements, setAvailableElements] = useState([]);
   const [selectedElement, setSelectedElement] = useState('');
   const [xLabel, setXLabel] = useState('Timestamp');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Builds the API URL based on selected file or date range
   const buildUrl = () => {
     const baseUrl = `${import.meta.env.VITE_API_URL}/sjs-graph`;
     const params = new URLSearchParams();
-  
+
     if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
       const start = formatDate(new Date(selectedDateRange.startDate));
       const end = formatDate(new Date(selectedDateRange.endDate));
@@ -48,14 +54,16 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
     return `${baseUrl}?${params.toString()}`;
   };
 
+  // Effect to fetch data when file ID or date range changes
   useEffect(() => {
     const fetchGraphData = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const url = buildUrl();
         const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const result = await response.json();
-
-        console.log('Fetched result:', result);
 
         setElementData(result.data || {});
         setAvailableElements(result.elements || []);
@@ -64,7 +72,10 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
         const defaultElement = (result.elements || [])[0] || '';
         setSelectedElement(defaultElement);
       } catch (err) {
+        setError(err.message);
         console.error('Error fetching SJS graph data:', err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -73,60 +84,94 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
     }
   }, [selectedFileId, selectedDateRange]);
 
-  const chartData = {
-    labels: elementData[selectedElement]?.map((d) => d.x) || [],
-    datasets: [
-      // Lower bound (plotted first)
-      {
-        label: 'Lower Limit',
-        data: elementData[selectedElement]?.map(d => ({ x: d.x, y: d.lower })) || [],
+  // Prepares the data and configuration for the chart
+  const getChartData = () => {
+    const datasets = [];
+    const currentElementData = elementData[selectedElement] || [];
+
+    if (currentElementData.length > 0) {
+      // Add the new calculated 10% envelope (5% up/down) first to render it in the background
+      datasets.push({
+        label: '5% Upper Limit',
+        data: currentElementData.map(d => {
+          const mid = (d.upper + d.lower) / 2;
+          return { x: d.x, y: mid * 1.05 }; // 5% up
+        }),
+        fill: false,
+        backgroundColor: 'rgba(255, 165, 0, 0.2)', // Light orange fill
+        borderWidth: 0,
+        pointRadius: 0,
+        tension: 0,
+      });
+      datasets.push({
+        label: '5% Lower Limit', // Matching label to group in legend
+        data: currentElementData.map(d => {
+          const mid = (d.upper + d.lower) / 2;
+          return { x: d.x, y: mid * 0.95 }; // 5% down
+        }),
+        fill: '-1', // Fill to the previous dataset
+        backgroundColor: 'rgba(255, 165, 0, 0.2)',
+        borderWidth: 0,
+        pointRadius: 0,
+        tension: 0,
+      });
+
+      // Original Lower bound
+      datasets.push({
+        label: 'Standard Upper Limit',
+        data: currentElementData.map(d => ({ x: d.x, y: d.lower })),
         fill: false,
         backgroundColor: 'rgba(173, 230, 189, 0.3)',
         borderWidth: 0,
         pointRadius: 0,
         tension: 0,
-      },
-      // Upper bound (fills to previous lower line)
-      {
-        label: 'Upper Limit',
-        data: elementData[selectedElement]?.map(d => ({ x: d.x, y: d.upper })) || [],
+      });
+      // Original Upper bound
+      datasets.push({
+        label: 'Standard Lower Limit',
+        data: currentElementData.map(d => ({ x: d.x, y: d.upper })),
         fill: '-1', // fill to previous dataset (lower)
         backgroundColor: 'rgba(173, 230, 189, 0.3)',
         borderWidth: 0,
         pointRadius: 0,
         tension: 0,
-      },
-      // Actual concentration
-      {
+      });
+
+      // Actual concentration data line
+      datasets.push({
         label: selectedElement,
-        data: elementData[selectedElement]?.map(d => d.y || d.value) || [],
-        pointBackgroundColor: elementData[selectedElement]?.map(d =>
+        data: currentElementData.map(d => d.y || d.value),
+        pointBackgroundColor: currentElementData.map(d =>
           d.y < d.lower || d.y > d.upper ? '#f44336' : '#4caf50' // red or green
         ),
-        pointBorderColor: 'transparent', // no border
+        pointBorderColor: 'transparent',
         pointRadius: 5,
         pointHoverRadius: 6,
         tension: 0.3,
         borderWidth: 1.5,
-        borderColor: '#444444', // dark gray line for all segments
-        segment: {
-          borderColor: '#444444', // force dark gray for all segments
-        },
-      },
-      // Midline (dashed)
-      {
+        borderColor: '#444444',
+      });
+
+      // Midline from data (dashed)
+      datasets.push({
         label: 'SJS-Std Mid',
-        data: elementData[selectedElement]?.map(d => ({ x: d.x, y: d.mid })) || [],
+        data: currentElementData.map(d => ({ x: d.x, y: d.mid })),
         borderDash: [5, 5],
         borderColor: 'gray',
         backgroundColor: 'transparent',
         pointRadius: 0,
         tension: 0,
         fill: false,
-      },
-    ]
+      });
+    }
 
+    return {
+      labels: currentElementData.map((d) => d.x),
+      datasets,
+    };
   };
+
+  const chartData = getChartData();
 
   const chartOptions = {
     responsive: true,
@@ -142,31 +187,39 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
     },
     scales: {
       x: {
-        title: {
-          display: true,
-          text: xLabel,
-          font: { size: 14 },
-        },
-        ticks: {
-          autoSkip: true,
-          maxRotation: 0,
-          minRotation: 0,
-          font: { size: 12 },
-        },
+        title: { display: true, text: xLabel, font: { size: 14 } },
+        ticks: { autoSkip: true, maxRotation: 0, minRotation: 0, font: { size: 12 } },
       },
       y: {
-        title: {
-          display: true,
-          text: 'Concentration',
-          font: { size: 14 },
-        },
-        ticks: {
-          font: { size: 12 },
-        },
+        title: { display: true, text: 'Concentration', font: { size: 14 } },
+        ticks: { font: { size: 12 } },
         beginAtZero: false,
       },
     },
   };
+
+  if (loading) {
+    return (
+      <Card sx={{ mt: 4 }}>
+        <CardContent>
+          <Box display="flex" justifyContent="center" alignItems="center" height={400}>
+            <CircularProgress />
+            <Typography variant="body1" sx={{ ml: 2 }}>Loading Graph Data...</Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card sx={{ mt: 4 }}>
+        <CardContent>
+          <Alert severity="error">{error}</Alert>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card sx={{ mt: 4 }}>
@@ -189,9 +242,11 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
             <Line data={chartData} options={chartOptions} />
           </Box>
         ) : (
-          <Typography variant="body2" color="textSecondary">
-            No data available for selected element.
-          </Typography>
+          <Box display="flex" justifyContent="center" alignItems="center" height={400} bgcolor="#f5f5f5" borderRadius={1}>
+            <Typography variant="body1" color="textSecondary">
+              No data available for the selected element.
+            </Typography>
+          </Box>
         )}
       </CardContent>
     </Card>
