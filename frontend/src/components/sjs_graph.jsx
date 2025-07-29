@@ -90,27 +90,27 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
     const currentElementData = elementData[selectedElement] || [];
 
     if (currentElementData.length > 0) {
-      // Add the new calculated 10% envelope (5% up/down) first to render it in the background
+      // Add the new envelope (10% up/down) first to render it in the background
       datasets.push({
-        label: '5% Upper Limit',
+        label: '10% Upper Limit',
         data: currentElementData.map(d => {
           const mid = (d.upper + d.lower) / 2;
-          return { x: d.x, y: mid * 1.05 }; // 5% up
+          return { x: d.x, y: mid * 1.1 }; // 5% up
         }),
         fill: false,
-        backgroundColor: 'rgba(255, 165, 0, 0.2)', // Light orange fill
+        backgroundColor: 'rgba(173, 230, 189, 0.2)', // Light orange fill
         borderWidth: 0,
         pointRadius: 0,
         tension: 0,
       });
       datasets.push({
-        label: '5% Lower Limit', // Matching label to group in legend
+        label: '10% Lower Limit', // Matching label to group in legend
         data: currentElementData.map(d => {
           const mid = (d.upper + d.lower) / 2;
-          return { x: d.x, y: mid * 0.95 }; // 5% down
+          return { x: d.x, y: mid * 0.9 }; // 5% down
         }),
         fill: '-1', // Fill to the previous dataset
-        backgroundColor: 'rgba(255, 165, 0, 0.2)',
+        backgroundColor: 'rgba(173, 230, 189, 0.2)',
         borderWidth: 0,
         pointRadius: 0,
         tension: 0,
@@ -131,7 +131,7 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
         label: 'Standard Lower Limit',
         data: currentElementData.map(d => ({ x: d.x, y: d.upper })),
         fill: '-1', // fill to previous dataset (lower)
-        backgroundColor: 'rgba(173, 230, 189, 0.3)',
+        backgroundColor: 'rgba(173, 230, 189, 0.6)',
         borderWidth: 0,
         pointRadius: 0,
         tension: 0,
@@ -141,9 +141,12 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
       datasets.push({
         label: selectedElement,
         data: currentElementData.map(d => d.y || d.value),
-        pointBackgroundColor: currentElementData.map(d =>
-          d.y < d.lower || d.y > d.upper ? '#f44336' : '#4caf50' // red or green
-        ),
+        pointBackgroundColor: currentElementData.map(d => {
+          const mid = (d.upper + d.lower) / 2;
+          const lower10 = mid * 0.9;
+          const upper10 = mid * 1.1;
+          return d.y < lower10 || d.y > upper10 ? '#f44336' : '#4caf50'; // red = outside, green = inside 10%
+        }),
         pointBorderColor: 'transparent',
         pointRadius: 5,
         pointHoverRadius: 6,
