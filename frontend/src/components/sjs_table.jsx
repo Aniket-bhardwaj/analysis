@@ -102,6 +102,8 @@ const SJSTable = ({ selectedFileId, startDate, endDate }) => {
     };
 
     const toggleRowExpansion = (element) => {
+
+
         const next = new Set(expandedRows);
         if (next.has(element)) {
             next.delete(element);
@@ -259,10 +261,10 @@ const SJSTable = ({ selectedFileId, startDate, endDate }) => {
                         <SJSRow
                             key={row.element || index}
                             row={row}
-                            isExpanded={expandedRows.has(row.element)}
+                            isExpanded={expandedRows.has(row.fullElementName)}
                             toggleRowExpansion={toggleRowExpansion}
                             // Pass the specific miniTable object, or a default structure
-                            miniTableData={miniTables[row.element] || { data: [], totalItems: 0, currentPage: 1 }}
+                            miniTableData={miniTables[row.fullElementName] || { data: [], totalItems: 0, currentPage: 1 }}
                             pageSize={MINI_TABLE_PAGE_SIZE}
                             handleMiniTablePageChange={handleMiniTablePageChange}
                             miniSortConfig={miniSortConfig}
