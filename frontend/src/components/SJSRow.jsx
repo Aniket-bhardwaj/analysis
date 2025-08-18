@@ -66,7 +66,7 @@ const SJSRow = ({
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <IconButton
               size="small"
-              onClick={() => toggleRowExpansion(row.element)}
+              onClick={() => toggleRowExpansion(row.fullElementName)}
             >
               {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </IconButton>
@@ -230,7 +230,7 @@ const SJSRow = ({
                     count={Math.ceil(miniTableData.totalItems / pageSize)}
                     page={miniTableData.currentPage}
                     onChange={(e, v) =>
-                      handleMiniTablePageChange(row.element, v)
+                      handleMiniTablePageChange(row.fullElementName, v)
                     }
                     color="primary"
                     size="small"
