@@ -33,7 +33,6 @@ ChartJS.register(
   Filler
 );
 
-// 🔧 helper to format date as YYYY-MM-DD
 const formatDate = (dateObj) =>
   `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 
@@ -44,53 +43,88 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const buildUrl = () => {
-    const baseUrl = `${import.meta.env.VITE_API_URL}/graph-data`;
+  const buildElementUrl = () => {
+    const baseUrl = `${import.meta.env.VITE_API_URL}/graph-elements`;
     const params = new URLSearchParams();
 
-    if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
-      const start = formatDate(new Date(selectedDateRange.startDate));
-      const end = formatDate(new Date(selectedDateRange.endDate));
-      params.append('start_date', start);
-      params.append('end_date', end);
-    } else if (selectedFileId) {
-      params.append('file_id', selectedFileId);
+    if (selectedFileId) params.append('file_id', selectedFileId);
+    else if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
+      params.append('start_date', formatDate(new Date(selectedDateRange.startDate)));
+      params.append('end_date', formatDate(new Date(selectedDateRange.endDate)));
     }
 
     return `${baseUrl}?${params.toString()}`;
   };
 
+  const buildGraphUrl = () => {
+    const baseUrl = `${import.meta.env.VITE_API_URL}/graph-data`;
+    const params = new URLSearchParams();
+
+    if (selectedFileId) params.append('file_id', selectedFileId);
+    else if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
+      params.append('start_date', formatDate(new Date(selectedDateRange.startDate)));
+      params.append('end_date', formatDate(new Date(selectedDateRange.endDate)));
+    }
+
+    if (selectedElement) params.append('element', selectedElement);
+
+    return `${baseUrl}?${params.toString()}`;
+  };
+
+  // Fetch elements initially
   useEffect(() => {
-    console.log("📣 [useEffect] selectedFileId:", selectedFileId);
-    console.log("📣 [useEffect] selectedDateRange:", selectedDateRange);
-  
-    const fetchData = async () => {
+    if (!selectedFileId && !(selectedDateRange?.startDate && selectedDateRange?.endDate)) return;
+
+    const fetchElements = async () => {
       setLoading(true);
       setError(null);
-  
+
       try {
-        const url = buildUrl();
+        const url = buildElementUrl();
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-  
+
         const result = await res.json();
-        if (!result.success || !result.graphData) {
-          throw new Error(result.message || 'Failed to load graph data');
-        }
-  
+        if (!result.success || !result.elements) throw new Error(result.message || 'Failed to load elements');
+
+        setElements(result.elements);
+        if (result.elements.length > 0) setSelectedElement(result.elements[0]);
+      } catch (err) {
+        setError(err.message);
+        console.error('Error fetching elements:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchElements();
+  }, [selectedFileId, selectedDateRange]);
+
+  // Fetch graph data whenever selectedElement changes
+  useEffect(() => {
+    if (!selectedElement) return;
+
+    const fetchGraphData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const url = buildGraphUrl();
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+        const result = await res.json();
+        if (!result.success || !result.graphData) throw new Error(result.message || 'Failed to load graph data');
+
         const transformedData = Object.keys(result.graphData).map(element => ({
           element,
           data: result.graphData[element].map((point, index) => ({
             timestamp: point.sample || `Sample ${index + 1}`,
             value: point.value,
-          }))
+          })),
         }));
-  
+
         setRawData(transformedData);
-        setElements(Object.keys(result.graphData));
-        if (Object.keys(result.graphData).length > 0) {
-          setSelectedElement(Object.keys(result.graphData)[0]);
-        }
       } catch (err) {
         setError(err.message);
         console.error('Error fetching graph data:', err);
@@ -98,11 +132,9 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
         setLoading(false);
       }
     };
-  
-    if (selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) {
-      fetchData();
-    }
-  }, [selectedFileId, selectedDateRange]);
+
+    fetchGraphData();
+  }, [selectedElement, selectedFileId, selectedDateRange]);
 
   const chartData = () => {
     if (!selectedElement) return null;
@@ -156,7 +188,6 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
     ];
 
     if (target && error) {
-      // Add envelope
       datasets.push({
         label: 'Upper Limit',
         data: timestamps.map(() => upperLimit),
@@ -177,7 +208,6 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
         tension: 0.3,
       });
 
-      // Add target and limits as dashed lines
       const refLine = (value, label, color) => ({
         label,
         data: Array(timestamps.length).fill(value),
@@ -189,8 +219,6 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
       });
 
       datasets.push(refLine(target, `Target ${target}`, 'rgba(0,0,0,0.4)'));
-      // datasets.push(refLine(lowerLimit, `Lower Limit`, 'rgba(255, 0, 0, 0.42)'));
-      // datasets.push(refLine(upperLimit, `Upper Limit`, 'rgba(255, 0, 0, 0.42)'));
     }
 
     return {
@@ -212,18 +240,10 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
     const is50ppb = Math.abs(values[0] - 50) < 10;
     const is5ppm = Math.abs(values[0] - 5) < 2;
 
-    if (is5ppm) {
-      return { min: 4, max: 6 };
-    }
+    if (is5ppm) return { min: 4, max: 6 };
+    if (is50ppb) return { min: 40, max: 60 };
 
-    if (is50ppb) {
-      return { min: 40, max: 60 };
-    }
-
-    return {
-      min: minVal - 1,
-      max: maxVal + 1,
-    };
+    return { min: minVal - 1, max: maxVal + 1 };
   };
 
   const chartOptions = {
@@ -276,8 +296,7 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
   return (
     <Card>
       <CardContent>
-        <Typography variant="h5"  gutterBottom 
-      sx={{ textAlign: 'left' }}>
+        <Typography variant="h5" gutterBottom sx={{ textAlign: 'left' }}>
           Quality Control Graph
         </Typography>
 
@@ -288,12 +307,7 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
             value={selectedElement}
             onChange={(event, newValue) => setSelectedElement(newValue)}
             renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Select Element"
-                variant="outlined"
-                sx={{ minWidth: 220 }}
-              />
+              <TextField {...params} label="Select Element" variant="outlined" sx={{ minWidth: 220 }} />
             )}
             sx={{ width: 250 }}
           />
