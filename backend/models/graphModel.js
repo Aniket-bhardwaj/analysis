@@ -16,91 +16,63 @@ const ELEMENT_TABLES = {
 
 class graphModel {
 
-  static fetchGraphDataByFileId(fileId) {
-    return new Promise((resolve, reject) => {
-      db.get('SELECT type FROM uploaded_files WHERE id = ?', [fileId], (err, fileRow) => {
-        if (err) return reject(err);
-        if (!fileRow) return reject(new Error('File not found'));
+  static queryGraphRowsByFileId(fileId, element) {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT type FROM uploaded_files WHERE id = ?', [fileId], (err, fileRow) => {
+      if (err) return reject(err);
+      if (!fileRow) return reject(new Error('File not found'));
 
-        const fileType = fileRow.type;
-        const qcLabel = VALID_LABELS[fileType];
-        const elementNames = ELEMENT_TABLES[fileType];
+      const fileType = fileRow.type;
+      const qcLabel = VALID_LABELS[fileType];
 
-        if (!qcLabel || !Array.isArray(elementNames) || elementNames.length === 0) {
-          return reject(new Error('Invalid file type or element list'));
-        }
+      if (!qcLabel) {
+        return reject(new Error('Invalid file type'));
+      }
 
-        const timeColumn = fileType === 2 ? `"Acq. Date-Time"` : `"Timestamp"`;
-
-        const query = `
-          SELECT ${timeColumn} AS timestamp, ${elementNames.map(el => `"${el}"`).join(', ')}
-          FROM qc_data
-          WHERE file_id = ? AND "Solution Label" = ?
-          ORDER BY ${timeColumn} ASC
-        `;
-
-        db.all(query, [fileId, qcLabel], (err, rows) => {
-          if (err) return reject(err);
-
-          const graphData = {};
-          elementNames.forEach(element => {
-            const points = rows.map(row => ({
-              sample: row.timestamp,
-              value: parseFloat(row[element]),
-            })).filter(p => !isNaN(p.value));
-
-            if (points.length > 0) {
-              graphData[element] = points;
-            }
-          });
-
-          resolve({ success: true, graphData });
-        });
-      });
-    });
-  }
-
-  static fetchGraphDataByDateRange(startDate, endDate, solutionLabel = null) {
-    return new Promise((resolve, reject) => {
-      const start = `${startDate} 00:00:00`;
-      const end = `${endDate} 23:59:59`;
+      const timeColumn = fileType === 2 ? `"Acq. Date-Time"` : `"Timestamp"`;
 
       const query = `
-        SELECT q.*, f.type, f.uploaded_at
-        FROM qc_data q
-        JOIN uploaded_files f ON q.file_id = f.id
-        WHERE f.uploaded_at BETWEEN ? AND ?
-          AND f.hidden = 0
-          AND q."Solution Label" ${solutionLabel ? "= ?" : "LIKE 'QC%'"}
-        ORDER BY f.uploaded_at ASC
+        SELECT ${timeColumn} AS timestamp, "${element}"
+        FROM qc_data
+        WHERE file_id = ? AND "Solution Label" = ?
+        ORDER BY ${timeColumn} ASC
       `;
 
-      const params = solutionLabel ? [start, end, solutionLabel] : [start, end];
-
-      db.all(query, params, (err, rows) => {
+      db.all(query, [fileId, qcLabel], (err, rows) => {
         if (err) return reject(err);
-
-        const allGraphData = {};
-        rows.forEach(row => {
-          const fileType = row.type;
-          const timestamp = fileType === 2 ? row["Acq. Date-Time"] : row["Timestamp"];
-          const elementNames = ELEMENT_TABLES[fileType];
-
-          if (!Array.isArray(elementNames)) return;
-
-          elementNames.forEach(el => {
-            const val = parseFloat(row[el]);
-            if (!isNaN(val)) {
-              if (!allGraphData[el]) allGraphData[el] = [];
-              allGraphData[el].push({ sample: timestamp, value: val });
-            }
-          });
-        });
-
-        resolve({ success: true, graphData: allGraphData });
+        resolve(rows); // just return raw rows
       });
     });
-  }
+  });
+}
+// Query function: only query needed columns
+static queryGraphDataByDateRange(startDate, endDate, element, solutionLabel = null) {
+  return new Promise((resolve, reject) => {
+    const start = `${startDate} 00:00:00`;
+    const end = `${endDate} 23:59:59`;
+
+    // 👇 decide time column based on element name
+    const timeColumn = element.includes("ppm") ? `"Timestamp"` : `"Acq. Date-Time"`;
+
+    const query = `
+      SELECT q."${element}", q.${timeColumn} AS time, f.type, f.uploaded_at
+      FROM qc_data q
+      JOIN uploaded_files f ON q.file_id = f.id
+      WHERE f.uploaded_at BETWEEN ? AND ?
+        AND f.hidden = 0
+        AND q."Solution Label" ${solutionLabel ? "= ?" : "LIKE 'QC%'"}
+      ORDER BY ${timeColumn} ASC
+    `;
+
+    const params = solutionLabel ? [start, end, solutionLabel] : [start, end];
+
+    db.all(query, params, (err, rows) => {
+      if (err) return reject(err);
+      console.log("Fetched rows:", rows); // Debugging line
+      resolve(rows); // ✅ raw rows with correct time column
+    });
+  });
+}
 
   static fetchSJSGraphDataByFileId(fileId) {
     return new Promise((resolve, reject) => {

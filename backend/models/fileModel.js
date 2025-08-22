@@ -147,6 +147,26 @@ function getFileIdsByDateRange(startDate, endDate) {
   });
 }
 
+function getFileTypesByDateRange(startDate, endDate) {
+  const sql = `
+    SELECT DISTINCT type FROM uploaded_files
+    WHERE uploaded_at BETWEEN ? AND ?
+    AND hidden = 0
+  `;
+
+  const start = `${startDate} 00:00:00`;
+  const end = `${endDate} 23:59:59`;
+
+  return new Promise((resolve, reject) => {
+    db.all(sql, [start, end], (err, rows) => {
+      if (err) return reject(err);
+
+      // rows = [{ type: 1 }, { type: 2 }, ...]
+      const types = rows.map(r => r.type).sort();
+      resolve(types); // e.g., [1], [2], or [1, 2]
+    });
+  });
+}
 // ==========================
 // 9. Get Metadata by file_id
 // ==========================
@@ -213,5 +233,6 @@ module.exports = {
   getTypeById,
   getFileIdsByDateRange,
   getFileMetadata,
-  getFileIdsByDateRange
+  getFileIdsByDateRange,
+  getFileTypesByDateRange
 };
