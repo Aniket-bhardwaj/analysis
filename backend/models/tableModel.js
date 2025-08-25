@@ -34,6 +34,9 @@ static async getQCDataWithDateRange(startDate, endDate, elementColumns, solution
 
   const safeCols = elementColumns.map(col => `"${col.replace(/"/g, '""')}"`);
 
+  startDate = `${startDate} 00:00:00`;
+  endDate = `${endDate} 23:59:59`;
+
   const avgCols = safeCols.map(col => `AVG(${col}) AS ${col}`).join(', ');
 
   const rsdCols = safeCols.map(col => `

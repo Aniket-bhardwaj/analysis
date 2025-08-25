@@ -3,6 +3,12 @@ const fileModel = require('../models/fileModel');
 
 class QcCheckController {
 
+  static addOneDay(dateString) {
+    const date = new Date(dateString);
+    date.setDate(date.getDate() + 1);
+    return date.toISOString().split("T")[0];
+  }
+
   static async meta(req, res) {
     // The frontend sends file_id as a query parameter (e.g., /file-meta?file_id=123)
     const fileId = req.query.file_id;
@@ -62,6 +68,7 @@ class QcCheckController {
   static async getSummary(req, res) {
     try {
       const { file_id, start_date, end_date } = req.query;
+      
       const solution_label =  await QcCheckService.getSolutionLabelsForFile(file_id);
 
       if (!file_id && !(start_date && end_date)) {
@@ -78,7 +85,14 @@ class QcCheckController {
       summary = await QcCheckService.getSummaryForQC(file_id, solution_label);
     } 
     else if (start_date && end_date) {
-      summary = await QcCheckService.getSummaryForQCByDates(start_date, end_date);
+      
+      let sd= start_date.split('T')[0] ;
+      let ed= end_date.split('T')[0];
+      
+      sd = QcCheckController.addOneDay(sd);
+      ed = QcCheckController.addOneDay(ed); 
+
+      summary = await QcCheckService.getSummaryForQCByDates(sd, ed);
     }
     // console.log('Summary:', summary); 
 

@@ -193,7 +193,9 @@ class TableController {
       result = await tableService.getQCTableData(parseInt(file_id, 10));
     } 
     else if (start_date && end_date) {
-      result = await tableService.getFinalQCTableData(start_date, end_date);
+      const sd= start_date.split('T')[0];
+      const ed= end_date.split('T')[0];
+      result = await tableService.getFinalQCTableData(sd,ed);
     }
 
     if (!result || !result.tableData || result.tableData.length === 0) {
@@ -233,8 +235,7 @@ class TableController {
       });
     }
 
-    console.log('sd', start_date, 'ed', end_date);
-    console.log('file', file_id);
+
 
     let result;
 
@@ -242,7 +243,10 @@ class TableController {
       const solutionLabel = 'SJS-Std';
       result = await tableService.getSJSTableData(parseInt(file_id, 10), solutionLabel);
     } else if (start_date && end_date) {
-      result = await tableService.getFinalSJSTableData(start_date, end_date);
+      const sd= start_date.split('T')[0];
+      const ed= end_date.split('T')[0];
+      console.log('sd sjs', sd, 'ed', ed);
+      result = await tableService.getFinalSJSTableData(sd, ed);
     }
 
     if (!result || !result.tableData || result.tableData.length === 0) {
