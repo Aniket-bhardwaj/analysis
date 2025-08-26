@@ -92,7 +92,7 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
     if (currentElementData.length > 0) {
       // Add the new envelope (10% up/down) first to render it in the background
       datasets.push({
-        label: '10% Upper Limit',
+        label: '10% Error Envelope (against median)',
         data: currentElementData.map(d => {
           const mid = (d.upper + d.lower) / 2;
           return { x: d.x, y: mid * 1.1 }; // 5% up
@@ -104,7 +104,7 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
         tension: 0,
       });
       datasets.push({
-        label: '10% Lower Limit', // Matching label to group in legend
+        label: '10% Error Envelope (against median)', // Matching label to group in legend
         data: currentElementData.map(d => {
           const mid = (d.upper + d.lower) / 2;
           return { x: d.x, y: mid * 0.9 }; // 5% down
@@ -118,17 +118,17 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
 
       // Original Lower bound
       datasets.push({
-        label: 'Standard Upper Limit',
+        label: 'Target Standard Value',
         data: currentElementData.map(d => ({ x: d.x, y: d.lower })),
         fill: false,
-        backgroundColor: 'rgba(173, 230, 189, 0.3)',
+        backgroundColor: 'rgba(173, 230, 189, 0.6)',
         borderWidth: 0,
         pointRadius: 0,
         tension: 0,
       });
       // Original Upper bound
       datasets.push({
-        label: 'Standard Lower Limit',
+        label: 'Target Standard Value',
         data: currentElementData.map(d => ({ x: d.x, y: d.upper })),
         fill: '-1', // fill to previous dataset (lower)
         backgroundColor: 'rgba(173, 230, 189, 0.6)',
@@ -150,9 +150,8 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
         pointBorderColor: 'transparent',
         pointRadius: 5,
         pointHoverRadius: 6,
-        tension: 0.3,
-        borderWidth: 1.5,
-        borderColor: '#444444',
+        showLine : false,
+        
       });
 
       // Midline from data (dashed)
@@ -185,7 +184,21 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
         text: `SJS-Std Concentration Trend - ${selectedElement}`,
         font: { size: 18 },
       },
-      legend: { display: true },
+      legend: {
+  display: true,
+  labels: {
+    
+    filter: function (legendItem, data) {
+      const label = legendItem.text;
+      const firstIndex = data.datasets.findIndex(ds => ds.label === label);
+      return legendItem.datasetIndex === firstIndex;
+    },
+  },
+},
+
+
+
+
       tooltip: { mode: 'index', intersect: false },
     },
     scales: {

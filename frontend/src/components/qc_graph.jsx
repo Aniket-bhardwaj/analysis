@@ -168,28 +168,24 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
 
     const datasets = [
       {
-        label: selectedElement,
-        data: values,
-        fill: false,
-        borderColor: modernBlue,
-        borderWidth: 1.5,
-        tension: 0.2,
-        pointRadius: 5,
-        pointHoverRadius: 5.5,
-        pointBackgroundColor: values.map(val =>
-          val < lowerLimit || val > upperLimit ? modernRed : modernGreen
-        ),
-        pointBorderColor: 'transparent',
-        pointBorderWidth: 0,
-        segment: {
-          borderColor: () => modernBlue,
-        },
-      },
+  label: selectedElement,
+  data: values,
+  fill: false,
+  showLine: false,
+  pointRadius: 5,
+  pointHoverRadius: 5.5,
+  pointBackgroundColor: values.map(val =>
+    val < lowerLimit || val > upperLimit ? modernRed : modernGreen
+  ),
+  pointBorderColor: 'transparent',
+  pointBorderWidth: 0,
+},
+
     ];
 
     if (target && error) {
       datasets.push({
-        label: 'Upper Limit',
+        label: '10% Error Envelope',
         data: timestamps.map(() => upperLimit),
         borderWidth: 0,
         backgroundColor: 'rgba(173, 230, 189, 0.3)',
@@ -199,7 +195,7 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
       });
 
       datasets.push({
-        label: 'Lower Limit',
+        label: '10% Error Envelope',
         data: timestamps.map(() => lowerLimit),
         borderWidth: 0,
         backgroundColor: 'rgba(173, 230, 189, 0.3)',
@@ -250,7 +246,17 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'top' },
+      legend: {
+  display: true,
+  labels: {
+    
+    filter: function (legendItem, data) {
+      const label = legendItem.text;
+      const firstIndex = data.datasets.findIndex(ds => ds.label === label);
+      return legendItem.datasetIndex === firstIndex;
+    },
+  },
+},
       tooltip: { mode: 'index', intersect: false },
     },
     scales: {
