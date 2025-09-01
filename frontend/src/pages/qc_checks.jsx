@@ -26,6 +26,14 @@ import NestedFilterDrawer from '@/components/common/Filter';
 import customTheme from '../theme';
 import '../styles/qc_checks.css';
 
+const formatDate = (dateObj) => {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`; // 🔥 no timezone shift
+};
+
+
 const QCChecks = () => {
   const { section } = useParams();
   const location = useLocation();
@@ -151,8 +159,8 @@ const QCChecks = () => {
 
       if (selectedFileId) params.append('file_id', selectedFileId);
       if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
-        params.append('start_date', selectedDateRange.startDate);
-        params.append('end_date', selectedDateRange.endDate);
+        params.append('start_date', formatDate(new Date(selectedDateRange.startDate)));
+        params.append('end_date', formatDate(new Date (selectedDateRange.endDate)));
       }
 
       const response = await fetch(`${url}?${params.toString()}`);
@@ -350,7 +358,7 @@ const QCChecks = () => {
                     <AlertTriangle size={24} color="#f44336" />
                   </div>
                   <Typography variant="summaryValue" sx={{ color: '#f44336', mb: 0.5 }}>
-                    {summary.totalElements - summary.elementsWithinTolerance}
+                    {summary.elementsNotWithinTolerance}
                   </Typography>
                   <Typography variant="summaryLabel" sx={{ mb: 1 }}>
                     Outside Tolerance
@@ -359,7 +367,7 @@ const QCChecks = () => {
                     variant="determinate"
                     value={
                       summary.totalElements > 0
-                        ? ((summary.totalElements - summary.elementsWithinTolerance) /
+                        ? ((summary.elementsNotWithinTolerance) /
                             summary.totalElements) *
                           100
                         : 0
@@ -406,8 +414,7 @@ const QCChecks = () => {
                 <Box mt={4} ref={sjsTableRef}>
                   <SJS_Table
                     selectedFileId={selectedFileId}
-                    startDate={selectedDateRange?.startDate}
-                    endDate={selectedDateRange?.endDate}
+                    selectedDateRange={selectedDateRange}
                   />
                 </Box>
               </>

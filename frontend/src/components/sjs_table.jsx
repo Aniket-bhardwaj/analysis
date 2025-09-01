@@ -1,163 +1,154 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import {
-    Box, Typography
-} from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import SJSRow from './SJSRow';
 
-const SJSTable = ({ selectedFileId, startDate, endDate }) => {
+// ⏳ same helper QC uses
+const formatDate = (dateObj) =>
+  `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 
-    const [sjsData, setSjsData] = useState([]);
-    const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
-    const [expandedRows, setExpandedRows] = useState(new Set());
-    // Updated state to hold pagination info for each mini table
-    const [miniTables, setMiniTables] = useState({});
-    const [miniSortConfig, setMiniSortConfig] = useState({});
+const SJSTable = ({ selectedFileId, selectedDateRange }) => {
+  const [sjsData, setSjsData] = useState([]);
+  const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
+  const [expandedRows, setExpandedRows] = useState(new Set());
+  const [miniTables, setMiniTables] = useState({});
+  const [miniSortConfig, setMiniSortConfig] = useState({});
 
-    // Define a page size for the mini tables
-    const MINI_TABLE_PAGE_SIZE = 10;
+  const MINI_TABLE_PAGE_SIZE = 10;
 
-    useEffect(() => {
-        if (selectedFileId || (startDate && endDate)) fetchSJSData();
-    }, [selectedFileId, startDate, endDate]);
+  useEffect(() => {
+    if (selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) {
+      fetchSJSData();
+    }
+  }, [selectedFileId, selectedDateRange]);
 
+  const buildUrl = (baseUrl, page, pageSize) => {
+    const params = new URLSearchParams();
 
-    const buildSJSURL = (selectedFileId, startDate, endDate) => {
-        const base = `${import.meta.env.VITE_API_URL}/sjsTable-data`;
-        const params = new URLSearchParams();
-        if (selectedFileId) params.append('file_id', selectedFileId);
-        else if (startDate && endDate) {
-            params.append('start_date', startDate);
-            params.append('end_date', endDate);
-        }
-        return `${base}?${params.toString()}`;
-    };
+    if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
+      const start = formatDate(new Date(selectedDateRange.startDate));
+      const end = formatDate(new Date(selectedDateRange.endDate));
+      params.append('start_date', start);
+      params.append('end_date', end);
+    } else if (selectedFileId) {
+      params.append('file_id', selectedFileId);
+    }
 
+    if (page && pageSize) {
+      params.append('page', page);
+      params.append('pageSize', pageSize);
+    }
 
-    const fetchSJSData = async () => {
-        try {
-            const url = buildSJSURL(selectedFileId, startDate, endDate);
-            const response = await fetch(url);
-            const result = await response.json();
-            console.log('[SJS Table] Data:', result.tableData);
-            setSjsData(result.tableData || []);
-        } catch (err) {
-            console.error('Error fetching SJS data:', err);
-            setSjsData([]);
-        }
-    };
+    return `${baseUrl}?${params.toString()}`;
+  };
 
-
-    const handleSort = (key) => {
-        if (sortConfig.key !== key) {
-            setSortConfig({ key, direction: 'asc' });
-        } else if (sortConfig.direction === 'asc') {
-            setSortConfig({ key, direction: 'desc' });
-        } else if (sortConfig.direction === 'desc') {
-            setSortConfig({ key: '', direction: '' });
-        } else {
-            setSortConfig({ key, direction: 'asc' });
-        }
-    };
-
-    const fetchMiniTableData = async (element, page = 1) => {
-        try {
-            let url = `${import.meta.env.VITE_API_URL}/sjs-mini-table?element=${encodeURIComponent(element)}`;
-            if (selectedFileId) {
-                url += `&file_id=${selectedFileId}`;
-            } else if (startDate && endDate) {
-                url += `&start_date=${startDate}&end_date=${endDate}`;
-            } else {
-                console.warn("[SJS_Table] Cannot fetch mini table data without file_id or date range.");
-                return;
-            }
-            // Add pagination parameters
-            url += `&page=${page}&pageSize=${MINI_TABLE_PAGE_SIZE}`;
-
-            const res = await fetch(url);
-            const json = await res.json();
-
-            if (json.success) {
-                setMiniTables(prev => ({
-                    ...prev,
-                    [element]: {
-                        data: json.miniTable || [],
-                        totalItems: json.totalItems || 0,
-                        currentPage: json.page || 1,
-                    }
-                }));
-            } else {
-                console.error("❌ [Frontend] Error fetching SJS mini table:", json.message);
-                setMiniTables(prev => ({
-                    ...prev,
-                    [element]: { data: [], totalItems: 0, currentPage: 1 }
-                }));
-            }
-        } catch (err) {
-            console.error("\u274C [Frontend] Error fetching SJS mini table:", err);
-            setMiniTables(prev => ({
-                ...prev,
-                [element]: { data: [], totalItems: 0, currentPage: 1 }
-            }));
-        }
-    };
-
-    const toggleRowExpansion = (element) => {
+  const fetchSJSData = async () => {
+  setSjsData([]); // clear stale data immediately
+  try {
+    const url = buildUrl(`${import.meta.env.VITE_API_URL}/sjsTable-data`);
+    const response = await fetch(url);
+    const result = await response.json();
+    setSjsData(result.tableData || []);
+  } catch (err) {
+    console.error('❌ Error fetching SJS data:', err);
+    setSjsData([]);
+  }
+};
 
 
-        const next = new Set(expandedRows);
-        if (next.has(element)) {
-            next.delete(element);
-        } else {
-            next.add(element);
-            // Fetch data if not already present
-            if (!miniTables[element]) {
-                fetchMiniTableData(element, 1); // Fetch first page on expand
-            }
-        }
-        setExpandedRows(next);
-    };
-    
-    // Handler for changing the page of a mini table
-    const handleMiniTablePageChange = (element, newPage) => {
-        fetchMiniTableData(element, newPage);
-    };
+  const handleSort = (key) => {
+    if (sortConfig.key !== key) {
+      setSortConfig({ key, direction: 'asc' });
+    } else if (sortConfig.direction === 'asc') {
+      setSortConfig({ key, direction: 'desc' });
+    } else if (sortConfig.direction === 'desc') {
+      setSortConfig({ key: '', direction: '' });
+    } else {
+      setSortConfig({ key, direction: 'asc' });
+    }
+  };
 
-    const sortMiniTable = (element, key) => {
-        // Note: This sorting is client-side. If you need server-side sorting for paginated data,
-        // you would need to adjust the `fetchMiniTableData` to include sort parameters.
-        const current = miniSortConfig[element] || { key: '', direction: 'asc' };
-        const direction = current.key === key && current.direction === 'asc' ? 'desc' : 'asc';
-        
-        const sortedData = [...(miniTables[element]?.data || [])].sort((a, b) => {
-            const aVal = a[key];
-            const bVal = b[key];
-            if (aVal < bVal) return direction === 'asc' ? -1 : 1;
-            if (aVal > bVal) return direction === 'asc' ? 1 : -1;
-            return 0;
-        });
+  const fetchMiniTableData = async (element, page = 1) => {
+    try {
+      const url = buildUrl(`${import.meta.env.VITE_API_URL}/sjs-mini-table`, page, MINI_TABLE_PAGE_SIZE);
+      const res = await fetch(`${url}&element=${encodeURIComponent(element)}`);
+      const json = await res.json();
 
-        setMiniTables(prev => ({ 
-            ...prev, 
-            [element]: {
-                ...prev[element],
-                data: sortedData
-            }
+      if (json.success) {
+        setMiniTables(prev => ({
+          ...prev,
+          [element]: {
+            data: json.miniTable || [],
+            totalItems: json.totalItems || 0,
+            currentPage: json.page || 1,
+          }
         }));
-        setMiniSortConfig(prev => ({ ...prev, [element]: { key, direction } }));
-    };
+      } else {
+        console.error("❌ [Frontend] Error fetching SJS mini table:", json.message);
+        setMiniTables(prev => ({
+          ...prev,
+          [element]: { data: [], totalItems: 0, currentPage: 1 }
+        }));
+      }
+    } catch (err) {
+      console.error("❌ [Frontend] Error fetching SJS mini table:", err);
+      setMiniTables(prev => ({
+        ...prev,
+        [element]: { data: [], totalItems: 0, currentPage: 1 }
+      }));
+    }
+  };
 
-    const sortedData = useMemo(() => {
-        if (!sortConfig.key || !sortConfig.direction) return sjsData;
-        return [...sjsData].sort((a, b) => {
-            const aVal = Number(a[sortConfig.key]);
-            const bVal = Number(b[sortConfig.key]);
-            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
-        });
-    }, [sjsData, sortConfig]);
+  const toggleRowExpansion = (element) => {
+    const next = new Set(expandedRows);
+    if (next.has(element)) {
+      next.delete(element);
+    } else {
+      next.add(element);
+      if (!miniTables[element] || !miniTables[element].data || miniTables[element].data.length === 0) {
+        fetchMiniTableData(element, 1);
+      }
+    }
+    setExpandedRows(next);
+  };
 
-    const sortableKeys = ['element', 'valueAvg', 'sjsStd', 'errorAllowedPercent', 'actualErrorPercent', 'rsd'];
+  const handleMiniTablePageChange = (element, newPage) => {
+    fetchMiniTableData(element, newPage);
+  };
+
+  const sortMiniTable = (element, key) => {
+    const current = miniSortConfig[element] || { key: '', direction: 'asc' };
+    const direction = current.key === key && current.direction === 'asc' ? 'desc' : 'asc';
+
+    const sortedData = [...(miniTables[element]?.data || [])].sort((a, b) => {
+      const aVal = a[key];
+      const bVal = b[key];
+      if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    setMiniTables(prev => ({
+      ...prev,
+      [element]: {
+        ...prev[element],
+        data: sortedData
+      }
+    }));
+    setMiniSortConfig(prev => ({ ...prev, [element]: { key, direction } }));
+  };
+
+  const sortedData = useMemo(() => {
+    if (!sortConfig.key || !sortConfig.direction) return sjsData;
+    return [...sjsData].sort((a, b) => {
+      const aVal = Number(a[sortConfig.key]);
+      const bVal = Number(b[sortConfig.key]);
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [sjsData, sortConfig]);
+
+  const sortableKeys = ['element', 'valueAvg', 'sjsStd', 'errorAllowedPercent', 'actualErrorPercent', 'rsd'];
 
     return (
         <Box sx={{ px: 2, pt: 2 }}>

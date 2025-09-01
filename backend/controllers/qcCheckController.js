@@ -3,11 +3,7 @@ const fileModel = require('../models/fileModel');
 
 class QcCheckController {
 
-  static addOneDay(dateString) {
-    const date = new Date(dateString);
-    date.setDate(date.getDate() + 1);
-    return date.toISOString().split("T")[0];
-  }
+  
 
   static async meta(req, res) {
     // The frontend sends file_id as a query parameter (e.g., /file-meta?file_id=123)
@@ -22,7 +18,7 @@ class QcCheckController {
 
         if (metadata) {
             const Type = metadata.type===1 ? 'Major Elements' : 'Trace elements';
-            console.log('TypE :' , Type);
+          
             // Adjust response keys to match what the frontend expects (filename, uploaded_at, uploaded_by)
             const responseHeaders = {
                 filename: metadata.filename,
@@ -86,11 +82,12 @@ class QcCheckController {
     } 
     else if (start_date && end_date) {
       
-      let sd= start_date.split('T')[0] ;
-      let ed= end_date.split('T')[0];
+      let sd= start_date ;
+
+      let ed= end_date;
+      console.log('Start Date:', sd, 'End Date:', ed);
       
-      sd = QcCheckController.addOneDay(sd);
-      ed = QcCheckController.addOneDay(ed); 
+      
 
       summary = await QcCheckService.getSummaryForQCByDates(sd, ed);
     }

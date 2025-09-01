@@ -228,6 +228,7 @@ class TableController {
   try {
     const { file_id, start_date, end_date } = req.query;
 
+
     if (!file_id && !(start_date && end_date)) {
       return res.status(400).json({
         success: false,
@@ -243,10 +244,9 @@ class TableController {
       const solutionLabel = 'SJS-Std';
       result = await tableService.getSJSTableData(parseInt(file_id, 10), solutionLabel);
     } else if (start_date && end_date) {
-      const sd= start_date.split('T')[0];
-      const ed= end_date.split('T')[0];
-      console.log('sd sjs', sd, 'ed', ed);
-      result = await tableService.getFinalSJSTableData(sd, ed);
+      
+      result = await tableService.getFinalSJSTableData(start_date, end_date);
+      console.log('Result for SJS Table Data by Date Range:', result);
     }
 
     if (!result || !result.tableData || result.tableData.length === 0) {

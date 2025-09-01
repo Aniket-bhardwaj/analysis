@@ -28,6 +28,7 @@ class TableService {
         : null;
   
       const isWithinTolerance = errorPercentage !== null ? errorPercentage <= TOLERANCE : null;
+      const isNotWithinTolerance = errorPercentage !== null ? errorPercentage > TOLERANCE : null;
   
       return {
         fullElementName: col,                        // e.g., 'Al 237.312 nm ppm' (unique)
@@ -38,6 +39,7 @@ class TableService {
         errorPercentage: errorPercentage !== null ? +errorPercentage.toFixed(2) : null,
         errorFactor,
         isWithinTolerance,
+        isNotWithinTolerance,
         distributionData: []
       };
     });

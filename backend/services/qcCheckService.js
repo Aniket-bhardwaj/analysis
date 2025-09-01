@@ -66,7 +66,7 @@ class QcCheckService {
     const { tableData } = TableService.generateQCTableRowsFromData(avgRow, rsdRow, solutionLabel);
   
     const totalElements = tableData.length;
-    const elementsWithinTolerance = tableData.filter(r => r.isWithinTolerance).length;
+    const elementsNotWithinTolerance = tableData.filter(r => r.isNotWithinTolerance).length;
   
     const averageRSD = tableData.length > 0
       ? +(tableData.reduce((sum, r) => sum + (r.rsd || 0), 0) / tableData.length).toFixed(2)
@@ -83,7 +83,8 @@ class QcCheckService {
 
     return {
       totalElements,
-      elementsWithinTolerance,
+      elementsNotWithinTolerance,
+
       averageRSD,
       averageErrorPercentage,
       failedElements
@@ -109,8 +110,8 @@ class QcCheckService {
       const { tableData: data2 } = TableService.generateQCTableRowsFromData(avgRow2, rsdRow2, solutionLabel2);
   
       const totalElements = data1.length + data2.length;
-      const elementsWithinTolerance = 
-        data1.filter(r => r.isWithinTolerance).length + data2.filter(r => r.isWithinTolerance).length;
+      const elementsNotWithinTolerance = 
+        data1.filter(r => r.isNotWithinTolerance).length + data2.filter(r => r.isNotWithinTolerance).length;
   
       const averageRSD = totalElements > 0
         ? +(
@@ -128,7 +129,7 @@ class QcCheckService {
   
       return {
         totalElements,
-        elementsWithinTolerance,
+        elementsNotWithinTolerance,
         averageRSD,
         averageErrorPercentage
       };
