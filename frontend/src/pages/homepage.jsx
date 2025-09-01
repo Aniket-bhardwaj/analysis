@@ -1,40 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-} from 'chart.js';
-import { Line } from 'react-chartjs-2';
+import React, { useState, useEffect } from 'react';
 import {
   Upload,
   TrendingUp,
   Database,
   CheckCircle,
   AlertCircle,
-  Clock,
   FileText
 } from 'lucide-react';
 import Navbar from '@/components/navbar';
-import { Autocomplete, TextField } from '@mui/material';
 import '../styles/homepage.css';
+import QCGraph from '@/components/qc_graph';
 
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
 
 const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -42,7 +18,6 @@ const DashboardPage = () => {
   const [error, setError] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [selectedItem, setSelectedItem] = useState('dashboard');
-  const [selectedElement, setSelectedElement] = useState(null);
 
   // Fetch dashboard data
   const fetchDashboardData = async () => {
@@ -66,14 +41,6 @@ const DashboardPage = () => {
         setDashboardData(result.data);
         setLastRefresh(new Date());
         setError(null);
-        
-        // Set default selected element if QC graph data exists
-        if (result.data.qcGraphData?.success && result.data.qcGraphData.graphData) {
-          const elements = Object.keys(result.data.qcGraphData.graphData);
-          if (elements.length > 0 && !selectedElement) {
-            setSelectedElement(elements[0]);
-          }
-        }
       } else {
         throw new Error(result.message || 'Failed to fetch dashboard data');
       }
@@ -98,106 +65,15 @@ const DashboardPage = () => {
     if (isNaN(d.getTime())) return 'Invalid Date';
     return `${d.getDate()}/${d.getMonth() + 1}`;
   };
-  
-  // ✅ Format date+time → "2 Jul, 10:00 AM"
-  const fmtDateTime = (ms) => {
-    const d = new Date(ms);
-    return isNaN(d)
-      ? ''
-      : d.toLocaleString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-  };
 
-   // Build sorted labels & values arrays
-   const { labels, values } = useMemo(() => {
-    if (
-      !dashboardData?.qcGraphData?.success ||
-      !selectedElement ||
-      !dashboardData.qcGraphData.graphData[selectedElement]
-    ) {
-      return { labels: [], values: [] };
-    }
-    const raw = dashboardData.qcGraphData.graphData[selectedElement];
-    const pts = raw
-      .map((r) => {
-        const ms = new Date(r.timestamp).getTime();
-        return { ms, value: Number(r.value) };
-      })
-      .filter((p) => !isNaN(p.ms) && !isNaN(p.value))
-      .sort((a, b) => a.ms - b.ms);
-
-    return {
-      labels: pts.map((p) => fmtDateTime(p.ms)),
-      values: pts.map((p) => p.value)
-    };
-  }, [dashboardData, selectedElement]);
-
-  const chartData = useMemo(() => ({
-    labels,
-    datasets: [
-      {
-        label: selectedElement,
-        data: values,
-        borderColor: '#2563eb',
-        borderWidth: 2,
-        tension: 0.3,
-        fill: false,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        pointHitRadius: 15
-      }
-    ]
-  }), [labels, values, selectedElement]);
-
-  const chartOptions = useMemo(() => {
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const variation = (max - min) || max * 0.1 || 1;
-    const yMin = min - variation;
-    const yMax = max + variation;
-
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: {
-          type: 'category',
-          grid: { display: false },
-          ticks: {
-            autoSkip: true,
-            maxTicksLimit: 10, // adjust as needed
-            callback: (val, idx) => labels[idx] || ''
-          }
-        },
-        y: {
-          min: yMin,
-          max: yMax,
-          title: { display: true, text: 'Concentration' },
-          ticks: { precision: 2 }
-        }
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            title: (items) => {
-              const idx = items[0].dataIndex;
-              const rawTimestamp = dashboardData?.qcGraphData?.graphData?.[selectedElement]?.[idx]?.timestamp;
-              return rawTimestamp
-                ? `Timestamp: ${new Date(rawTimestamp).toLocaleString()}`
-                : items[0].label;
-            },
-            label: (ctx) => `${selectedElement}: ${ctx.parsed.y.toFixed(2)}`
-          }
-        }
-      }
-    };
-  }, [labels, values, selectedElement, dashboardData]);
+  // Compute last week's range
+  const today = new Date();
+  const lastWeek = new Date();
+  lastWeek.setDate(today.getDate() - 7);
+  const dateRange = {
+  startDate: lastWeek.toISOString().split('T')[0],
+  endDate: today.toISOString().split('T')[0],
+};
 
   if (loading && !dashboardData) {
     return (
@@ -227,9 +103,6 @@ const DashboardPage = () => {
       </div>
     );
   }
-
-  const availableElements = dashboardData?.qcGraphData?.success ?
-    Object.keys(dashboardData.qcGraphData.graphData || {}) : [];
 
   return (
     <div className="dashboard-container">
@@ -298,84 +171,20 @@ const DashboardPage = () => {
           </div>
         </div>
 
+        {/* QC Graphs */}
         <div className="charts-container">
-          {/* QC Graph Chart */}
           <div className="chart-card chart-main">
-          <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="chart-title">QC Element Trends (Past Week)</h3>
-              {availableElements.length > 0 && (
-                <div className="element-selector">
-                  <Autocomplete
-                    disablePortal
-                    id="element-search"
-                    options={availableElements}
-                    sx={{ width: 300 }}
-                    value={selectedElement}
-                    onChange={(_, newValue) => setSelectedElement(newValue)}
-                    renderInput={(params) => <TextField {...params} label="Select Element" variant="outlined" />}
-                    size="small"
-                  />
-                </div>
-              )}
-            </div>
-            
-            <div style={{ position: 'relative', height: '350px' }}>
-              {values.length > 0 ? (
-                <Line data={chartData} options={chartOptions} />
-              ) : (
-                <div className="no-data">
-                  <div className="no-data-content">
-                    <TrendingUp className="no-data-icon" />
-                    <p>No QC data available for the selected element</p>
-                    {availableElements.length === 0 && (
-                      <p className="no-data-subtitle">No elements found in QC data</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <QCGraph selectedFileId={undefined} selectedDateRange={dateRange} title='QC Element Trends (Past Week)' />
+
+
           </div>
         </div>
-
-        {/* QC Statistics */}
-        {dashboardData?.qcGraphData?.success && (
-          <div className="stats-grid">
-            <div className="stat-card">
-              <h4>Total Elements</h4>
-              <p className="stat-value">{dashboardData.qcGraphData.summary?.totalElements || 0}</p>
-            </div>
-            <div className="stat-card">
-              <h4>QC Files</h4>
-              <p className="stat-value">{dashboardData.qcGraphData.summary?.totalFiles || 0}</p>
-            </div>
-            <div className="stat-card">
-              <h4>Data Points</h4>
-              <p className="stat-value">{dashboardData.qcGraphData.summary?.totalDataPoints || 0}</p>
-            </div>
-            {selectedElement && dashboardData.qcGraphData.graphData[selectedElement] && (
-              <div className="stat-card">
-                <h4>{selectedElement} Points</h4>
-                <p className="stat-value">
-                  {dashboardData.qcGraphData.graphData[selectedElement]?.length || 0}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Footer */}
         <div className="dashboard-footer">
           {error && (
             <p className="footer-error">
               Warning: {error}
-            </p>
-          )}
-          {dashboardData?.qcGraphData?.success && (
-            <p className="footer-info">
-              QC data from {dashboardData.qcGraphData.summary?.dateRange?.start ? 
-                formatDate(dashboardData.qcGraphData.summary.dateRange.start) : 'N/A'} to {
-                dashboardData.qcGraphData.summary?.dateRange?.end ? 
-                formatDate(dashboardData.qcGraphData.summary.dateRange.end) : 'N/A'}
             </p>
           )}
         </div>

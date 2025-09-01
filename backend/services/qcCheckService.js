@@ -67,6 +67,7 @@ class QcCheckService {
   
     const totalElements = tableData.length;
     const elementsNotWithinTolerance = tableData.filter(r => r.isNotWithinTolerance).length;
+    const elementsWithinTolerance = totalElements - elementsNotWithinTolerance;
   
     const averageRSD = tableData.length > 0
       ? +(tableData.reduce((sum, r) => sum + (r.rsd || 0), 0) / tableData.length).toFixed(2)
@@ -84,6 +85,7 @@ class QcCheckService {
     return {
       totalElements,
       elementsNotWithinTolerance,
+      elementsWithinTolerance,
 
       averageRSD,
       averageErrorPercentage,

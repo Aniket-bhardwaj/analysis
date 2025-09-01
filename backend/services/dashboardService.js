@@ -14,14 +14,13 @@ class DashboardService {
    */
   static async getDashboardData() {
     try {
-      console.log('Getting dashboard data...');
+      //console.log('Getting dashboard data...');
   
-      const [summary, qcGraphRaw] = await Promise.all([
-        dashboardModel.getDashboardSummary(),
-        DashboardService.fetchQCGraphDataLastWeek()  // 👈 use your function
+      const [summary] = await Promise.all([
+        dashboardModel.getDashboardSummary() // 👈 use your function
       ]);
   
-      console.log('Dashboard summary received:', summary);
+      //console.log('Dashboard summary received:', summary);
       // console.log('QC graph raw data received:', qcGraphRaw);
   
       return {
@@ -32,8 +31,7 @@ class DashboardService {
           totalChecks: summary.qcTotalChecks,
           passedChecks: summary.qcPassedChecks,
           passRate: summary.qcPassRate
-        },
-        qcGraphData: qcGraphRaw  // 👈 directly return raw output
+        } // 👈 directly return raw output
       };
     } catch (err) {
       console.error('Dashboard service error:', err);

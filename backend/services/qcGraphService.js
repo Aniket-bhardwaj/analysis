@@ -31,15 +31,16 @@ class QcGraphService {
       const types = await fileModel.getFileTypesByDateRange(startDate, endDate);
       let elementNames;
 
-      if (types.length === 1 && types[0] === 1) {
-        elementNames = MEconc;
-      } else if (types.length === 1 && types[0] === 2) {
-        elementNames = TEconc;
-      } else if (types.includes(1) && types.includes(2)) {
-        elementNames = [...MEconc, ...TEconc];
-      } else {
-        return reject(new Error('No valid types found for the given date range'));
-      }
+      if (types.length === 0) {
+  resolve([]);  // no files in this range
+} else if (types.length === 1 && types[0] === 1) {
+  elementNames = MEconc;
+} else if (types.length === 1 && types[0] === 2) {
+  elementNames = TEconc;
+} else if (types.includes(1) && types.includes(2)) {
+  elementNames = [...MEconc, ...TEconc];
+}
+
 
       resolve(elementNames);
     } catch (err) {
@@ -53,13 +54,14 @@ static async fetchGraphDataByDateRange(startDate, endDate, element, solutionLabe
   try {
     const rows = await graphModel.queryGraphDataByDateRange(startDate, endDate, element, solutionLabel);
 
-    const points = rows.map(row => {
-      const fileType = row.type;
-      const timestamp = fileType === 2 ? row["Acq. Date-Time"] : row["Timestamp"];
-      const val = parseFloat(row[element]);
+    if (!rows || rows.length === 0) {
+      return { success: true, graphData: {} }; // ✅ handle empty result
+    }
+    const points = rows.map(row => ({
+  sample: row.timestamp,   // use the SQL alias directly
+  value: parseFloat(row[element])
+})).filter(p => !isNaN(p.value));
 
-      return { sample: timestamp, value: val };
-    }).filter(p => !isNaN(p.value));
 
     const graphData = points.length > 0 ? { [element]: points } : {};
 

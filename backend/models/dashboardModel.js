@@ -167,10 +167,10 @@ function getQCGraphDataLastWeek() {
       });
 
       // Optional debug log
-      if (allGraphData['107 Ag [ He ] Conc. [ ppb ]']) {
-        console.log('Sample data for 107 Ag [ He ] Conc. [ ppb ]:',
-          allGraphData['107 Ag [ He ] Conc. [ ppb ]'].slice(0, 5));
-      }
+      // if (allGraphData['107 Ag [ He ] Conc. [ ppb ]']) {
+      //   console.log('Sample data for 107 Ag [ He ] Conc. [ ppb ]:',
+      //     allGraphData['107 Ag [ He ] Conc. [ ppb ]'].slice(0, 5));
+      // }
     });
   });
 }

@@ -55,7 +55,7 @@ static queryGraphDataByDateRange(startDate, endDate, element, solutionLabel = nu
     const timeColumn = element.includes("ppm") ? `"Timestamp"` : `"Acq. Date-Time"`;
 
     const query = `
-      SELECT q."${element}", q.${timeColumn} AS time, f.type, f.uploaded_at
+      SELECT q."${element}", q.${timeColumn} AS timestamp, f.type, f.uploaded_at
       FROM qc_data q
       JOIN uploaded_files f ON q.file_id = f.id
       WHERE f.uploaded_at BETWEEN ? AND ?
@@ -68,7 +68,7 @@ static queryGraphDataByDateRange(startDate, endDate, element, solutionLabel = nu
 
     db.all(query, params, (err, rows) => {
       if (err) return reject(err);
-      console.log("Fetched rows:", rows); // Debugging line
+      //console.log("Fetched rows:", rows); // Debugging line
       resolve(rows); // ✅ raw rows with correct time column
     });
   });

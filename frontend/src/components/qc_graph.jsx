@@ -36,7 +36,7 @@ ChartJS.register(
 const formatDate = (dateObj) =>
   `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 
-const QCGraph = ({ selectedFileId, selectedDateRange }) => {
+const QCGraph = ({ selectedFileId, selectedDateRange, title = "Quality Control Graph" }) => {
   const [rawData, setRawData] = useState([]);
   const [elements, setElements] = useState([]);
   const [selectedElement, setSelectedElement] = useState(null);
@@ -169,6 +169,7 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
     const datasets = [
       {
   label: selectedElement,
+  type: 'scatter', // 👈 Add this line
   data: values,
   fill: false,
   showLine: false,
@@ -179,42 +180,56 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
   ),
   pointBorderColor: 'transparent',
   pointBorderWidth: 0,
-},
+  pointStyle: 'circle',
+  // 👇 Override legend color
+  backgroundColor: 'white', // 👈 Add this line
+}
+,
 
     ];
 
     if (target && error) {
-      datasets.push({
-        label: '10% Error Envelope',
-        data: timestamps.map(() => upperLimit),
-        borderWidth: 0,
-        backgroundColor: 'rgba(173, 230, 189, 0.3)',
-        fill: false,
-        pointRadius: 0,
-        tension: 0.3,
-      });
+      // Lower bound line (used as fill target)
+datasets.push({
+  label: '10% Error Envelope',
+  type: 'line',
+  data: timestamps.map(() => lowerLimit),
+  borderWidth: 0,
+  fill: false,
+  pointRadius: 0,
+  showLine: true, // ✅ must be true for fill to work
+  pointStyle: 'rect', // ✅ box in legend
+});
+
+// Upper bound line (visible, fills to lower)
+datasets.push({
+  label: '10% Error Envelope',
+  type: 'line',
+  data: timestamps.map(() => upperLimit),
+  backgroundColor: 'rgba(173, 230, 189, 0.3)', // ✅ light green fill
+  borderWidth: 0,
+  fill: '-1',     // ✅ fill to previous dataset
+  pointRadius: 0,
+  showLine: true, // ✅ must be true to render area
+  pointStyle: 'rect', // ✅ box in legend
+});
+
+
+      
 
       datasets.push({
-        label: '10% Error Envelope',
-        data: timestamps.map(() => lowerLimit),
-        borderWidth: 0,
-        backgroundColor: 'rgba(173, 230, 189, 0.3)',
-        fill: '-1',
-        pointRadius: 0,
-        tension: 0.3,
-      });
+  label: `Target ${target}`,
+  type: 'line',
+  data: Array(timestamps.length).fill(target),
+  borderColor: 'rgba(0,0,0,0.4)',
+  borderWidth: 1,
+  borderDash: [5, 5],
+  pointRadius: 0,
+  fill: false,
+  pointStyle: 'line', // 👈 forces line in legend
+}
 
-      const refLine = (value, label, color) => ({
-        label,
-        data: Array(timestamps.length).fill(value),
-        borderColor: color,
-        borderWidth: 1,
-        borderDash: [5, 5],
-        pointRadius: 0,
-        fill: false,
-      });
-
-      datasets.push(refLine(target, `Target ${target}`, 'rgba(0,0,0,0.4)'));
+      );
     }
 
     return {
@@ -249,13 +264,37 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
       legend: {
   display: true,
   labels: {
-    
-    filter: function (legendItem, data) {
-      const label = legendItem.text;
-      const firstIndex = data.datasets.findIndex(ds => ds.label === label);
-      return legendItem.datasetIndex === firstIndex;
-    },
+  usePointStyle: true,
+  boxWidth: 100,
+  font: { size: 14 },
+  filter: function (legendItem, data) {
+    const label = legendItem.text;
+    const firstIndex = data.datasets.findIndex(ds => ds.label === label);
+    return legendItem.datasetIndex === firstIndex;
   },
+  generateLabels: function (chart) {
+    return chart.data.datasets.map((dataset, i) => {
+      let fillColor = '	#e0e0e0'; // default to white for element
+      
+
+      if (dataset.label === '10% Error Envelope') {
+        fillColor = 'rgba(173, 230, 189, 0.3)'; // light green box
+      } else if (dataset.label.includes('Target')) {
+        fillColor = dataset.borderColor || 'rgba(0,0,0,0.4)'; // dashed line color
+      }
+
+      return {
+        text: dataset.label,
+        fillStyle: fillColor,
+        strokeStyle: fillColor,
+        pointStyle: dataset.pointStyle || 'circle',
+        lineDash: dataset.borderDash || [],
+        datasetIndex: i,
+      };
+    });
+  },
+}
+
 },
       tooltip: { mode: 'index', intersect: false },
     },
@@ -303,7 +342,7 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
     <Card>
       <CardContent>
         <Typography variant="h5" gutterBottom sx={{ textAlign: 'left' }}>
-          Quality Control Graph
+          {title}
         </Typography>
 
         <Box sx={{ mb: 2, mt: -2, display: 'flex', justifyContent: 'flex-end' }}>
@@ -320,22 +359,24 @@ const QCGraph = ({ selectedFileId, selectedDateRange }) => {
         </Box>
 
         <Box sx={{ height: 400, width: '100%' }}>
-          {selectedElement && chartData() ? (
-            <Line data={chartData()} options={chartOptions} />
-          ) : (
-            <Box sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              height: '100%',
-              backgroundColor: '#f5f5f5',
-              borderRadius: 1
-            }}>
-              <Typography variant="body1" color="textSecondary">
-                {elements.length === 0 ? 'No elements available' : 'Click an element above to view its graph'}
-              </Typography>
-            </Box>
-          )}
+          {selectedElement ? (
+  chartData() ? (
+    <Line data={chartData()} options={chartOptions} />
+  ) : (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <Typography variant="body1" color="textSecondary">
+        No data for selected element
+      </Typography>
+    </Box>
+  )
+) : (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+    <Typography variant="body1" color="textSecondary">
+      Select an element above to view its graph
+    </Typography>
+  </Box>
+)}
+
         </Box>
       </CardContent>
     </Card>

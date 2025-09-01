@@ -90,6 +90,23 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
     const currentElementData = elementData[selectedElement] || [];
 
     if (currentElementData.length > 0) {
+
+       // Actual concentration data line
+      datasets.push({
+        label: selectedElement,
+        data: currentElementData.map(d => d.y || d.value),
+        pointBackgroundColor: currentElementData.map(d => {
+          const mid = (d.upper + d.lower) / 2;
+          const lower10 = mid * 0.9;
+          const upper10 = mid * 1.1;
+          return d.y < lower10 || d.y > upper10 ? '#f44336' : '#4caf50'; // red = outside, green = inside 10%
+        }),
+        pointBorderColor: 'transparent',
+        pointRadius: 5,
+        pointHoverRadius: 6,
+        showLine : false,
+        
+      });
       // Add the new envelope (10% up/down) first to render it in the background
       datasets.push({
         label: '10% Error Envelope (against median)',
@@ -137,26 +154,11 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
         tension: 0,
       });
 
-      // Actual concentration data line
-      datasets.push({
-        label: selectedElement,
-        data: currentElementData.map(d => d.y || d.value),
-        pointBackgroundColor: currentElementData.map(d => {
-          const mid = (d.upper + d.lower) / 2;
-          const lower10 = mid * 0.9;
-          const upper10 = mid * 1.1;
-          return d.y < lower10 || d.y > upper10 ? '#f44336' : '#4caf50'; // red = outside, green = inside 10%
-        }),
-        pointBorderColor: 'transparent',
-        pointRadius: 5,
-        pointHoverRadius: 6,
-        showLine : false,
-        
-      });
+     
 
       // Midline from data (dashed)
       datasets.push({
-        label: 'SJS-Std Mid',
+        label: 'Target Median Value',
         data: currentElementData.map(d => ({ x: d.x, y: d.mid })),
         borderDash: [5, 5],
         borderColor: 'gray',
@@ -187,13 +189,43 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
       legend: {
   display: true,
   labels: {
-    
-    filter: function (legendItem, data) {
-      const label = legendItem.text;
-      const firstIndex = data.datasets.findIndex(ds => ds.label === label);
-      return legendItem.datasetIndex === firstIndex;
-    },
+  usePointStyle: true,
+  boxWidth: 100,
+  font: { size: 14 },
+  filter: function (legendItem, data) {
+    const label = legendItem.text;
+    const firstIndex = data.datasets.findIndex(ds => ds.label === label);
+    return legendItem.datasetIndex === firstIndex;
   },
+  generateLabels: function (chart) {
+    return chart.data.datasets.map((dataset, i) => {
+      let fillColor = '	#e0e0e0'; // default light gray for element
+      let pointStyle = dataset.pointStyle || 'circle';
+      let lineDash = dataset.borderDash || [];
+
+      if (dataset.label === '10% Error Envelope (against median)') {
+        fillColor = 'rgba(173, 230, 189, 0.3)'; // light green box
+        pointStyle = 'rect';
+      } else if (dataset.label === 'Target Standard Value') {
+        fillColor = 'rgba(173, 230, 189, 0.6)'; // slightly darker green box
+        pointStyle = 'rect';
+      } else if (dataset.label === 'Target Median Value') {
+        fillColor = dataset.borderColor || 'gray'; // dashed line color
+        pointStyle = 'line';
+      }
+
+      return {
+        text: dataset.label,
+        fillStyle: fillColor,
+        strokeStyle: fillColor,
+        pointStyle,
+        lineDash,
+        datasetIndex: i,
+      };
+    });
+  },
+}
+,
 },
 
 
