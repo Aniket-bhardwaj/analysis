@@ -23,27 +23,31 @@ const DashboardPage = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      console.log(`Fetching dashboard data from: ${import.meta.env.VITE_API_URL}/dashboard`);
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/dashboard`);
+      // CORRECTED: Use the full backend URL and add credentials option
+      const apiUrl = 'http://localhost:8080/api/dashboard';
+      console.log(`Fetching dashboard data from: ${apiUrl}`);
+      
+      const response = await fetch(apiUrl, {
+        credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+      });
+      
       console.log('Response status:', response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Response error:', errorText);
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const result = await response.json();
       console.log('Dashboard data received:', result);
       
-      if (result.success) {
-        setDashboardData(result.data);
-        setLastRefresh(new Date());
-        setError(null);
-      } else {
-        throw new Error(result.message || 'Failed to fetch dashboard data');
-      }
+      // Assuming the backend sends data directly without a 'success' wrapper
+      setDashboardData(result);
+      setLastRefresh(new Date());
+      setError(null);
+
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err.message);
@@ -71,9 +75,9 @@ const DashboardPage = () => {
   const lastWeek = new Date();
   lastWeek.setDate(today.getDate() - 7);
   const dateRange = {
-  startDate: lastWeek.toISOString().split('T')[0],
-  endDate: today.toISOString().split('T')[0],
-};
+    startDate: lastWeek.toISOString().split('T')[0],
+    endDate: today.toISOString().split('T')[0],
+  };
 
   if (loading && !dashboardData) {
     return (
