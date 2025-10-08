@@ -2,16 +2,15 @@ const db = require('../initialize_db');
 
 module.exports = {
 
-  getFileInfo(fileId) {
+  getFileInfo(fileId, isAdmin, orgId) {
     return new Promise((resolve, reject) => {
-      // 💡 CHANGE: Added pdf_path to the SELECT statement
       db.get(
-        'SELECT filename, path, pdf_path FROM uploaded_files WHERE id = ?',
-        [fileId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
+        `SELECT id, filename, path, pdf_path, org_id, hidden
+         FROM uploaded_files
+         WHERE id = ?
+           AND ( ? = 1 OR org_id = ? )`,
+        [fileId, isAdmin ? 1 : 0, orgId],
+        (err, row) => (err ? reject(err) : resolve(row))
       );
     });
   },

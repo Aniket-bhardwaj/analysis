@@ -1,27 +1,39 @@
+// src/Routes.jsx  (NO <Router> here)
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
-// Import page components
 import RegisterPage from './pages/login';
 import DashboardPage from './pages/homepage';
 import DataManagerPage from './pages/data_manager';
 import QCChecks from './pages/qc_checks';
 import AnalysisPage from './pages/analysis';
-import MainLayout from './MainLayout'; // where you placed the Navbar
+import MainLayout from './MainLayout';
 
-const AppRoutes = () => {
+// If ProtectedRoute is at src/ProtectedRoute.jsx use "./ProtectedRoute"
+import ProtectedRoute from './components/ProtectedRoute'
+
+export default function AppRoutes() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<RegisterPage />} />
-        <Route path="/" element={<MainLayout />}></Route>
+    <Routes>
+      {/* public login */}
+      <Route path="/" element={<RegisterPage />} />
+
+      {/* protect EVERYTHING under the layout */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/data-manager" element={<DataManagerPage />} />
         <Route path="/qc-checks/:section?" element={<QCChecks />} />
         <Route path="/analysis/*" element={<AnalysisPage />} />
-      </Routes>
-    </Router>
-  );
-};
+      </Route>
 
-export default AppRoutes;
+      {/* fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}

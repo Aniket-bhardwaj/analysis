@@ -19,8 +19,8 @@ const miniTableService = {
 
       const miniTableData = rows
         .map((row) => {
-          const rawVal = parseFloat(row.value); // ✅ FIXED
-          const timeField = row.timestamp;      // ✅ SIMPLIFIED
+          const rawVal = parseFloat(row.value); // FIXED
+          const timeField = row.timestamp;      // SIMPLIFIED
           const errorPercent =
             errorFactor && !isNaN(rawVal)
               ? parseFloat(((Math.abs(rawVal - errorFactor) / errorFactor) * 100).toFixed(2))

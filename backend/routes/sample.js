@@ -1,8 +1,11 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const SampleController = require('../controllers/sampleController');
+const SampleController = require("../controllers/sampleController");
 
-router.get('/sample-table', SampleController.getSampleTable);
-router.get('/samples',SampleController.getAllSamples);
+router.post(
+  "/sample-table",
+  SampleController.getSampleTable
+);
+router.post("/samples", SampleController.getAllSamples);
 
 module.exports = router;

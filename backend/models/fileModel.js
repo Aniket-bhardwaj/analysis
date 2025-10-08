@@ -1,63 +1,73 @@
 const db = require('../initialize_db');
 
-
 // ==========================
-// 1. Insert a New File
+// 1) Insert a New File (CSV + optional PDF) with RBAC fields
 // ==========================
 /**
- * Inserts a record into the uploaded_files table.
- * Handles both legacy CSV-only uploads and new CSV+PDF uploads.
- * @param {string} filename - The original name of the CSV file.
- * @param {string} filePath - The path where the CSV file is stored.
- * @param {number} csvType - The type identifier for the CSV.
- * @param {string|null} pdfName - The original name of the PDF file (or null).
- * @param {string|null} pdfPath - The path where the PDF file is stored (or null).
- * @returns {Promise<object>} A promise that resolves with the newly inserted row.
+ * Inserts a record into uploaded_files.
+ * @param {string} originalName
+ * @param {string} savedFilePath
+ * @param {number} csvType
+ * @param {string|null} pdfOriginalName
+ * @param {string|null} pdfSavedPath
+ * @param {number|null} orgId
+ * @param {number|null} createdByUserId
+ * @returns {Promise<{id:number}>}
  */
-function insertFile(filename, filePath, csvType, pdfName, pdfPath) {
-  // SQL statement now includes the optional PDF columns.
-  const sql = `INSERT INTO uploaded_files (filename, path, type, pdfname, pdf_path) VALUES (?, ?, ?, ?, ?)`;
-
+function insertFile(
+  originalName,
+  savedFilePath,
+  csvType,
+  pdfOriginalName,
+  pdfSavedPath,
+  orgId,
+  createdByUserId
+) {
   return new Promise((resolve, reject) => {
-    // The parameters array includes the PDF details.
-    // If pdfName or pdfPath are undefined/null, they will be inserted as NULL in the database.
-    const params = [filename, filePath, csvType, pdfName || null, pdfPath || null];
+    // uploaded_files.pdfname and pdf_path are NOT NULL per schema, so store empty string when absent
+    const pdfNameForDb = pdfOriginalName || '';
+    const pdfPathForDb = pdfSavedPath || '';
 
-    db.run(sql, params, function (err) {
-      if (err) return reject(err);
-
-      // Fetch the complete row that was just inserted to return it.
-      const selectSql = `SELECT * FROM uploaded_files WHERE id = ?`;
-      db.get(selectSql, [this.lastID], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+    db.run(
+      `INSERT INTO uploaded_files
+         (filename, path, pdfname, pdf_path, uploaded_at, type, hidden, org_id, created_by_user_id)
+       VALUES
+         (?,        ?,    ?,       ?,        CURRENT_TIMESTAMP, ?,    0,      ?,     ?)`,
+      [originalName, savedFilePath, pdfNameForDb, pdfPathForDb, csvType, orgId ?? null, createdByUserId ?? null],
+      function (err) {
+        if (err) return reject(err);
+        resolve({ id: this.lastID });
+      }
+    );
   });
 }
 
-
 // ==========================
-// 2. Get All Visible Files
+// 2) Get All Visible Files (non-admin use; remains for compatibility)
+//     Note: also returns owner/org info now
 // ==========================
 function getVisibleFiles() {
-  const sql = `SELECT * FROM uploaded_files WHERE hidden = 0 ORDER BY uploaded_at DESC`;
-
+  const sql = `
+    SELECT
+      f.id, f.filename, f.path, f.pdfname, f.pdf_path, f.uploaded_at, f.type, f.hidden, f.org_id, f.created_by_user_id,
+      u.email  AS owner_email,
+      o.name   AS org_name
+    FROM uploaded_files f
+    LEFT JOIN users u ON f.created_by_user_id = u.id
+    LEFT JOIN organizations o ON f.org_id = o.id
+    WHERE f.hidden = 0
+    ORDER BY f.uploaded_at DESC
+  `;
   return new Promise((resolve, reject) => {
-    db.all(sql, [], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
+    db.all(sql, [], (err, rows) => (err ? reject(err) : resolve(rows)));
   });
 }
 
-
 // ==========================
-// 3. Soft Delete (Hide) a File
+// 3) Soft Delete (Hide) a File
 // ==========================
 function hideFileById(id, name) {
   const sql = `UPDATE uploaded_files SET hidden = 1, filename = ? WHERE id = ?`;
-
   return new Promise((resolve, reject) => {
     db.run(sql, [name, id], function (err) {
       if (err) reject(err);
@@ -66,60 +76,42 @@ function hideFileById(id, name) {
   });
 }
 
-
-// // ==========================
-// // 4. Fetch File by Name
-// // ==========================
-// function getFileByName(storedName) {
-//   const sql = `SELECT * FROM uploaded_files WHERE filename = ?`;
-
-//   return new Promise((resolve, reject) => {
-//     db.get(sql, [storedName], (err, row) => {
-//       if (err) reject(err);
-//       else resolve(row);
-//     });
-//   });
-// }
-
-
 // ==========================
-// 5. Check if File Already Exists
+// 4) Check if File Already Exists
 // ==========================
 function fileExists(filename) {
   const sql = `SELECT COUNT(*) AS count FROM uploaded_files WHERE filename = ?`;
-
   return new Promise((resolve, reject) => {
-    db.get(sql, [filename], (err, row) => {
-      if (err) reject(err);
-      else resolve(row.count > 0);
-    });
+    db.get(sql, [filename], (err, row) => (err ? reject(err) : resolve(row.count > 0)));
   });
 }
 
-
 // ==========================
-// 6. Get file by ID
+// 5) Get file by ID (full metadata)
 // ==========================
 function getFileById(fileId) {
   const sql = `
-    SELECT filename, path
-    FROM uploaded_files
-    WHERE id = ?
+    SELECT
+      f.id, f.filename, f.path, f.pdfname, f.pdf_path, f.uploaded_at, f.type, f.hidden, f.org_id, f.created_by_user_id,
+      u.email  AS owner_email,
+      o.name   AS org_name
+    FROM uploaded_files f
+    LEFT JOIN users u ON f.created_by_user_id = u.id
+    LEFT JOIN organizations o ON f.org_id = o.id
+    WHERE f.id = ?
+    LIMIT 1
   `;
   return new Promise((resolve, reject) => {
-    db.get(sql, [fileId], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
+    db.get(sql, [fileId], (err, row) => (err ? reject(err) : resolve(row)));
   });
 }
 
 // ==========================
-// 7. Get type of file by ID
+// 6) Get type of file by ID
 // ==========================
 function getTypeById(fileId) {
   return new Promise((resolve, reject) => {
-    db.get("SELECT type FROM uploaded_files WHERE id = ?", [fileId], (err, row) => {
+    db.get(`SELECT type FROM uploaded_files WHERE id = ?`, [fileId], (err, row) => {
       if (err) return reject(err);
       resolve(row?.type ?? null);
     });
@@ -127,99 +119,140 @@ function getTypeById(fileId) {
 }
 
 // ==========================
-// 8. Get File IDs and Types by Date Range
+// 7) Get File IDs + Types by Date Range (original behavior)
 // ==========================
 function getFileIdsByDateRange(startDate, endDate) {
   const sql = `
     SELECT id, type FROM uploaded_files
     WHERE uploaded_at BETWEEN ? AND ?
-    AND hidden = 0
+      AND hidden = 0
   `;
-
   const start = `${startDate} 00:00:00`;
-  const end = `${endDate} 23:59:59`;
-
+  const end   = `${endDate} 23:59:59`;
   return new Promise((resolve, reject) => {
-    db.all(sql, [start, end], (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows); // Each row has { id, type }
+    db.all(sql, [start, end], (err, rows) => (err ? reject(err) : resolve(rows)));
+  });
+}
+
+// (helper) If you *also* need just the IDs for some legacy callers, keep it under a different name
+function getFileIdsByDateRangeSimple(startDate, endDate) {
+  const startIso = `${startDate} 00:00:00.000Z`;
+  const endIso   = `${endDate} 23:59:59.999Z`;
+  const sql = `
+    SELECT id FROM uploaded_files
+    WHERE uploaded_at BETWEEN ? AND ?
+    ORDER BY uploaded_at ASC
+  `;
+  return new Promise((resolve, reject) => {
+    db.all(sql, [startIso, endIso], (err, rows) => {
+      if (err) return reject(new Error('Database query failed while fetching file IDs.'));
+      resolve(rows.map(r => r.id));
     });
   });
 }
 
+// ==========================
+// 8) Distinct file types by date range
+// ==========================
 function getFileTypesByDateRange(startDate, endDate) {
   const sql = `
     SELECT DISTINCT type FROM uploaded_files
     WHERE uploaded_at BETWEEN ? AND ?
-    AND hidden = 0
+      AND hidden = 0
   `;
-
   const start = `${startDate} 00:00:00`;
-  const end = `${endDate} 23:59:59`;
-
+  const end   = `${endDate} 23:59:59`;
   return new Promise((resolve, reject) => {
     db.all(sql, [start, end], (err, rows) => {
       if (err) return reject(err);
-
-      // rows = [{ type: 1 }, { type: 2 }, ...]
       const types = rows.map(r => r.type).sort();
-      resolve(types); // e.g., [1], [2], or [1, 2]
+      resolve(types);
     });
   });
 }
+
 // ==========================
-// 9. Get Metadata by file_id
+// 9) Get Metadata by file_id
 // ==========================
 function getFileMetadata(fileId) {
   const sql = `
-    SELECT filename, uploaded_at,type
+    SELECT filename, uploaded_at, type
     FROM uploaded_files
     WHERE id = ?
   `;
   return new Promise((resolve, reject) => {
-    db.get(sql, [fileId], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
+    db.get(sql, [fileId], (err, row) => (err ? reject(err) : resolve(row)));
   });
 }
 
+// ==========================
+// 10) RBAC-aware list for a user (admin sees all; clients see their org & non-hidden)
+//      Also returns owner + org details
+// ==========================
+function listFilesForUser(isAdmin, orgId) {
+  const sql = `
+    SELECT
+      f.id, f.filename, f.path, f.pdfname, f.pdf_path, f.uploaded_at, f.type, f.hidden, f.org_id, f.created_by_user_id,
+      u.email  AS owner_email,
+      o.name   AS org_name
+    FROM uploaded_files f
+    LEFT JOIN users u ON f.created_by_user_id = u.id
+    LEFT JOIN organizations o ON f.org_id = o.id
+    WHERE ( ? = 1 OR f.hidden = 0 )
+      AND ( ? = 1 OR f.org_id = ? )
+    ORDER BY f.uploaded_at DESC
+  `;
+  const adminBit = isAdmin ? 1 : 0;
+  return new Promise((resolve, reject) => {
+    db.all(sql, [adminBit, adminBit, orgId ?? null], (err, rows) => (err ? reject(err) : resolve(rows)));
+  });
+}
 
-// ============================
-// 10. Get file_id by date range
-// ============================
+// ==========================
+// 11) RBAC-aware single-by-ID (download, pdf, preview by id)
+// ==========================
+function getFileByIdForUser(id, isAdmin, orgId) {
+  const sql = `
+    SELECT
+      f.id, f.filename, f.path, f.pdfname, f.pdf_path, f.uploaded_at, f.type, f.hidden, f.org_id, f.created_by_user_id,
+      u.email  AS owner_email,
+      o.name   AS org_name
+    FROM uploaded_files f
+    LEFT JOIN users u ON f.created_by_user_id = u.id
+    LEFT JOIN organizations o ON f.org_id = o.id
+    WHERE f.id = ?
+      AND ( ? = 1 OR f.hidden = 0 )
+      AND ( ? = 1 OR f.org_id = ? )
+    LIMIT 1
+  `;
+  const adminBit = isAdmin ? 1 : 0;
+  return new Promise((resolve, reject) => {
+    db.get(sql, [id, adminBit, adminBit, orgId ?? null], (err, row) => (err ? reject(err) : resolve(row)));
+  });
+}
 
-async function getFileIdsByDateRange(startDate, endDate) {
-    try {
-      const startIso = `${startDate} 00:00:00.000Z`;
-      const endIso = `${endDate} 23:59:59.999Z`;
-
-      return new Promise((resolve, reject) => {
-        const sql = `
-          SELECT id FROM uploaded_files
-          WHERE uploaded_at BETWEEN ? AND ?
-          ORDER BY uploaded_at ASC
-        `;
-        db.all(sql, [startIso, endIso], (err, rows) => {
-          if (err) {
-            console.error('Original database error in getFileIdsByDateRange:', err.message);
-            return reject(new Error('Database query failed while fetching file IDs. Check server logs for details.'));
-          }
-          const fileIds = rows.map(row => row.id);
-          resolve(fileIds);
-        });
-      });
-    } catch (error) {
-      console.error('Unexpected error in getFileIdsByDateRange:', error);
-      throw new Error('An unexpected error occurred while preparing database query.');
-    }
-  }
-
-  // ... other methods of FileModel might be here ...
-
-
-
-
+// ==========================
+// 12) RBAC-aware single-by-name (used by filename preview route)
+// ==========================
+function getFileByNameForUser(filename, isAdmin, orgId) {
+  const sql = `
+    SELECT
+      f.id, f.filename, f.path, f.pdfname, f.pdf_path, f.uploaded_at, f.type, f.hidden, f.org_id, f.created_by_user_id,
+      u.email  AS owner_email,
+      o.name   AS org_name
+    FROM uploaded_files f
+    LEFT JOIN users u ON f.created_by_user_id = u.id
+    LEFT JOIN organizations o ON f.org_id = o.id
+    WHERE f.filename = ?
+      AND ( ? = 1 OR f.hidden = 0 )
+      AND ( ? = 1 OR f.org_id = ? )
+    LIMIT 1
+  `;
+  const adminBit = isAdmin ? 1 : 0;
+  return new Promise((resolve, reject) => {
+    db.get(sql, [filename, adminBit, adminBit, orgId ?? null], (err, row) => (err ? reject(err) : resolve(row)));
+  });
+}
 
 // ==========================
 // Exports
@@ -231,8 +264,15 @@ module.exports = {
   fileExists,
   getFileById,
   getTypeById,
-  getFileIdsByDateRange,
+  getFileIdsByDateRange,       // id + type
+  getFileIdsByDateRangeSimple, // just ids (renamed to avoid duplicate)
+  getFileTypesByDateRange,
   getFileMetadata,
-  getFileIdsByDateRange,
-  getFileTypesByDateRange
+  listFilesForUser,
+  getFileByIdForUser,
+  getFileByNameForUser,
 };
+
+
+
+

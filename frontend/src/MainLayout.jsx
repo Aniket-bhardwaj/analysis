@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import Navbar from './components/navbar'; // adjust path if needed
+import { useLocation, Outlet } from 'react-router-dom';   // import Outlet
+import Navbar from './components/navbar';
 
 const MainLayout = () => {
   const location = useLocation();
@@ -24,9 +24,14 @@ const MainLayout = () => {
   }, [location.pathname]);
 
   return (
-    <div className="main-layout">
+    <div className="main-layout" style={{ display: 'flex' }}>
+      {/* Sidebar / Navbar */}
       <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
-      {/* Add Outlet here or your page content */}
+
+      {/* Page content goes here */}
+      <div style={{ flex: 1, padding: '20px' }}>
+        <Outlet />   {/* renders the actual page content */}
+      </div>
     </div>
   );
 };

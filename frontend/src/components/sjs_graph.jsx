@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../csrfClient';
 import {
   Box,
   Card,
@@ -23,7 +24,16 @@ import {
 } from 'chart.js';
 
 // Register Chart.js components
-ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Title, Tooltip, Legend, Filler);
+ChartJS.register(
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 // 🔧 helper to format date as YYYY-MM-DD
 const formatDate = (dateObj) =>
@@ -59,11 +69,21 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
     const fetchGraphData = async () => {
       setLoading(true);
       setError(null);
+      const userData = JSON.parse(sessionStorage.getItem('user')).user;
       try {
         const url = buildUrl();
-        const response = await fetch(url);
+        const response = await apiFetch(url, {
+          credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userData.id,
+          }),
+        });
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const result = await response.json();
+        const result = response.data;
 
         setElementData(result.data || {});
         setAvailableElements(result.elements || []);
@@ -90,12 +110,11 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
     const currentElementData = elementData[selectedElement] || [];
 
     if (currentElementData.length > 0) {
-
-       // Actual concentration data line
+      // Actual concentration data line
       datasets.push({
         label: selectedElement,
-        data: currentElementData.map(d => d.y || d.value),
-        pointBackgroundColor: currentElementData.map(d => {
+        data: currentElementData.map((d) => d.y || d.value),
+        pointBackgroundColor: currentElementData.map((d) => {
           const mid = (d.upper + d.lower) / 2;
           const lower10 = mid * 0.9;
           const upper10 = mid * 1.1;
@@ -104,13 +123,12 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
         pointBorderColor: 'transparent',
         pointRadius: 5,
         pointHoverRadius: 6,
-        showLine : false,
-        
+        showLine: false,
       });
       // Add the new envelope (10% up/down) first to render it in the background
       datasets.push({
         label: '10% Error Envelope (against median)',
-        data: currentElementData.map(d => {
+        data: currentElementData.map((d) => {
           const mid = (d.upper + d.lower) / 2;
           return { x: d.x, y: mid * 1.1 }; // 5% up
         }),
@@ -122,7 +140,7 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
       });
       datasets.push({
         label: '10% Error Envelope (against median)', // Matching label to group in legend
-        data: currentElementData.map(d => {
+        data: currentElementData.map((d) => {
           const mid = (d.upper + d.lower) / 2;
           return { x: d.x, y: mid * 0.9 }; // 5% down
         }),
@@ -136,7 +154,7 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
       // Original Lower bound
       datasets.push({
         label: 'Target Standard Value',
-        data: currentElementData.map(d => ({ x: d.x, y: d.lower })),
+        data: currentElementData.map((d) => ({ x: d.x, y: d.lower })),
         fill: false,
         backgroundColor: 'rgba(173, 230, 189, 0.6)',
         borderWidth: 0,
@@ -146,7 +164,7 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
       // Original Upper bound
       datasets.push({
         label: 'Target Standard Value',
-        data: currentElementData.map(d => ({ x: d.x, y: d.upper })),
+        data: currentElementData.map((d) => ({ x: d.x, y: d.upper })),
         fill: '-1', // fill to previous dataset (lower)
         backgroundColor: 'rgba(173, 230, 189, 0.6)',
         borderWidth: 0,
@@ -154,12 +172,10 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
         tension: 0,
       });
 
-     
-
       // Midline from data (dashed)
       datasets.push({
         label: 'Target Median Value',
-        data: currentElementData.map(d => ({ x: d.x, y: d.mid })),
+        data: currentElementData.map((d) => ({ x: d.x, y: d.mid })),
         borderDash: [5, 5],
         borderColor: 'gray',
         backgroundColor: 'transparent',
@@ -187,49 +203,45 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
         font: { size: 18 },
       },
       legend: {
-  display: true,
-  labels: {
-  usePointStyle: true,
-  boxWidth: 100,
-  font: { size: 14 },
-  filter: function (legendItem, data) {
-    const label = legendItem.text;
-    const firstIndex = data.datasets.findIndex(ds => ds.label === label);
-    return legendItem.datasetIndex === firstIndex;
-  },
-  generateLabels: function (chart) {
-    return chart.data.datasets.map((dataset, i) => {
-      let fillColor = '	#e0e0e0'; // default light gray for element
-      let pointStyle = dataset.pointStyle || 'circle';
-      let lineDash = dataset.borderDash || [];
+        display: true,
+        labels: {
+          usePointStyle: true,
+          boxWidth: 100,
+          font: { size: 14 },
+          filter: function (legendItem, data) {
+            const label = legendItem.text;
+            const firstIndex = data.datasets.findIndex((ds) => ds.label === label);
+            return legendItem.datasetIndex === firstIndex;
+          },
+          generateLabels: function (chart) {
+            return chart.data.datasets.map((dataset, i) => {
+              let fillColor = '	#e0e0e0'; // default light gray for element
+              let pointStyle = dataset.pointStyle || 'circle';
+              let lineDash = dataset.borderDash || [];
 
-      if (dataset.label === '10% Error Envelope (against median)') {
-        fillColor = 'rgba(173, 230, 189, 0.3)'; // light green box
-        pointStyle = 'rect';
-      } else if (dataset.label === 'Target Standard Value') {
-        fillColor = 'rgba(173, 230, 189, 0.6)'; // slightly darker green box
-        pointStyle = 'rect';
-      } else if (dataset.label === 'Target Median Value') {
-        fillColor = dataset.borderColor || 'gray'; // dashed line color
-        pointStyle = 'line';
-      }
+              if (dataset.label === '10% Error Envelope (against median)') {
+                fillColor = 'rgba(173, 230, 189, 0.3)'; // light green box
+                pointStyle = 'rect';
+              } else if (dataset.label === 'Target Standard Value') {
+                fillColor = 'rgba(173, 230, 189, 0.6)'; // slightly darker green box
+                pointStyle = 'rect';
+              } else if (dataset.label === 'Target Median Value') {
+                fillColor = dataset.borderColor || 'gray'; // dashed line color
+                pointStyle = 'line';
+              }
 
-      return {
-        text: dataset.label,
-        fillStyle: fillColor,
-        strokeStyle: fillColor,
-        pointStyle,
-        lineDash,
-        datasetIndex: i,
-      };
-    });
-  },
-}
-,
-},
-
-
-
+              return {
+                text: dataset.label,
+                fillStyle: fillColor,
+                strokeStyle: fillColor,
+                pointStyle,
+                lineDash,
+                datasetIndex: i,
+              };
+            });
+          },
+        },
+      },
 
       tooltip: { mode: 'index', intersect: false },
     },
@@ -252,7 +264,9 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
         <CardContent>
           <Box display="flex" justifyContent="center" alignItems="center" height={400}>
             <CircularProgress />
-            <Typography variant="body1" sx={{ ml: 2 }}>Loading Graph Data...</Typography>
+            <Typography variant="body1" sx={{ ml: 2 }}>
+              Loading Graph Data...
+            </Typography>
           </Box>
         </CardContent>
       </Card>
@@ -290,7 +304,14 @@ const SJS_Graph = ({ selectedFileId, selectedDateRange }) => {
             <Line data={chartData} options={chartOptions} />
           </Box>
         ) : (
-          <Box display="flex" justifyContent="center" alignItems="center" height={400} bgcolor="#f5f5f5" borderRadius={1}>
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            height={400}
+            bgcolor="#f5f5f5"
+            borderRadius={1}
+          >
             <Typography variant="body1" color="textSecondary">
               No data available for the selected element.
             </Typography>

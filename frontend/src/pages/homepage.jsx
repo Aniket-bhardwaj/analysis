@@ -1,16 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Upload,
-  TrendingUp,
-  Database,
-  CheckCircle,
-  AlertCircle,
-  FileText
-} from 'lucide-react';
+import { apiFetch } from '../csrfClient';
+import { Upload, TrendingUp, Database, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import Navbar from '@/components/navbar';
 import '../styles/homepage.css';
 import QCGraph from '@/components/qc_graph';
-
 
 const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -21,33 +14,38 @@ const DashboardPage = () => {
 
   // Fetch dashboard data
   const fetchDashboardData = async () => {
+    const userData = JSON.parse(sessionStorage.getItem('user')).user;
     try {
       setLoading(true);
-      
+
       // CORRECTED: Use the full backend URL and add credentials option
-      const apiUrl = 'http://localhost:8080/api/dashboard';
+      const apiUrl = `${import.meta.env.VITE_API_URL}/dashboard`;
       console.log(`Fetching dashboard data from: ${apiUrl}`);
-      
-      const response = await fetch(apiUrl, {
+
+      const response = await apiFetch(apiUrl, {
         credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData.id,
+        }),
       });
-      
+
       console.log('Response status:', response.status);
-      
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      const result = await response.json();
+
+      const result = response.data;
       console.log('Dashboard data received:', result);
-      
+
       // Assuming the backend sends data directly without a 'success' wrapper
       setDashboardData(result);
       setLastRefresh(new Date());
       setError(null);
-
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err.message);
@@ -97,10 +95,7 @@ const DashboardPage = () => {
           <AlertCircle className="error-icon" />
           <h2 className="error-title">Error Loading Dashboard</h2>
           <p className="error-message">{error}</p>
-          <button
-            onClick={fetchDashboardData}
-            className="retry-button"
-          >
+          <button onClick={fetchDashboardData} className="retry-button">
             Retry
           </button>
         </div>
@@ -111,7 +106,7 @@ const DashboardPage = () => {
   return (
     <div className="dashboard-container">
       <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
-      
+
       <div className="dashboard-content">
         {/* Header */}
         <div className="dashboard-header">
@@ -152,7 +147,9 @@ const DashboardPage = () => {
           <div className="summary-card">
             <div className="card-content">
               <div className="card-icon">
-                <CheckCircle className={`icon-qc ${(dashboardData?.qcPassRate || 0) >= 80 ? 'icon-qc-good' : 'icon-qc-bad'}`} />
+                <CheckCircle
+                  className={`icon-qc ${(dashboardData?.qcPassRate || 0) >= 80 ? 'icon-qc-good' : 'icon-qc-bad'}`}
+                />
               </div>
               <div className="card-info">
                 <h3 className="card-label">QC Pass Rate</h3>
@@ -178,19 +175,17 @@ const DashboardPage = () => {
         {/* QC Graphs */}
         <div className="charts-container">
           <div className="chart-card chart-main">
-            <QCGraph selectedFileId={undefined} selectedDateRange={dateRange} title='QC Element Trends (Past Week)' />
-
-
+            <QCGraph
+              selectedFileId={undefined}
+              selectedDateRange={dateRange}
+              title="QC Element Trends (Past Week)"
+            />
           </div>
         </div>
 
         {/* Footer */}
         <div className="dashboard-footer">
-          {error && (
-            <p className="footer-error">
-              Warning: {error}
-            </p>
-          )}
+          {error && <p className="footer-error">Warning: {error}</p>}
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
-const express = require('express');
-const { previewFile } = require('../controllers/previewController');
+const express = require("express");
+const { previewFile } = require("../controllers/previewController");
 const router = express.Router();
 
-router.get('/preview/:filename', previewFile);
+router.post("/preview/:fileName", previewFile);
 
 module.exports = router;

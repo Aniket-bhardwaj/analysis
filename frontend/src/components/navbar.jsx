@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { apiFetch } from '../csrfClient';
 import {
   Drawer,
   List,
@@ -22,6 +23,8 @@ import {
   ExpandMore,
 } from '@mui/icons-material';
 
+const API = import.meta.env.VITE_API_URL; // e.g., http://127.0.0.1:8081/api
+
 const Navbar = ({ selectedItem, setSelectedItem }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,7 +32,7 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
   const [openAnalysisSubMenu, setOpenAnalysisSubMenu] = useState(false);
 
   useEffect(() => {
-    // Automatically expand submenu if current route is under /qc-checks
+    // Expand menus based on current path + keep side selection in sync
     if (location.pathname.startsWith('/qc-checks')) {
       setOpenQCSubMenu(true);
       if (!['Lab Standards', 'SJS Standards'].includes(selectedItem)) {
@@ -47,11 +50,30 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
     } else {
       setOpenAnalysisSubMenu(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   const handleItemClick = (itemText, route) => {
     setSelectedItem(itemText);
     if (route) navigate(route);
+  };
+
+  // 🔐 Real logout: call backend to destroy session, then force redirect
+  const handleLogout = async () => {
+    sessionStorage.removeItem('user');
+    return navigate('/');
+    // try {
+    //   await apiFetch(`${API}/auth/logout`, {
+    //     method: 'POST',
+    //     credentials: 'include',
+    //   });
+    // } catch (err) {
+    //   console.error('Logout failed:', err);
+    //   // even if it fails, continue to redirect; server may already have killed the session
+    // } finally {
+    //   setSelectedItem('');
+    //   window.location.replace('/'); // go to login; ProtectedRoute will block protected pages
+    // }
   };
 
   return (
@@ -67,7 +89,9 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
           <ListItem disablePadding className="menu-list-item">
             <ListItemButton
               onClick={() => handleItemClick('Dashboard', '/dashboard')}
-              className={`menu-button ${selectedItem === 'Dashboard' ? 'menu-button-selected' : 'menu-button-default'}`}
+              className={`menu-button ${
+                selectedItem === 'Dashboard' ? 'menu-button-selected' : 'menu-button-default'
+              }`}
             >
               <ListItemIcon>
                 <DashboardIcon />
@@ -86,7 +110,9 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
           <ListItem disablePadding className="menu-list-item">
             <ListItemButton
               onClick={() => handleItemClick('Data Manager', '/data-manager')}
-              className={`menu-button ${selectedItem === 'Data Manager' ? 'menu-button-selected' : 'menu-button-default'}`}
+              className={`menu-button ${
+                selectedItem === 'Data Manager' ? 'menu-button-selected' : 'menu-button-default'
+              }`}
             >
               <ListItemIcon>
                 <DataManagerIcon />
@@ -105,7 +131,9 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
           <ListItem disablePadding className="menu-list-item">
             <ListItemButton
               onClick={() => handleItemClick('QC Checks', '/qc-checks')}
-              className={`menu-button ${selectedItem === 'QC Checks' ? 'menu-button-selected' : 'menu-button-default'}`}
+              className={`menu-button ${
+                selectedItem === 'QC Checks' ? 'menu-button-selected' : 'menu-button-default'
+              }`}
             >
               <ListItemIcon>
                 <QCChecksIcon />
@@ -132,9 +160,13 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
                   <ListItemButton
                     onClick={() => {
                       handleItemClick(subItem.text, subItem.route);
-                      window.dispatchEvent(new CustomEvent('forceScrollToSection', { detail: subItem.route }));
+                      window.dispatchEvent(
+                        new CustomEvent('forceScrollToSection', { detail: subItem.route })
+                      );
                     }}
-                    className={`menu-button ${selectedItem === subItem.text ? 'menu-button-selected' : 'menu-button-default'}`}
+                    className={`menu-button ${
+                      selectedItem === subItem.text ? 'menu-button-selected' : 'menu-button-default'
+                    }`}
                     sx={{ pl: 9, minHeight: 0 }}
                   >
                     <ListItemText
@@ -157,7 +189,9 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
           <ListItem disablePadding className="menu-list-item">
             <ListItemButton
               onClick={() => setOpenAnalysisSubMenu(!openAnalysisSubMenu)}
-              className={`menu-button ${selectedItem === 'Analysis' ? 'menu-button-selected' : 'menu-button-default'}`}
+              className={`menu-button ${
+                selectedItem === 'Analysis' ? 'menu-button-selected' : 'menu-button-default'
+              }`}
             >
               <ListItemIcon>
                 <AnalyticsIcon />
@@ -183,7 +217,11 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
               <ListItem disablePadding>
                 <ListItemButton
                   onClick={() => handleItemClick('Sample Analysis', '/analysis')}
-                  className={`menu-button ${selectedItem === 'Sample Analysis' ? 'menu-button-selected' : 'menu-button-default'}`}
+                  className={`menu-button ${
+                    selectedItem === 'Sample Analysis'
+                      ? 'menu-button-selected'
+                      : 'menu-button-default'
+                  }`}
                   sx={{ pl: 9, minHeight: 0 }}
                 >
                   <ListItemText
@@ -199,11 +237,17 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
                 </ListItemButton>
               </ListItem>
 
-              {/* Element Inspector (NEW) */}
+              {/* Element Inspector */}
               <ListItem disablePadding>
                 <ListItemButton
-                  onClick={() => handleItemClick('Element Inspector', '/analysis/element-inspector')}
-                  className={`menu-button ${selectedItem === 'Element Inspector' ? 'menu-button-selected' : 'menu-button-default'}`}
+                  onClick={() =>
+                    handleItemClick('Element Inspector', '/analysis/element-inspector')
+                  }
+                  className={`menu-button ${
+                    selectedItem === 'Element Inspector'
+                      ? 'menu-button-selected'
+                      : 'menu-button-default'
+                  }`}
                   sx={{ pl: 9, minHeight: 0 }}
                 >
                   <ListItemText
@@ -224,8 +268,10 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
           {/* Logout */}
           <ListItem disablePadding className="menu-list-item">
             <ListItemButton
-              onClick={() => handleItemClick('Logout', '/')}
-              className={`menu-button ${selectedItem === 'Logout' ? 'menu-button-selected' : 'menu-button-default'}`}
+              onClick={handleLogout}
+              className={`menu-button ${
+                selectedItem === 'Logout' ? 'menu-button-selected' : 'menu-button-default'
+              }`}
             >
               <ListItemIcon>
                 <LogoutIcon />

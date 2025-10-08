@@ -3,34 +3,38 @@ const { MEconc, TEconc } = require('../colHeaders');
 
 class ElementController {
   static async getElementInspectorData(req, res) {
-  try {
-    const { element, file_id, start_date, end_date } = req.query;
+    try {
+      const { element, file_id, start_date, end_date } = req.query;
+      const { isAdmin, orgId } = req.rbac || {};
 
-    // Only one of these will be set at a time:
-    // • element                              → no filters
-    // • element + start_date + end_date      → date filter
-    // • element + file_id                    → file filter
-    const graphData = await ElementService.fetchElementData(element, {
-      file_id,
-      start_date,
-      end_date
-    });
+      const graphData = await ElementService.fetchElementData(
+        element,
+        { file_id, start_date, end_date },
+        { isAdmin, orgId }
+      );
 
-    res.json({ graphData });
-  } catch (error) {
-    console.error('Error in getElementInspectorData:', error);
-    res.status(500).json({ error: 'Internal server error' });
+      res.json({ graphData });
+    } catch (error) {
+      console.error('Error in getElementInspectorData:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
-}
-  
 
   static async getElementOptions(req, res) {
     try {
-      const allElements = [...MEconc, ...TEconc];
+      const { isAdmin, orgId } = req.rbac || {};
+
+      // 🔒 RBAC-aware dropdown
+      const allElements = await ElementService.getAllElementNames({
+        isAdmin: isAdmin ? 1 : 0,
+        orgId
+      });
+
       res.json({ elements: allElements });
     } catch (err) {
       console.error('Error in getElementOptions:', err);
-      res.status(500).json({ error: 'Internal server error' });
+      // fallback: still send static list if something breaks
+      res.json({ elements: [...MEconc, ...TEconc] });
     }
   }
 }

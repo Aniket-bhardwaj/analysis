@@ -117,7 +117,7 @@ function checkCsvType(firstLine) {
 }
 
 // -----------------------------
-// ✅ Validate Header Order/Match
+// Validate Header Order/Match
 // -----------------------------
 function validateHeaders(actual, csvType) {
   const expected = csvType === 1 ? OcleanedHeaders1 : OcleanedHeaders2;
@@ -201,7 +201,7 @@ function splitSamplesAndQc(rows) {
 }
 
 // -----------------------------
-// ✅ QC Label Validation
+// QC Label Validation
 // -----------------------------
 function validateQcLabels(qc) {
   const required = [

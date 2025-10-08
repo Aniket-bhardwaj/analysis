@@ -1,40 +1,60 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../csrfClient';
 import {
-  Box, CircularProgress, Typography, Autocomplete,
-  TextField, Alert, LinearProgress,
+  Box,
+  CircularProgress,
+  Typography,
+  Autocomplete,
+  TextField,
+  Alert,
+  LinearProgress,
 } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import Filter from './common/Filter';
 
 import {
-  Chart as ChartJS, LineElement, CategoryScale,
-  LinearScale, PointElement, Title, Tooltip, Legend,
+  Chart as ChartJS,
+  LineElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend,
 } from 'chart.js';
 
-ChartJS.register(
-  LineElement, CategoryScale, LinearScale,
-  PointElement, Title, Tooltip, Legend
-);
+ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Title, Tooltip, Legend);
 
 const ElementGraph = () => {
   /* ── UI / filter state ── */
-  const [elementOptions, setElementOptions]     = useState([]);
-  const [selectedElement, setSelectedElement]   = useState(null);
-  const [uploadedFiles, setUploadedFiles]       = useState([]);
-  const [selectedFileId, setSelectedFileId]     = useState(null);
+  const [elementOptions, setElementOptions] = useState([]);
+  const [selectedElement, setSelectedElement] = useState(null);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [selectedFileId, setSelectedFileId] = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState(null);
 
   /* ── data state ── */
   const [graphData, setGraphData] = useState(null);
-  const [loading,   setLoading]   = useState(false);
-  const [error,     setError]     = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   /* 1️⃣ fetch element list once */
   useEffect(() => {
     (async () => {
+      const userData = JSON.parse(sessionStorage.getItem('user')).user;
+
       try {
-        const res     = await fetch(`${import.meta.env.VITE_API_URL}/element-options`);
-        const { elements = [] } = await res.json();
+        const res = await apiFetch(`${import.meta.env.VITE_API_URL}/element-options`, {
+          credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userData.id,
+          }),
+        });
+        const { elements = [] } = res.data;
         setElementOptions(elements);
         if (elements.length && !selectedElement) {
           setSelectedElement(elements[0]);
@@ -53,11 +73,21 @@ const ElementGraph = () => {
     if (filters?.startDate && filters?.endDate) {
       url += `?start_date=${filters.startDate}&end_date=${filters.endDate}`;
     }
+    const userData = JSON.parse(sessionStorage.getItem('user')).user;
 
     try {
-      const res   = await fetch(url);
+      const res = await apiFetch(url, {
+        credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData.id,
+        }),
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data  = await res.json();
+      const data = res.data;
       const files = data.files ?? data.data ?? (Array.isArray(data) ? data : []);
       setUploadedFiles(files);
     } catch (err) {
@@ -77,12 +107,12 @@ const ElementGraph = () => {
     if (payload.type === 'clear') {
       setSelectedFileId(null);
       setSelectedDateRange(null);
-      fetchUploadedFiles();   // reset file list
+      fetchUploadedFiles(); // reset file list
     } else if (payload.type === 'date') {
       setSelectedFileId(null);
       setSelectedDateRange({
         startDate: payload.startDate,
-        endDate:   payload.endDate,
+        endDate: payload.endDate,
       });
       fetchUploadedFiles({ startDate: payload.startDate, endDate: payload.endDate });
     } else if (payload.type === 'file') {
@@ -99,19 +129,29 @@ const ElementGraph = () => {
       setLoading(true);
       setError(null);
       try {
-        const base   = `${import.meta.env.VITE_API_URL}/element-graph`;
+        const base = `${import.meta.env.VITE_API_URL}/element-graph`;
         const params = new URLSearchParams({ element: selectedElement });
 
         if (selectedFileId) {
           params.append('file_id', selectedFileId);
         } else if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
           params.append('start_date', selectedDateRange.startDate);
-          params.append('end_date',   selectedDateRange.endDate);
+          params.append('end_date', selectedDateRange.endDate);
         }
+        const userData = JSON.parse(sessionStorage.getItem('user')).user;
 
-        const res = await fetch(`${base}?${params.toString()}`);
+        const res = await apiFetch(`${base}?${params.toString()}`, {
+          credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userData.id,
+          }),
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const { graphData } = await res.json();
+        const { graphData } = res.data;
         setGraphData(graphData);
       } catch (err) {
         console.error('Failed to fetch graph data:', err);
@@ -125,33 +165,35 @@ const ElementGraph = () => {
 
   /* 5️⃣ chart config */
   const chartConfig = {
-    labels: graphData?.map(d => d.sample) || [],
-    datasets: [{
-      label: selectedElement ? `${selectedElement} (Corrected)` : '',
-      data:  graphData?.map(d => d.value) || [],
-      borderColor: 'rgba(0,0,0,.4)',
-      borderWidth: .5,
-      backgroundColor: graphData?.map(d =>
-        d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
-      ),
-      pointBorderColor: graphData?.map(d =>
-        d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
-      ),
-      pointBackgroundColor: graphData?.map(d =>
-        d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
-      ),
-      fill: false,
-      tension: .3,
-      pointRadius: 4,
-      pointHoverRadius: 5,
-    }],
+    labels: graphData?.map((d) => d.sample) || [],
+    datasets: [
+      {
+        label: selectedElement ? `${selectedElement} (Corrected)` : '',
+        data: graphData?.map((d) => d.value) || [],
+        borderColor: 'rgba(0,0,0,.4)',
+        borderWidth: 0.5,
+        backgroundColor: graphData?.map((d) =>
+          d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
+        ),
+        pointBorderColor: graphData?.map((d) =>
+          d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
+        ),
+        pointBackgroundColor: graphData?.map((d) =>
+          d.status === 'Fail' ? 'red' : d.status === 'Pass' ? '#00c04b' : 'gray'
+        ),
+        fill: false,
+        tension: 0.3,
+        pointRadius: 4,
+        pointHoverRadius: 5,
+      },
+    ],
   };
 
   const chartOptions = {
     responsive: true,
     plugins: {
       legend: { position: 'top' },
-      title:  { display: !!selectedElement, text: `Element: ${selectedElement}` },
+      title: { display: !!selectedElement, text: `Element: ${selectedElement}` },
     },
     scales: {
       x: {
@@ -160,14 +202,14 @@ const ElementGraph = () => {
       },
       y: {
         title: { display: true, text: 'Corrected Value (ppm)' },
-        ticks: { precision: 2, callback: v => v.toLocaleString() },
+        ticks: { precision: 2, callback: (v) => v.toLocaleString() },
       },
     },
   };
 
   /* 6️⃣ render */
   return (
-   <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
         <Autocomplete
           options={elementOptions}
@@ -175,7 +217,7 @@ const ElementGraph = () => {
           onChange={(_, v) => setSelectedElement(v)}
           sx={{ width: 300 }} // Set desired width here
           renderInput={(p) => <TextField {...p} label="Select Element" size="small" />}
-        /> 
+        />
 
         <Filter
           uploadedFiles={uploadedFiles}
@@ -185,7 +227,11 @@ const ElementGraph = () => {
         />
       </Box>
 
-      {error   && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
       {loading && <LinearProgress sx={{ mb: 2 }} />}
 
       <Box

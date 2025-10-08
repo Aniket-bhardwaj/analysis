@@ -17,58 +17,151 @@ class ElementService {
     return [...new Set([...MEconc, ...TEconc])];
   }
 
-  // services/ElementService.js
-static async fetchElementData(
-  elementName,
-  { file_id = null, start_date = null, end_date = null } = {}
-) {
-  try {
-    const correctedElement = `${elementName}_Corrected`;
+  /**
+   * Fetch detailed element data for a given element name.
+   * RBAC enforced: non-admins can only see their own org’s data.
+   *
+   * @param {string} elementName
+   * @param {object} filters
+   * @param {string|null} filters.file_id
+   * @param {string|null} filters.start_date
+   * @param {string|null} filters.end_date
+   * @param {object} rbac
+   * @param {boolean} rbac.isAdmin
+   * @param {number} rbac.orgId
+   * @returns {Promise<Array>}
+   */
+  static async fetchElementData(
+    elementName,
+    { file_id = null, start_date = null, end_date = null } = {},
+    { isAdmin, orgId } = {}
+  ) {
+    try {
+      const correctedElement = `${elementName}_Corrected`;
 
-    // Pass the filter options down to the model
-    const rawRows = await ElementModel.getElementCorrectedValuesDetailed(
-      correctedElement,
-      { file_id, start_date, end_date }
-    );
+      // call model with RBAC params
+      const rawRows = await ElementModel.getElementCorrectedValuesDetailed({
+        element: correctedElement,
+        file_id,
+        start_date,
+        end_date,
+        isAdmin: isAdmin ? 1 : 0,
+        orgId
+      });
 
-    const result = [];
+      const result = [];
 
-    for (const row of rawRows) {
-      const { sample_name, value, type, file_id: rowFileId } = row;
-      const qcl = qclMap[type];
-      const elementList = concMap[type];
+      for (const row of rawRows) {
+        const { sample_name, value, type, file_id: rowFileId } = row;
+        const qcl = qclMap[type];
+        const elementList = concMap[type];
 
-      if (!qcl || !elementList.includes(elementName)) continue;
+        if (!qcl || !elementList.includes(elementName)) continue;
 
-      const avgRow = await SampleModel.getAvg(rowFileId, qcl, [elementName]);
-      const avg = avgRow[elementName];
+        // average QC check for the element in this file
+        const avgRow = await SampleModel.getAvg(rowFileId, qcl, [elementName]);
+        const avg = avgRow ? avgRow[elementName] : null;
 
-      let status = '-';
-      let error  = null;
+        let status = '-';
+        let error = null;
 
-      if (avg != null) {
-        const target = type === 1 ? 5 : 50;
-        const lower  = target * 0.9;
-        const upper  = target * 1.1;
-        status = avg >= lower && avg <= upper ? 'Pass' : 'Fail';
-        error  = ((Math.abs(avg - target) / target) * 100).toFixed(2);
+        if (avg != null) {
+          const target = type === 1 ? 5 : 50;
+          const lower = target * 0.9;
+          const upper = target * 1.1;
+          status = avg >= lower && avg <= upper ? 'Pass' : 'Fail';
+          error = ((Math.abs(avg - target) / target) * 100).toFixed(2);
+        }
+
+        result.push({
+          sample: sample_name,
+          value,
+          status,
+          error
+        });
       }
 
-      result.push({
-        sample: sample_name,
-        value,
-        status,
-        error
-      });
+      return result;
+    } catch (err) {
+      console.error('Error in fetchElementData:', err);
+      throw err;
     }
-
-    return result;
-  } catch (err) {
-    console.error('Error in fetchElementData:', err);
-    throw err;
   }
-}
-  
 }
 
 module.exports = ElementService;
+
+// const ElementModel = require('../models/elementModel');
+// const SampleModel = require('../models/sampleModel');
+// const { MEconc, TEconc } = require('../colHeaders');
+
+// const qclMap = {
+//   1: "QC MES 5 ppm",
+//   2: "QC MES 50 ppb"
+// };
+
+// const concMap = {
+//   1: MEconc,
+//   2: TEconc
+// };
+
+// class ElementService {
+//   static getAllElementNames() {
+//     return [...new Set([...MEconc, ...TEconc])];
+//   }
+
+//   // services/ElementService.js
+// static async fetchElementData(
+//   elementName,
+//   { file_id = null, start_date = null, end_date = null } = {}
+// ) {
+//   try {
+//     const correctedElement = `${elementName}_Corrected`;
+
+//     // Pass the filter options down to the model
+//     const rawRows = await ElementModel.getElementCorrectedValuesDetailed(
+//       correctedElement,
+//       { file_id, start_date, end_date }
+//     );
+
+//     const result = [];
+
+//     for (const row of rawRows) {
+//       const { sample_name, value, type, file_id: rowFileId } = row;
+//       const qcl = qclMap[type];
+//       const elementList = concMap[type];
+
+//       if (!qcl || !elementList.includes(elementName)) continue;
+
+//       const avgRow = await SampleModel.getAvg(rowFileId, qcl, [elementName]);
+//       const avg = avgRow[elementName];
+
+//       let status = '-';
+//       let error  = null;
+
+//       if (avg != null) {
+//         const target = type === 1 ? 5 : 50;
+//         const lower  = target * 0.9;
+//         const upper  = target * 1.1;
+//         status = avg >= lower && avg <= upper ? 'Pass' : 'Fail';
+//         error  = ((Math.abs(avg - target) / target) * 100).toFixed(2);
+//       }
+
+//       result.push({
+//         sample: sample_name,
+//         value,
+//         status,
+//         error
+//       });
+//     }
+
+//     return result;
+//   } catch (err) {
+//     console.error('Error in fetchElementData:', err);
+//     throw err;
+//   }
+// }
+  
+// }
+
+// module.exports = ElementService;

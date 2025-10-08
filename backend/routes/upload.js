@@ -41,7 +41,11 @@ const storage = multer.diskStorage({
 });
 
 // Initialize multer with the updated storage configuration.
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 }  // 100 MB max per file
+});
+
 
 // --- EXISTING ROUTE (UNCHANGED) ---
 // This route for single CSV uploads remains untouched for backward compatibility.

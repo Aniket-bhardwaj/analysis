@@ -1,15 +1,9 @@
 const db = require('../initialize_db');
 
-
 // ==========================
 // 1. Insertion & Mapping
 // ==========================
 
-/**
- * Insert a single QC row into qc_data table.
- * @param {string[]} columns - Column names
- * @param {any[]} values - Corresponding values
- */
 function insertQCRow(columns, values) {
   const placeholders = columns.map(() => '?').join(', ');
   const sql = `INSERT INTO qc_data (${columns.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
@@ -21,26 +15,26 @@ function insertQCRow(columns, values) {
   });
 }
 
-/**
- * Check if a sample already exists by its label in sample_data.
- */
-function sampleExists(label) {
+function sampleExists(label, fileId) {
   return new Promise((resolve, reject) => {
-    db.get('SELECT id FROM sample_data WHERE "Solution Label" = ?', [label], (err, row) => {
-      if (err) reject(err);
-      else resolve(!!row); // true if row found
-    });
+    db.get(
+      'SELECT id FROM sample_data WHERE "Solution Label" = ? AND file_id = ?',
+      [label, fileId],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(!!row);
+      }
+    );
   });
 }
 
-/**
- * Insert a new sample into sample_data.
- */
-function insertSample(row) {
-  const columns = Object.keys(row).map(k => `"${k}"`);
-  const placeholders = Object.keys(row).map(() => '?').join(', ');
-  const values = Object.values(row);
+function insertSample(row, fileId) {
+  const columns = ['file_id', ...Object.keys(row).map(k => `"${k}"`)];
+  const placeholders = ['?', ...Object.keys(row).map(() => '?')].join(', ');
+  const values = [fileId, ...Object.values(row)];
+
   const sql = `INSERT INTO sample_data (${columns.join(', ')}) VALUES (${placeholders})`;
+
   return new Promise((resolve, reject) => {
     db.run(sql, values, function (err) {
       if (err) reject(err);
@@ -49,61 +43,58 @@ function insertSample(row) {
   });
 }
 
-/**
- * Update an existing sample in sample_data using the "Solution Label" as identifier.
- */
-function updateSample(label, row) {
+function updateSample(label, row, fileId) {
   const entries = Object.entries(row).filter(([key]) => key !== 'Solution Label');
   const setClause = entries.map(([key]) => `"${key}" = ?`).join(', ');
   const values = entries.map(([_, val]) => val);
-  const sql = `UPDATE sample_data SET ${setClause} WHERE "Solution Label" = ? RETURNING id`;
+
+  const sql = `UPDATE sample_data 
+               SET ${setClause} 
+               WHERE "Solution Label" = ? AND file_id = ? 
+               RETURNING id`;
 
   return new Promise((resolve, reject) => {
-    db.get(sql, [...values, label], (err, row) => {
+    db.get(sql, [...values, label, fileId], (err, row) => {
       if (err) reject(err);
-      else resolve(row?.id); // return updated row ID if available
+      else resolve(row?.id);
     });
   });
 }
 
+function insertRestData(row, fileId) {
+  const columns = ['file_id', ...Object.keys(row).map(k => `"${k}"`)];
+  const placeholders = ['?', ...Object.keys(row).map(() => '?')].join(', ');
+  const values = [fileId, ...Object.values(row)];
 
-/**
- * Insert a new row into rest_data.
- */
-function insertRestData(row) {
-  const columns = Object.keys(row).map(k => `"${k}"`);
-  const placeholders = Object.keys(row).map(() => '?').join(', ');
-  const values = Object.values(row);
   const sql = `INSERT INTO rest_data (${columns.join(', ')}) VALUES (${placeholders})`;
 
   return new Promise((resolve, reject) => {
     db.run(sql, values, function (err) {
       if (err) reject(err);
-      else resolve(); // no return needed
+      else resolve(this.lastID);
     });
   });
 }
 
-/**
- * Update an existing row in rest_data using "Solution Label".
- */
-function updateRestData(label, row) {
+function updateRestData(label, row, fileId) {
   const entries = Object.entries(row).filter(([key]) => key !== 'Solution Label');
   const setClause = entries.map(([key]) => `"${key}" = ?`).join(', ');
   const values = entries.map(([_, val]) => val);
-  const sql = `UPDATE rest_data SET ${setClause} WHERE "Solution Label" = ?`;
+
+  const sql = `
+    UPDATE rest_data
+    SET ${setClause}
+    WHERE "Solution Label" = ? AND file_id = ?
+  `;
 
   return new Promise((resolve, reject) => {
-    db.run(sql, [...values, label], function (err) {
+    db.run(sql, [...values, label, fileId], function (err) {
       if (err) reject(err);
-      else resolve(); // no return needed
+      else resolve(this.changes);
     });
   });
 }
 
-/**
- * Insert mapping between sample ID and file ID into sample_id_X_file_id.
- */
 function insertSampleFileMapping(sampleId, fileId) {
   const sql = `INSERT INTO sample_id_X_file_id (sample_id, file_id) VALUES (?, ?)`;
   return new Promise((resolve, reject) => {
@@ -114,27 +105,26 @@ function insertSampleFileMapping(sampleId, fileId) {
   });
 }
 
-
 // ==========================
 // 2. QC MES & Correction Factor Logic
 // ==========================
 
-/**
- * Get all QC rows beginning with 'QC MES' for a specific file.
- */
-function getAllQCMESRows(fileId) {
-  const sql = `SELECT * FROM qc_data WHERE "Solution Label" LIKE 'QC MES%' AND file_id = ?`;
+// 🔧 Patched: now uses dynamic labels instead of hardcoding 'QC MES%'
+async function getAllQCMESRows(fileId) {
+  const labels = await getQCLabelsForFile(fileId);
+  // Pick only those starting with "Standard" or "QC"
+  const filtered = labels.filter(l => l.startsWith('Standard') || l.startsWith('QC'));
+  if (!filtered.length) return [];
+
+  const sql = `SELECT * FROM qc_data WHERE file_id = ? AND "Solution Label" IN (${filtered.map(() => '?').join(', ')})`;
   return new Promise((resolve, reject) => {
-    db.all(sql, [fileId], (err, rows) => {
+    db.all(sql, [fileId, ...filtered], (err, rows) => {
       if (err) reject(err);
       else resolve(rows);
     });
   });
 }
 
-/**
- * Get average values for each element column for a specific QC label and file.
- */
 function getQCAveragesByLabel(fileId, label, elementCols) {
   if (!elementCols.length) {
     return Promise.reject(new Error('No element columns provided for averaging'));
@@ -153,19 +143,15 @@ function getQCAveragesByLabel(fileId, label, elementCols) {
   return new Promise((resolve, reject) => {
     db.get(sql, [fileId, label], (err, row) => {
       if (err) reject(err);
-      else resolve(row); // object with avg values keyed by column
+      else resolve(row);
     });
   });
 }
-
 
 // ==========================
 // 3. Apply Correction to Data
 // ==========================
 
-/**
- * Get all sample IDs from mapping table linked to a specific file.
- */
 function getSampleIdsForFile(fileId) {
   const sql = `SELECT sample_id FROM sample_id_X_file_id WHERE file_id = ?`;
   return new Promise((resolve, reject) => {
@@ -176,18 +162,25 @@ function getSampleIdsForFile(fileId) {
   });
 }
 
-/**
- * Get all row IDs from qc_data that are labeled as 'SJS-Std' for a given file.
- */
 function getStdIdsForFile(fileId) {
-  const sql = `SELECT id FROM qc_data WHERE file_id = ? AND "Solution Label" = ?`;
+  const sql = `SELECT id FROM sjs WHERE file_id = ? AND label = 'SJS-Std'`;
   return new Promise((resolve, reject) => {
-    db.all(sql, [fileId, 'SJS-Std'], (err, rows) => {
+    db.all(sql, [fileId], (err, rows) => {
       if (err) reject(err);
       else resolve(rows.map(r => r.id));
     });
   });
 }
+
+// function getStdIdsForFile(fileId) {
+//   const sql = `SELECT id FROM qc_data WHERE file_id = ? AND "Solution Label" = ?`;
+//   return new Promise((resolve, reject) => {
+//     db.all(sql, [fileId, 'SJS-Std'], (err, rows) => {
+//       if (err) reject(err);
+//       else resolve(rows.map(r => r.id));
+//     });
+//   });
+// }
 
 function getSampleById(id, elementCols) {
   const colsString = elementCols
@@ -203,17 +196,12 @@ function getSampleById(id, elementCols) {
   });
 }
 
-
-
-/**
- * Fetch a full qc_data row by ID (usually for SJS-Std corrections).
- */
 function getStdById(id, elementCols) {
   const colsString = elementCols
     .map(col => `"${col.replace(/"/g, '""')}"`)
     .join(', ');
-  const sql = `SELECT ${colsString} FROM qc_data WHERE id = ?`;
-  
+  const sql = `SELECT ${colsString} FROM sjs WHERE id = ?`;
+
   return new Promise((resolve, reject) => {
     db.get(sql, [id], (err, row) => {
       if (err) reject(err);
@@ -222,9 +210,63 @@ function getStdById(id, elementCols) {
   });
 }
 
+function updateStdCorrectedValues(id, updates) {
+  const qcFields = ["error_pct", "tolerance_pct", "rsd_pct", "status"];
+
+  const setClause = Object.keys(updates)
+    .map(k => {
+      let col;
+      if (qcFields.includes(k)) {
+        // these columns exist as-is
+        col = k;
+      } else {
+        // append _Corrected if not already there
+        col = k.endsWith("_Corrected") ? k : `${k}_Corrected`;
+      }
+      return `"${col.replace(/"/g, '""')}" = ?`;
+    })
+    .join(', ');
+
+  const values = Object.values(updates);
+  const sql = `UPDATE sjs SET ${setClause} WHERE id = ?`;
+
+  return new Promise((resolve, reject) => {
+    db.run(sql, [...values, id], function (err) {
+      if (err) reject(err);
+      else resolve(this.changes);
+    });
+  });
+}
+
+// function updateStdCorrectedValues(id, updates) {
+//   const setClause = Object.keys(updates)
+//     .map(k => {
+//       // only add _Corrected if it isn’t already in the key
+//       const col = k.endsWith("_Corrected") ? k : `${k}_Corrected`;
+//       return `"${col.replace(/"/g, '""')}" = ?`;
+//     })
+//     .join(', ');
+
+//   const values = Object.values(updates);
+//   const sql = `UPDATE sjs SET ${setClause} WHERE id = ?`;
+
+//   return new Promise((resolve, reject) => {
+//     db.run(sql, [...values, id], function (err) {
+//       if (err) reject(err);
+//       else resolve(this.changes);
+//     });
+//   });
+// }
+
+
+
+
 function updateSampleCorrectedValues(id, updates) {
   const setClause = Object.keys(updates)
-    .map(k => `"${k.replace(/"/g, '""')}" = ?`)
+    .map(k => {
+      const col = k.endsWith("_Corrected") ? k : `${k}_Corrected`;
+      return `"${col.replace(/"/g, '""')}" = ?`;
+    })
     .join(', ');
   const values = Object.values(updates);
   const sql = `UPDATE sample_data SET ${setClause} WHERE id = ?`;
@@ -232,33 +274,50 @@ function updateSampleCorrectedValues(id, updates) {
   return new Promise((resolve, reject) => {
     db.run(sql, [...values, id], function (err) {
       if (err) reject(err);
-      else resolve(this.changes); // number of rows updated
+      else resolve(this.changes);
     });
   });
 }
 
-/**
- * Update specific corrected values for a standard (SJS-Std) row in qc_data.
- */
-function updateStdCorrectedValues(id, updates) {
-  const setClause = Object.keys(updates).map(k => `"${k}" = ?`).join(', ');
-  const values = Object.values(updates);
-  const sql = `UPDATE qc_data SET ${setClause} WHERE id = ?`;
 
+
+function getQCLabelsForFile(fileId) {
+  const sql = `SELECT DISTINCT "Solution Label" AS label FROM qc_data WHERE file_id = ?`;
   return new Promise((resolve, reject) => {
-    db.run(sql, [...values, id], function (err) {
-      if (err) reject(err);
-      else resolve();
+    db.all(sql, [fileId], (err, rows) => {
+      if (err) {
+        console.error("Error fetching QC labels:", err);
+        reject(err);
+      } else {
+        resolve(rows.map(r => r.label));
+      }
     });
   });
 }
 
+function removeSampleFileMappings(sampleId) {
+  const sql = `DELETE FROM sample_id_X_file_id WHERE sample_id = ?`;
+  return new Promise((resolve, reject) => {
+    db.run(sql, [sampleId], function (err) {
+      if (err) reject(err);
+      else resolve(this.changes);
+    });
+  });
+}
+
+function runSQL(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+}
 
 // ==========================
 // Exports
 // ==========================
 module.exports = {
-  // Insertion & Mapping
   insertQCRow,
   sampleExists,
   insertSample,
@@ -266,10 +325,12 @@ module.exports = {
   insertRestData,
   updateRestData,
   insertSampleFileMapping,
+  removeSampleFileMappings,
 
   // QC MES and Factors
   getAllQCMESRows,
   getQCAveragesByLabel,
+  getQCLabelsForFile,
 
   // Sample & Std Correction
   getSampleIdsForFile,
@@ -277,5 +338,8 @@ module.exports = {
   getSampleById,
   getStdById,
   updateSampleCorrectedValues,
-  updateStdCorrectedValues
+  updateStdCorrectedValues,
+
+  runSQL
 };
+

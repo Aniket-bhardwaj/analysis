@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
+import { apiFetch } from '../csrfClient';
 
 import {
   Box,
@@ -32,7 +33,6 @@ const formatDate = (dateObj) => {
   const day = String(dateObj.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`; // 🔥 no timezone shift
 };
-
 
 const QCChecks = () => {
   const { section } = useParams();
@@ -84,12 +84,22 @@ const QCChecks = () => {
   }, []);
 
   const fetchFileMeta = async (fileId) => {
+    const userData = JSON.parse(sessionStorage.getItem('user')).user;
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/file-meta?file_id=${fileId}`);
+      const res = await apiFetch(`${import.meta.env.VITE_API_URL}/qc-check/file-meta?file_id=${fileId}`, {
+        credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData.id,
+        }),
+      });
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      const data = await res.json();
+      const data = res.data;
       // Assuming data is directly the metadata object like:
       // { filename: "...", uploaded_at: "...", uploaded_by: "...", type: ... }
       if (data && (data.filename || data.uploaded_at || data.uploaded_by || data.fileType)) {
@@ -118,6 +128,7 @@ const QCChecks = () => {
     setLoading(true);
     setError(null);
     let url = `${import.meta.env.VITE_API_URL}/uploaded-files`;
+    const userData = JSON.parse(sessionStorage.getItem('user')).user;
 
     if (filters?.startDate && filters?.endDate) {
       const params = new URLSearchParams({
@@ -128,11 +139,20 @@ const QCChecks = () => {
     }
 
     try {
-      const response = await fetch(url);
+      const response = await apiFetch(url, {
+        credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData.id,
+        }),
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const data = await response.json();
+      const data = response.data;
       const files = data.files || data.data || (Array.isArray(data) ? data : []);
       setUploadedFiles(files);
 
@@ -153,22 +173,32 @@ const QCChecks = () => {
   }, []);
 
   const fetchSummaryData = async () => {
+    const userData = JSON.parse(sessionStorage.getItem('user')).user;
     try {
-      let url = `${import.meta.env.VITE_API_URL}/summary`;
+      let url = `${import.meta.env.VITE_API_URL}/qc-check/summary`;
       const params = new URLSearchParams();
 
       if (selectedFileId) params.append('file_id', selectedFileId);
       if (selectedDateRange?.startDate && selectedDateRange?.endDate) {
         params.append('start_date', formatDate(new Date(selectedDateRange.startDate)));
-        params.append('end_date', formatDate(new Date (selectedDateRange.endDate)));
+        params.append('end_date', formatDate(new Date(selectedDateRange.endDate)));
       }
 
-      const response = await fetch(`${url}?${params.toString()}`);
+      const response = await apiFetch(`${url}?${params.toString()}`, {
+        credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userData.id,
+        }),
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
+      const result = response.data;
       const summaryData = result.summary || {
         totalElements: 0,
         elementsWithinTolerance: 0,
@@ -211,7 +241,7 @@ const QCChecks = () => {
     } else if (filterData.type === 'file') {
       const fileId = filterData.file.id || filterData.file.file_id;
       setSelectedFileId(fileId);
-      setSelectedDateRange(null); // ✅ clear date
+      setSelectedDateRange(null); // clear date
     }
   };
 
@@ -367,9 +397,7 @@ const QCChecks = () => {
                     variant="determinate"
                     value={
                       summary.totalElements > 0
-                        ? ((summary.elementsNotWithinTolerance) /
-                            summary.totalElements) *
-                          100
+                        ? (summary.elementsNotWithinTolerance / summary.totalElements) * 100
                         : 0
                     }
                     color="error"
