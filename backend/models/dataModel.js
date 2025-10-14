@@ -148,9 +148,7 @@ function getQCAveragesByLabel(fileId, label, elementCols) {
   });
 }
 
-// ==========================
-// 3. Apply Correction to Data
-// ==========================
+
 
 function getSampleIdsForFile(fileId) {
   const sql = `SELECT sample_id FROM sample_id_X_file_id WHERE file_id = ?`;
@@ -172,15 +170,6 @@ function getStdIdsForFile(fileId) {
   });
 }
 
-// function getStdIdsForFile(fileId) {
-//   const sql = `SELECT id FROM qc_data WHERE file_id = ? AND "Solution Label" = ?`;
-//   return new Promise((resolve, reject) => {
-//     db.all(sql, [fileId, 'SJS-Std'], (err, rows) => {
-//       if (err) reject(err);
-//       else resolve(rows.map(r => r.id));
-//     });
-//   });
-// }
 
 function getSampleById(id, elementCols) {
   const colsString = elementCols
@@ -217,10 +206,10 @@ function updateStdCorrectedValues(id, updates) {
     .map(k => {
       let col;
       if (qcFields.includes(k)) {
-        // these columns exist as-is
+     
         col = k;
       } else {
-        // append _Corrected if not already there
+    
         col = k.endsWith("_Corrected") ? k : `${k}_Corrected`;
       }
       return `"${col.replace(/"/g, '""')}" = ?`;
@@ -237,27 +226,6 @@ function updateStdCorrectedValues(id, updates) {
     });
   });
 }
-
-// function updateStdCorrectedValues(id, updates) {
-//   const setClause = Object.keys(updates)
-//     .map(k => {
-//       // only add _Corrected if it isn’t already in the key
-//       const col = k.endsWith("_Corrected") ? k : `${k}_Corrected`;
-//       return `"${col.replace(/"/g, '""')}" = ?`;
-//     })
-//     .join(', ');
-
-//   const values = Object.values(updates);
-//   const sql = `UPDATE sjs SET ${setClause} WHERE id = ?`;
-
-//   return new Promise((resolve, reject) => {
-//     db.run(sql, [...values, id], function (err) {
-//       if (err) reject(err);
-//       else resolve(this.changes);
-//     });
-//   });
-// }
-
 
 
 
@@ -314,9 +282,6 @@ function runSQL(sql, params = []) {
   });
 }
 
-// ==========================
-// Exports
-// ==========================
 module.exports = {
   insertQCRow,
   sampleExists,
@@ -327,12 +292,12 @@ module.exports = {
   insertSampleFileMapping,
   removeSampleFileMappings,
 
-  // QC MES and Factors
+  
   getAllQCMESRows,
   getQCAveragesByLabel,
   getQCLabelsForFile,
 
-  // Sample & Std Correction
+
   getSampleIdsForFile,
   getStdIdsForFile,
   getSampleById,

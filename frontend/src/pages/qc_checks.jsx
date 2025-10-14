@@ -82,47 +82,88 @@ const QCChecks = () => {
     window.addEventListener('forceScrollToSection', handler);
     return () => window.removeEventListener('forceScrollToSection', handler);
   }, []);
-
+  
   const fetchFileMeta = async (fileId) => {
-    const userData = JSON.parse(sessionStorage.getItem('user')).user;
-    try {
-      const res = await apiFetch(`${import.meta.env.VITE_API_URL}/qc-check/file-meta?file_id=${fileId}`, {
-        credentials: 'include', // <-- IMPORTANT: This sends the session cookie
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: userData.id,
-        }),
-      });
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      const data = res.data;
-      // Assuming data is directly the metadata object like:
-      // { filename: "...", uploaded_at: "...", uploaded_by: "...", type: ... }
-      if (data && (data.filename || data.uploaded_at || data.uploaded_by || data.fileType)) {
-        setUploadedFiles((prev) =>
-          prev.map((f) => {
-            const currentFileId = f.id || f.file_id;
-            return currentFileId === fileId
-              ? {
-                  ...f,
-                  filename: data.filename,
-                  uploaded_at: data.uploaded_at, // Use uploaded_at directly
-                  uploaded_by: data.uploaded_by,
-                  type: data.file_type, // Use 'type' or fallback to 'fileType'
-                }
-              : f;
-          })
-        );
-      }
-    } catch (err) {
-      console.error('❌ Failed to fetch file meta:', err);
-      // Optionally, set an error state here if meta data fetching is critical
+  const userData = JSON.parse(sessionStorage.getItem('user')).user;
+  try {
+    const res = await apiFetch(`${import.meta.env.VITE_API_URL}/qc-check/file-meta`, {
+      credentials: 'include',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        file_id: fileId,
+        userId: userData.id,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
     }
-  };
+
+    const data = res.data;
+    if (data && (data.filename || data.uploaded_at || data.uploaded_by || data.fileType)) {
+      setUploadedFiles((prev) =>
+        prev.map((f) => {
+          const currentFileId = f.id || f.file_id;
+          return currentFileId === fileId
+            ? {
+                ...f,
+                filename: data.filename,
+                uploaded_at: data.uploaded_at,
+                uploaded_by: data.uploaded_by,
+                type: data.file_type,
+              }
+            : f;
+        })
+      );
+    }
+  } catch (err) {
+    console.error('❌ Failed to fetch file meta:', err);
+  }
+};
+
+  // const fetchFileMeta = async (fileId) => {
+  //   const userData = JSON.parse(sessionStorage.getItem('user')).user;
+  //   try {
+  //     const res = await apiFetch(`${import.meta.env.VITE_API_URL}/qc-check/file-meta?file_id=${fileId}`, {
+  //       credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({
+  //         userId: userData.id,
+  //       }),
+  //     });
+  //     if (!res.ok) {
+  //       throw new Error(`HTTP error! status: ${res.status}`);
+  //     }
+  //     const data = res.data;
+  //     // Assuming data is directly the metadata object like:
+  //     // { filename: "...", uploaded_at: "...", uploaded_by: "...", type: ... }
+  //     if (data && (data.filename || data.uploaded_at || data.uploaded_by || data.fileType)) {
+  //       setUploadedFiles((prev) =>
+  //         prev.map((f) => {
+  //           const currentFileId = f.id || f.file_id;
+  //           return currentFileId === fileId
+  //             ? {
+  //                 ...f,
+  //                 filename: data.filename,
+  //                 uploaded_at: data.uploaded_at, // Use uploaded_at directly
+  //                 uploaded_by: data.uploaded_by,
+  //                 type: data.file_type, // Use 'type' or fallback to 'fileType'
+  //               }
+  //             : f;
+  //         })
+  //       );
+  //     }
+  //   } catch (err) {
+  //     console.error('❌ Failed to fetch file meta:', err);
+  //     // Optionally, set an error state here if meta data fetching is critical
+  //   }
+  // };
 
   const fetchUploadedFiles = async (filters) => {
     setLoading(true);

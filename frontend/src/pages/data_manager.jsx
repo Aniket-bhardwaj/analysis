@@ -44,6 +44,7 @@ import {
   InsertDriveFile,
 } from '@mui/icons-material';
 
+
 import '../styles/data_manager.css';
 
 function filenameFrom(res, fallback) {
@@ -81,6 +82,20 @@ const DataManagerPage = () => {
   const [fileIdToReplace, setFileIdToReplace] = useState(null);
   const [csvToReplace, setCsvToReplace] = useState(null);
   const [pdfToReplace, setPdfToReplace] = useState(null);
+  const [showAttachModal, setShowAttachModal] = useState(false);
+  const [currentParentId, setCurrentParentId] = useState(null);
+  const [attachments, setAttachments] = useState([]);
+  const [fetchedParents, setFetchedParents] = useState(new Set());
+  const [loadingAttachments, setLoadingAttachments] = useState(false);
+
+  // Utility to invalidate cached attachment fetch for a parent
+  const invalidateAttachmentCache = (pid) => {
+    setFetchedParents(prev => {
+      const next = new Set(prev);
+      next.delete(pid);
+      return next;
+    });
+  };
 
   const ROWS_PER_PAGE = 10;
   const navigate = useNavigate();
@@ -444,6 +459,88 @@ const handleDownloadPdf = async (fileId) => {
       setSnackbarOpen(true);
     }
   };
+  
+  // --- ATTACHMENT HANDLING ---
+  const fetchAttachments = async () => {
+    if (!currentParentId) return;
+    setLoadingAttachments(true);
+    try {
+      const res = await apiFetch(`${import.meta.env.VITE_API_URL}/attachments/${currentParentId}`, {
+        method: 'GET',
+      });
+      if (res.ok) {
+        setAttachments(res.data || []);
+      } else {
+        setAttachments([]);
+      }
+    } catch (err) {
+      console.error('Attachment fetch error:', err);
+      setAttachments([]);
+    } finally {
+      setLoadingAttachments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showAttachModal && currentParentId && !fetchedParents.has(currentParentId)) {
+      console.log(`[AttachmentModal] Fetching for parent ID ${currentParentId}`);
+      fetchAttachments();
+      setFetchedParents(prev => new Set([...prev, currentParentId]));
+    }
+  }, [showAttachModal, currentParentId]);
+
+  const handleAttachmentUpload = async (file) => {
+    if (!file || !currentParentId) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await apiFetch(
+        `${import.meta.env.VITE_API_URL}/upload-files/attachment/${currentParentId}`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+      if (res.ok) {
+        setSnackbarMessage('Attachment uploaded successfully.');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+        invalidateAttachmentCache(currentParentId);
+        fetchAttachments();
+      } else {
+        throw new Error(`Upload failed: ${res.status}`);
+      }
+    } catch (err) {
+      console.error('Attachment upload failed:', err);
+      setSnackbarMessage(err.message || 'Attachment upload failed.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+
+
+
+  const handleAttachmentDelete = async (id) => {
+    try {
+      const res = await apiFetch(`${import.meta.env.VITE_API_URL}/hide-file/${id}`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        setSnackbarMessage('Attachment deleted.');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+        fetchAttachments();
+      } else {
+        throw new Error('Failed to delete attachment.');
+      }
+    } catch (err) {
+      console.error('Attachment delete failed:', err);
+      setSnackbarMessage(err.message || 'Attachment delete failed.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
 
   // --- MEMOIZED FILTERING & DERIVED STATE ---
   const filteredFiles = useMemo(() => {
@@ -515,6 +612,21 @@ const handleDownloadPdf = async (fileId) => {
   };
 
   const [selectedItem, setSelectedItem] = useState('Data Manager');
+  // --- Determine user role ---
+  const storedUser = sessionStorage.getItem('user');
+  let isAdmin = false;
+
+  try {
+    const userObj = storedUser ? JSON.parse(storedUser).user : null;
+    isAdmin =
+      userObj &&
+      (String(userObj.is_admin) === '1' ||
+      userObj.role?.toLowerCase() === 'admin' ||
+      userObj.email?.toLowerCase().includes('admin@'));
+  } catch (e) {
+    console.warn('Invalid user object in sessionStorage:', e);
+  }
+
 
   return (
     <Box className="dashboard-container file-upload-container">
@@ -526,92 +638,95 @@ const handleDownloadPdf = async (fileId) => {
             Data Manager
           </Typography>
         </Box>
-
-        {/* --- UPLOAD CARD (NEW UI) --- */}
-        <Card className="upload-card">
-          <CardContent>
-            <Box
-              className={`upload-zone ${dragActive ? 'drag-active' : ''}`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              {isUploading ? (
-                <Box className="upload-progress-container">
-                  <CircularProgress
-                    variant="determinate"
-                    value={uploadProgress}
-                    size={70}
-                    thickness={4}
-                    className="upload-progress-circular"
-                  />
-                  <Typography variant="body1" className="upload-progress-text">
-                    Uploading... {uploadProgress}%
-                  </Typography>
-                </Box>
-              ) : (
-                <Box className="upload-normal-state">
-                  <Button
-                    variant="contained"
-                    component="label"
-                    className="upload-button"
-                    startIcon={<CloudUpload />}
-                    size="large"
-                    disabled={isUploading}
-                  >
-                    Choose CSV & PDF
-                    <input
-                      type="file"
-                      hidden
-                      multiple
-                      onChange={handleFileSelect}
-                      accept=".csv,.pdf"
+        
+        {/* --- UPLOAD CARD (NEW UI - Admins Only) --- */}
+        {isAdmin && (
+          <Card className="upload-card">
+            <CardContent>
+              <Box
+                className={`upload-zone ${dragActive ? 'drag-active' : ''}`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                {isUploading ? (
+                  <Box className="upload-progress-container">
+                    <CircularProgress
+                      variant="determinate"
+                      value={uploadProgress}
+                      size={70}
+                      thickness={4}
+                      className="upload-progress-circular"
                     />
-                  </Button>
-                  <Typography variant="body2" className="upload-text">
-                    or drag files in here
-                  </Typography>
-                  {(csvFile || pdfFile) && (
-                    <Box
-                      sx={{
-                        mt: 2,
-                        display: 'flex',
-                        gap: 2,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
+                    <Typography variant="body1" className="upload-progress-text">
+                      Uploading... {uploadProgress}%
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box className="upload-normal-state">
+                    <Button
+                      variant="contained"
+                      component="label"
+                      className="upload-button"
+                      startIcon={<CloudUpload />}
+                      size="large"
+                      disabled={isUploading}
                     >
-                      {csvFile && (
-                        <Chip
-                          icon={<InsertDriveFile />}
-                          label={csvFile.name}
-                          onDelete={() => setCsvFile(null)}
-                        />
-                      )}
-                      {pdfFile && (
-                        <Chip
-                          icon={<InsertDriveFile />}
-                          label={pdfFile.name}
-                          onDelete={() => setPdfFile(null)}
-                        />
-                      )}
-                    </Box>
-                  )}
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    sx={{ mt: 2 }}
-                    disabled={!csvFile || !pdfFile || isUploading}
-                    onClick={() => handleFileUpload(csvFile, pdfFile)}
-                  >
-                    Upload
-                  </Button>
-                </Box>
-              )}
-            </Box>
-          </CardContent>
-        </Card>
+                      Choose CSV & PDF
+                      <input
+                        type="file"
+                        hidden
+                        multiple
+                        onChange={handleFileSelect}
+                        accept=".csv,.pdf"
+                      />
+                    </Button>
+                    <Typography variant="body2" className="upload-text">
+                      or drag files in here
+                    </Typography>
+                    {(csvFile || pdfFile) && (
+                      <Box
+                        sx={{
+                          mt: 2,
+                          display: 'flex',
+                          gap: 2,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {csvFile && (
+                          <Chip
+                            icon={<InsertDriveFile />}
+                            label={csvFile.name}
+                            onDelete={() => setCsvFile(null)}
+                          />
+                        )}
+                        {pdfFile && (
+                          <Chip
+                            icon={<InsertDriveFile />}
+                            label={pdfFile.name}
+                            onDelete={() => setPdfFile(null)}
+                          />
+                        )}
+                      </Box>
+                    )}
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      sx={{ mt: 2 }}
+                      disabled={!csvFile || !pdfFile || isUploading}
+                      onClick={() => handleFileUpload(csvFile, pdfFile)}
+                    >
+                      Upload
+                    </Button>
+                  </Box>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+
 
         {/* --- SEARCH BAR --- */}
         <Box sx={{ my: 2 }}>
@@ -744,18 +859,18 @@ const handleDownloadPdf = async (fileId) => {
                             </Tooltip>
                           )}
 
-                          <Tooltip title="Delete">
+                          <Tooltip title="Manage Attachments">
                             <IconButton
                               onClick={() => {
-                                setFileToDelete(file.id);
-                                setConfirmDialogOpen(true);
+                                setCurrentParentId(file.id);
+                                setShowAttachModal(true);
                               }}
-                              className="delete-button"
                               size="small"
                             >
-                              <Delete />
+                              <CloudUpload />
                             </IconButton>
                           </Tooltip>
+
                         </TableCell>
                       </TableRow>
 
@@ -893,6 +1008,145 @@ const handleDownloadPdf = async (fileId) => {
           >
             Upload Replacement
           </Button>
+        </DialogActions>
+      </Dialog>
+      {/* --- ATTACHMENT MANAGER MODAL --- */}
+      <Dialog
+        open={showAttachModal}
+        onClose={() => setShowAttachModal(false)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle>Manage Attachments</DialogTitle>
+        <DialogContent>
+          <Box
+            sx={{
+              border: '2px dashed #ccc',
+              borderRadius: '10px',
+              p: 3,
+              textAlign: 'center',
+              mb: 3,
+              backgroundColor: '#fafafa',
+              cursor: 'pointer',
+              position: 'relative',
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const file = e.dataTransfer.files[0];
+              if (file) handleAttachmentUpload(file);
+            }}
+            onDragOver={(e) => e.preventDefault()}
+          >
+            Drag & drop files here or click below to browse
+            <input
+              type="file"
+              style={{
+                position: 'absolute',
+                opacity: 0,
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                cursor: 'pointer',
+              }}
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) handleAttachmentUpload(file);
+              }}
+            />
+          </Box>
+
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>#</TableCell>
+                <TableCell>Filename</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loadingAttachments ? (
+                <TableRow>
+                  <TableCell colSpan={3} align="center">
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        py: 2,
+                      }}
+                    >
+                      <CircularProgress size={28} sx={{ mb: 1 }} />
+                      <Typography variant="body2" sx={{ color: "#666" }}>
+                        Loading attachments...
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ) : attachments.length > 0 ? (
+                attachments.map((att, idx) => (
+                  <TableRow key={att.id}>
+                    <TableCell>{idx + 1}</TableCell>
+                    <TableCell>{att.filename}</TableCell>
+                    <TableCell>
+                      {/* Download */}
+                      <Tooltip title="Download">
+                        <IconButton
+                          onClick={async () => {
+                            try {
+                              const res = await apiFetch(
+                                `${import.meta.env.VITE_API_URL}/attachments/download/${att.id}`,
+                                {
+                                  method: "GET",
+                                  responseType: "blob",
+                                }
+                              );
+                              if (!res.ok) throw new Error("Download failed");
+
+                              const blob = new Blob([res.data]);
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = att.filename || `attachment_${att.id}`;
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              URL.revokeObjectURL(url);
+                            } catch (err) {
+                              console.error("Attachment download failed:", err);
+                              setSnackbarMessage("Attachment download failed.");
+                              setSnackbarSeverity("error");
+                              setSnackbarOpen(true);
+                            }
+                          }}
+                        >
+                          <DownloadIcon />
+                        </IconButton>
+                      </Tooltip>
+
+                      {/* Delete */}
+                      <Tooltip title="Delete">
+                        <IconButton onClick={() => handleAttachmentDelete(att.id)}>
+                          <Delete />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} align="center">
+                    No attachments found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowAttachModal(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

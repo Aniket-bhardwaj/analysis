@@ -58,7 +58,7 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
     if (route) navigate(route);
   };
 
-  // 🔐 Real logout: call backend to destroy session, then force redirect
+  // Real logout: call backend to destroy session, then force redirect
   const handleLogout = async () => {
     sessionStorage.removeItem('user');
     return navigate('/');

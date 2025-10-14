@@ -26,23 +26,22 @@ const loginUser = async (req, res) => {
           return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // 🔐 Session fixation protection: issue a fresh session ID on successful auth
+       
         req.session.regenerate((regenErr) => {
           if (regenErr) {
             console.error('Session regeneration error:', regenErr);
             return res.status(500).json({ error: 'Internal session error' });
           }
 
-          // RBAC session payload
           req.session.user = {
             id: user.id,
             email: user.email,
-            org_id: user.org_id,       // <-- add
-            is_admin: !!user.is_admin, // <-- add
+            org_id: user.org_id,      
+            is_admin: !!user.is_admin, 
           };
 
 
-          // ensure it’s written before replying
+     
           req.session.save((saveErr) => {
             if (saveErr) {
               console.error('Session save error:', saveErr);

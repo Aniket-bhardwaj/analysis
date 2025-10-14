@@ -1,4 +1,3 @@
-// controllers/tableController.js
 const TableModel = require('../models/tableModel');
 const fileModel = require('../models/fileModel');
 const miniTableService = require('../services/miniTableService');
@@ -7,12 +6,10 @@ const QcCheckService = require('../services/qcCheckService');
 
 class TableController {
 
-  //===========================================
-  // 1. Get qc miniTableData by file_id and date range (RBAC-safe)
-  //===========================================
+
   static async getQcMiniTableData(req, res) {
     try {
-      const { isAdmin, orgId } = req.rbac;   // RBAC
+      const { isAdmin, orgId } = req.rbac;   
       const { start_date, end_date, element, file_id } = req.query;
       const page = parseInt(req.query.page, 10) || 1;
       const pageSize = parseInt(req.query.pageSize, 10) || 10;
@@ -29,7 +26,7 @@ class TableController {
       if (file_id) {
         const numericFileId = parseInt(file_id, 10);
         if (!isNaN(numericFileId)) {
-          // use RBAC filter when fetching file
+
           const allowed = await TableModel.isFileInOrg(numericFileId, isAdmin, orgId);
           if (allowed) fileIdsToProcess = [numericFileId];
         }
@@ -94,9 +91,6 @@ class TableController {
     }
   }
 
-  //===========================================
-  // 2. Get SJS miniTableData (RBAC-safe)
-  //===========================================
   static async getSJSMiniTableData(req, res) {
     try {
       const { isAdmin, orgId } = req.rbac;
@@ -174,9 +168,7 @@ class TableController {
     }
   }
 
-  //===========================================
-  // 3. Get QC table data (RBAC-safe)
-  //===========================================
+
   static async getTableDataByFile(req, res) {
     try {
       const { isAdmin, orgId } = req.rbac;
@@ -223,9 +215,7 @@ class TableController {
     }
   }
   
-  //===========================================
-  // 4. Get SJS table data (RBAC-safe)
-  //===========================================
+
   static async getSJSTableDataByFile(req, res) {
     try {
       const { isAdmin, orgId } = req.rbac;
@@ -271,9 +261,7 @@ class TableController {
       });
     }
   }
-    //===========================================
-  // 5. Get Summary for Quality Check (RBAC-safe)
-  //===========================================
+
   static async getSummaryByFile(req, res) {
     try {
       const { isAdmin, orgId } = req.rbac;
@@ -294,7 +282,7 @@ class TableController {
         });
       }
 
-      // Use tableService to compute summary
+
       const summary = await tableService.generateSummary(numericFileId);
       return res.json({ summary });
 

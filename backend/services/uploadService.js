@@ -59,21 +59,26 @@ async function insertAllData(
   pdfOriginalName,
   pdfSavedPath,
   orgId,
-  createdByUserId
+  createdByUserId,
+  isAdmin = false 
 ) {
   let fileId;
 
   // 1) Insert file metadata
   try {
+    // decide whether this is a core (1) or attachment (2) upload
+    const fileType = isAdmin ? 1 : 2;
+
     const fileRow = await fileModel.insertFile(
       originalName,
       savedFilePath,
-      csvType,
+      fileType,            // 👈 replace csvType with fileType
       pdfOriginalName,
       pdfSavedPath,
       orgId,
       createdByUserId
     );
+
     fileId = fileRow.id;
   } catch (err) {
     return { error: 'Failed to insert file metadata: ' + err.message, fileId: null };

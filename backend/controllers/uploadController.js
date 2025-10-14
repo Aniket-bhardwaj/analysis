@@ -97,6 +97,7 @@ const uploadFile = async (req, res) => {
         throw new Error(validationError);
       }
 
+      const isAdmin = req?.rbac?.isAdmin || false;
 
       const {
         error: insertError,
@@ -111,7 +112,8 @@ const uploadFile = async (req, res) => {
         pdfOriginalName,  
         pdfSavedPathRel,   
         orgId,
-        userId            
+        userId,
+        isAdmin          
       );
 
       if (insertError) {

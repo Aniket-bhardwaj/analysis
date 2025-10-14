@@ -5,7 +5,7 @@ module.exports = {
   getFileInfo(fileId, isAdmin, orgId) {
     return new Promise((resolve, reject) => {
       db.get(
-        `SELECT id, filename, path, pdf_path, org_id, hidden
+        `SELECT id, filename, file_path AS path, pdf_path, org_id, hidden
          FROM uploaded_files
          WHERE id = ?
            AND ( ? = 1 OR org_id = ? )`,

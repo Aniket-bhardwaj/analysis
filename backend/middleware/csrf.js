@@ -1,11 +1,9 @@
 const cookieParser = require('cookie-parser');
 const csurf = require('csurf');
 
-// Exempt only the token minting route (and later, OAuth callbacks)
 const CSRF_EXCEPT = new Set([
   '/api/csrf',
-  // '/api/auth/google/callback',
-  // '/api/auth/azure/callback',
+
 ]);
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);

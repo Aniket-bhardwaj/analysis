@@ -1,3 +1,6 @@
+// ==========================================================
+// initialize_db.js — Production-Grade Self-Healing Schema
+// ==========================================================
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const bcrypt = require("bcryptjs");
@@ -12,23 +15,32 @@ const { Tval, Terr, Merr, Mval } = require("./Oheaders");
 
 const dbPath = path.resolve(__dirname, "database.sqlite");
 
-// Connect to SQLite database
+// ----------------------------------------------------
+// Database Connection
+// ----------------------------------------------------
 const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error("SQLite connection error:", err.message);
+  if (err) console.error("❌ SQLite connection error:", err.message);
+  else console.log("✅ Connected to SQLite database!");
+});
+
+// Global safeguard for runtime DB errors
+db.on("error", (err) => {
+  if (err?.message?.includes("duplicate column name: parent_id")) {
+    console.log("⚠️ parent_id already exists (ignored).");
   } else {
-    console.log("Connected to SQLite database!");
+    console.error(" SQLite emitted an error:", err.message);
   }
 });
 
-// Safety + performance
+// Performance tuning
 db.run("PRAGMA foreign_keys = ON");
 db.run("PRAGMA journal_mode = WAL");
 
+// ----------------------------------------------------
+// Base Schema Creation
+// ----------------------------------------------------
 db.serialize(() => {
-  // ---------------------------
-  // Table: organizations
-  // ---------------------------
+  // 1️⃣ Organizations
   db.run(`
     CREATE TABLE IF NOT EXISTS organizations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,33 +48,27 @@ db.serialize(() => {
     )
   `);
 
-  // ---------------------------
-  // Table: uploaded_files
-  // ---------------------------
+  // 2️⃣ Uploaded Files
   db.run(`
     CREATE TABLE IF NOT EXISTS uploaded_files (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       filename TEXT NOT NULL,
-      path TEXT NOT NULL,
-      pdfname TEXT NOT NULL,
-      pdf_path TEXT NOT NULL,
+      file_path TEXT,
+      pdfname TEXT,
+      pdf_path TEXT,
       uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      type INTEGER NOT NULL,
+      type INTEGER DEFAULT 1,
       hidden INTEGER DEFAULT 0,
-      org_id INTEGER NOT NULL,
+      org_id INTEGER DEFAULT 1,
       created_by_user_id INTEGER,
+      parent_id INTEGER DEFAULT NULL,
       FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE,
       FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
     )
   `);
 
-  // ---------------------------
-  // Table: sample_data
-  // ---------------------------
-  const colsDef = completeHeaders
-    .map((col) => (col === "Solution Label" ? `"${col}" TEXT` : `"${col}" TEXT`))
-    .join(", ");
-
+  // 3️⃣ Sample Data
+  const colsDef = completeHeaders.map((col) => `"${col}" TEXT`).join(", ");
   db.run(`
     CREATE TABLE IF NOT EXISTS sample_data (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,10 +78,7 @@ db.serialize(() => {
     )
   `);
 
-
-  // ---------------------------
-  // Mapping table sample_id_X_file_id
-  // ---------------------------
+  // 4️⃣ Mapping Table
   db.run(`
     CREATE TABLE IF NOT EXISTS sample_id_X_file_id (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,20 +89,13 @@ db.serialize(() => {
     )
   `);
 
-  // ---------------------------
-  // Table: qc_data
-  // ---------------------------
+  // 5️⃣ QC Data
   const colsDef2 = qcHeaders.map((col) => `"${col}" TEXT`).join(", ");
-
   db.run(`
     CREATE TABLE IF NOT EXISTS qc_data (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       file_id INTEGER NOT NULL,
-
-      -- dynamic QC CSV headers (includes "Solution Label")
       ${colsDef2},
-
-      -- row-wise computed stats
       element TEXT,
       fullElementName TEXT,
       valueAvg REAL,
@@ -115,9 +111,7 @@ db.serialize(() => {
     )
   `);
 
-  // ---------------------------
-  // Table: rest_data
-  // ---------------------------
+  // 6️⃣ Rest Data
   const colsDef3 = rest_dataHeaders.map((col) => `"${col}" TEXT`).join(", ");
   db.run(`
     CREATE TABLE IF NOT EXISTS rest_data (
@@ -127,40 +121,29 @@ db.serialize(() => {
       FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
     )
   `);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_rest_data_file_id ON rest_data(file_id)`);
 
-  // ---------------------------
-  // Table: sjs
-  // ---------------------------
+  // 7️⃣ SJS Table
   const allCols = [...OTstdcleaned, ...OMstdcleaned];
   const columnDefs = allCols.map((col) => `"${col}" TEXT`).join(", ");
-
   db.run(
     `CREATE TABLE IF NOT EXISTS sjs (
       id INTEGER PRIMARY KEY,
       file_id INTEGER NOT NULL,
       label TEXT NOT NULL,
       ${columnDefs},
-
-      -- Extra QC stats
       error_pct REAL,
       tolerance_pct REAL,
       rsd_pct REAL,
       status TEXT,
-
       FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
     )`,
     (err) => {
-      if (err) return console.error("Error creating sjs table:", err);
-      console.log("sjs table created.");
+      if (err) console.error("Error creating sjs table:", err.message);
+      else console.log("sjs table created.");
     }
   );
 
-
-
-  // ---------------------------
-  // Table: users
-  // ---------------------------
+  // 8️⃣ Users
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -168,48 +151,154 @@ db.serialize(() => {
       password TEXT,
       is_admin INTEGER DEFAULT 0,
       must_change_password INTEGER DEFAULT 0,
-      org_id INTEGER NOT NULL,
+      org_id INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
     )
   `);
+});
 
-  // ---------------------------
-  // Helpful indexes
-  // ---------------------------
-  db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_org_hidden ON uploaded_files (org_id, hidden)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_created_by ON uploaded_files (created_by_user_id)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_uploaded_at ON uploaded_files (uploaded_at)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_qc_data_file_id ON qc_data (file_id)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_sample_map_file_id ON sample_id_X_file_id (file_id)`);
+// ----------------------------------------------------
+// 💪 UNIVERSAL AUTO-MIGRATOR (Full Self-Healing Schema)
+// ----------------------------------------------------
+db.serialize(() => {
+  console.log("🔧 Running universal auto-migration (tables + columns)…");
 
-  // ---------------------------
-  // Seed default organizations
-  // ---------------------------
+  const schemaMap = {
+    organizations: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      name: "TEXT UNIQUE NOT NULL"
+    },
+    users: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      email: "TEXT UNIQUE",
+      password: "TEXT",
+      is_admin: "INTEGER DEFAULT 0",
+      must_change_password: "INTEGER DEFAULT 0",
+      org_id: "INTEGER DEFAULT 1",
+      created_at: "DATETIME DEFAULT CURRENT_TIMESTAMP"
+    },
+    uploaded_files: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      filename: "TEXT",
+      file_path: "TEXT",
+      pdfname: "TEXT",
+      pdf_path: "TEXT",
+      uploaded_at: "TEXT DEFAULT CURRENT_TIMESTAMP",
+      type: "INTEGER DEFAULT 1",
+      hidden: "INTEGER DEFAULT 0",
+      org_id: "INTEGER DEFAULT 1",
+      created_by_user_id: "INTEGER DEFAULT NULL",
+      parent_id: "INTEGER DEFAULT NULL"
+    },
+    sample_data: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      file_id: "INTEGER NOT NULL"
+    },
+    qc_data: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      file_id: "INTEGER NOT NULL",
+      rowType: "TEXT DEFAULT 'raw'",
+      created_at: "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+    },
+    rest_data: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      file_id: "INTEGER NOT NULL"
+    },
+    sjs: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      file_id: "INTEGER NOT NULL",
+      label: "TEXT",
+      error_pct: "REAL",
+      tolerance_pct: "REAL",
+      rsd_pct: "REAL",
+      status: "TEXT"
+    }
+  };
+
+  const ensureTable = (table, columns) => {
+    db.get(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+      [table],
+      (err, row) => {
+        if (err) {
+          console.error(`❌ Error checking table ${table}:`, err.message);
+          return;
+        }
+
+        if (!row) {
+          const colsSQL = Object.entries(columns)
+            .map(([name, type]) => `${name} ${type}`)
+            .join(", ");
+          db.run(`CREATE TABLE IF NOT EXISTS ${table} (${colsSQL})`, e2 => {
+            if (e2) console.error(`❌ Failed to create ${table}:`, e2.message);
+            else console.log(`🆕 Created new table: ${table}`);
+          });
+          return;
+        }
+
+        db.all(`PRAGMA table_info(${table})`, (err2, existingCols) => {
+          if (err2) {
+            console.error(`❌ Failed to inspect ${table}:`, err2.message);
+            return;
+          }
+          const existingNames = existingCols.map(c => c.name);
+          Object.entries(columns).forEach(([col, def]) => {
+            if (!existingNames.includes(col)) {
+              const alterSQL = `ALTER TABLE ${table} ADD COLUMN ${col} ${def}`;
+              db.run(alterSQL, e3 => {
+                if (e3 && !e3.message.includes("duplicate column name")) {
+                  console.error(`❌ ${table}: failed to add '${col}' →`, e3.message);
+                } else {
+                  console.log(`✅ ${table}: ensured column '${col}'`);
+                }
+              });
+            }
+          });
+        });
+      }
+    );
+  };
+
+  Object.entries(schemaMap).forEach(([table, columns]) => ensureTable(table, columns));
+
+  db.serialize(() => {
+    console.log("🔩 Ensuring indexes...");
+    db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_org_hidden ON uploaded_files (org_id, hidden)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_created_by ON uploaded_files (created_by_user_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_uploaded_at ON uploaded_files (uploaded_at)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_parent_id ON uploaded_files (parent_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_qc_data_file_id ON qc_data (file_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_sample_map_file_id ON sample_id_X_file_id (file_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_rest_data_file_id ON rest_data (file_id)`);
+  });
+});
+
+// ----------------------------------------------------
+// Default Seeds
+// ----------------------------------------------------
+db.serialize(() => {
   db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (1, 'Main Lab')`);
   db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (2, 'Client Lab A')`);
   db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (3, 'Client Lab B')`);
-  
-  // ---------------------------
-  // Seed users
-  // ---------------------------
+
   const seedUser = async (email, plainPassword, isAdmin, mustChange, orgId) => {
     db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, row) => {
       if (err) return console.error("Error checking for user:", err.message);
       if (!row) {
         try {
-          const hashedPassword = await bcrypt.hash(plainPassword, 10);
+          const hashed = await bcrypt.hash(plainPassword, 10);
           db.run(
             `INSERT INTO users (email, password, is_admin, must_change_password, org_id)
              VALUES (?, ?, ?, ?, ?)`,
-            [email, hashedPassword, isAdmin ? 1 : 0, mustChange ? 1 : 0, orgId],
-            (err) => {
-              if (err) console.error("Insert error:", err.message);
-              else console.log(`Inserted user: ${email}`);
+            [email, hashed, isAdmin ? 1 : 0, mustChange ? 1 : 0, orgId],
+            (err2) => {
+              if (err2) console.error("Insert error:", err2.message);
+              else console.log(`👤 Inserted user: ${email}`);
             }
           );
-        } catch (e) {
-          console.error("Hash error:", e.message);
+        } catch (e2) {
+          console.error("Hash error:", e2.message);
         }
       } else {
         console.log(`User already exists: ${email}`);
@@ -217,19 +306,16 @@ db.serialize(() => {
     });
   };
 
-  // Admin (org 1)
   seedUser("admin@gmail.com", "Admin1", true, false, 1);
-
-  // Client 1 (org 2)
   seedUser("client1@gmail.com", "Client1", false, false, 2);
-
-  // Client 2 (org 3)
   seedUser("client2@gmail.com", "Client2", false, false, 3);
 });
 
 module.exports = db;
 
-// // initialize_db.js
+
+
+
 // const sqlite3 = require("sqlite3").verbose();
 // const path = require("path");
 // const bcrypt = require("bcryptjs");
@@ -244,19 +330,30 @@ module.exports = db;
 
 // const dbPath = path.resolve(__dirname, "database.sqlite");
 
-// // Connect to SQLite database
+// // ----------------------------------------------------
+// // Database Connection
+// // ----------------------------------------------------
 // const db = new sqlite3.Database(dbPath, (err) => {
-//   if (err) {
-//     console.error("SQLite connection error:", err.message);
+//   if (err) console.error("SQLite connection error:", err.message);
+//   else console.log("Connected to SQLite database!");
+// });
+
+// // Global safeguard against duplicate/lock errors
+// db.on("error", (err) => {
+//   if (err?.message?.includes("duplicate column name: parent_id")) {
+//     console.log("parent_id already exists (global ignore).");
 //   } else {
-//     console.log("Connected to SQLite database!");
+//     console.error(" SQLite emitted an error:", err.message);
 //   }
 // });
 
-// // Safety + performance
+// // Safety + performance tuning
 // db.run("PRAGMA foreign_keys = ON");
 // db.run("PRAGMA journal_mode = WAL");
 
+// // ----------------------------------------------------
+// // Schema Creation
+// // ----------------------------------------------------
 // db.serialize(() => {
 //   // ---------------------------
 //   // Table: organizations
@@ -275,30 +372,29 @@ module.exports = db;
 //     CREATE TABLE IF NOT EXISTS uploaded_files (
 //       id INTEGER PRIMARY KEY AUTOINCREMENT,
 //       filename TEXT NOT NULL,
-//       path TEXT NOT NULL,
+//       file_path TEXT NOT NULL,
 //       pdfname TEXT NOT NULL,
 //       pdf_path TEXT NOT NULL,
 //       uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP,
 //       type INTEGER NOT NULL,
 //       hidden INTEGER DEFAULT 0,
-//       org_id INTEGER,
+//       org_id INTEGER NOT NULL,
 //       created_by_user_id INTEGER,
-//       FOREIGN KEY (org_id) REFERENCES organizations(id),
-//       FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+//       FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE,
+//       FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 //     )
 //   `);
 
 //   // ---------------------------
 //   // Table: sample_data
 //   // ---------------------------
-//   const colsDef = completeHeaders
-//     .map((col) => (col === "Solution Label" ? `"${col}" TEXT UNIQUE` : `"${col}" TEXT`))
-//     .join(", ");
-
+//   const colsDef = completeHeaders.map((col) => `"${col}" TEXT`).join(", ");
 //   db.run(`
 //     CREATE TABLE IF NOT EXISTS sample_data (
 //       id INTEGER PRIMARY KEY AUTOINCREMENT,
-//       ${colsDef}
+//       file_id INTEGER NOT NULL,
+//       ${colsDef},
+//       FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
 //     )
 //   `);
 
@@ -324,6 +420,17 @@ module.exports = db;
 //       id INTEGER PRIMARY KEY AUTOINCREMENT,
 //       file_id INTEGER NOT NULL,
 //       ${colsDef2},
+//       element TEXT,
+//       fullElementName TEXT,
+//       valueAvg REAL,
+//       correctedValueAvg REAL,
+//       rsd REAL,
+//       errorPercentage REAL,
+//       isWithinTolerance BOOLEAN,
+//       isNotWithinTolerance BOOLEAN,
+//       errorFactor REAL,
+//       rowType TEXT DEFAULT 'raw',
+//       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 //       FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
 //     )
 //   `);
@@ -335,9 +442,12 @@ module.exports = db;
 //   db.run(`
 //     CREATE TABLE IF NOT EXISTS rest_data (
 //       id INTEGER PRIMARY KEY AUTOINCREMENT,
-//       ${colsDef3}
+//       file_id INTEGER NOT NULL,
+//       ${colsDef3},
+//       FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
 //     )
 //   `);
+//   db.run(`CREATE INDEX IF NOT EXISTS idx_rest_data_file_id ON rest_data(file_id)`);
 
 //   // ---------------------------
 //   // Table: sjs
@@ -348,28 +458,18 @@ module.exports = db;
 //   db.run(
 //     `CREATE TABLE IF NOT EXISTS sjs (
 //       id INTEGER PRIMARY KEY,
+//       file_id INTEGER NOT NULL,
 //       label TEXT NOT NULL,
-//       ${columnDefs}
+//       ${columnDefs},
+//       error_pct REAL,
+//       tolerance_pct REAL,
+//       rsd_pct REAL,
+//       status TEXT,
+//       FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
 //     )`,
 //     (err) => {
-//       if (err) return console.error("❌ Error creating sjs table:", err);
-//       console.log("sjs table created.");
-
-//       const placeholders = Array(allCols.length + 2).fill("?").join(", ");
-//       const insertSQL = `INSERT OR IGNORE INTO sjs VALUES (${placeholders})`;
-
-//       const row1 = [1, "SJS-Std", ...Tval, ...Mval];
-//       const row2 = [2, "Error", ...Terr, ...Merr];
-
-//       db.run(insertSQL, row1, function (err) {
-//         if (err) console.error("❌ Error inserting Row 1:", err.message);
-//         else if (this.changes > 0) console.log("Row 1 inserted");
-//       });
-
-//       db.run(insertSQL, row2, function (err) {
-//         if (err) console.error("❌ Error inserting Row 2:", err.message);
-//         else if (this.changes > 0) console.log("Row 2 inserted");
-//       });
+//       if (err) console.error("Error creating sjs table:", err.message);
+//       else console.log("sjs table created.");
 //     }
 //   );
 
@@ -383,51 +483,100 @@ module.exports = db;
 //       password TEXT,
 //       is_admin INTEGER DEFAULT 0,
 //       must_change_password INTEGER DEFAULT 0,
-//       org_id INTEGER,
+//       org_id INTEGER NOT NULL,
 //       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-//       FOREIGN KEY (org_id) REFERENCES organizations(id)
+//       FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
 //     )
 //   `);
+// });
 
-//   // ---------------------------
-//   // Helpful indexes
-//   // ---------------------------
+// // ----------------------------------------------------
+// // 💪 Crash-Proof parent_id Column Patch (final safe version)
+// // ----------------------------------------------------
+// db.serialize(() => {
+//   try {
+//     db.all("PRAGMA table_info(uploaded_files)", (err, columns) => {
+//       if (err) {
+//         console.error(" Error reading uploaded_files schema:", err.message);
+//         return;
+//       }
+
+//       const hasParentId =
+//         Array.isArray(columns) && columns.some((c) => c.name === "parent_id");
+
+//       if (!hasParentId) {
+//         console.log("🛠 Adding parent_id column...");
+//         db.exec(
+//           "ALTER TABLE uploaded_files ADD COLUMN parent_id INTEGER DEFAULT NULL;",
+//           (alterErr) => {
+//             if (alterErr && !alterErr.message.includes("duplicate column name")) {
+//               console.error(" ALTER TABLE error:", alterErr.message);
+//             } else if (alterErr) {
+//               console.log("parent_id already exists (safe).");
+//             } else {
+//               console.log("parent_id column added successfully!");
+//             }
+
+//             // Final verification
+//             db.all("PRAGMA table_info(uploaded_files)", (checkErr, checkCols) => {
+//               if (checkErr) {
+//                 console.error(" Recheck failed:", checkErr.message);
+//                 return;
+//               }
+//               if (checkCols.some((c) => c.name === "parent_id")) {
+//                 console.log("parent_id column verified and available.");
+//               } else {
+//                 console.warn(" parent_id column still missing — manual check advised.");
+//               }
+//             });
+//           }
+//         );
+//       } else {
+//         console.log("parent_id column already exists.");
+//       }
+//     });
+//   } catch (e) {
+//     console.error(" parent_id migration fatal error:", e.message);
+//   }
+// });
+
+// // ----------------------------------------------------
+// // Helpful Indexes
+// // ----------------------------------------------------
+// db.serialize(() => {
 //   db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_org_hidden ON uploaded_files (org_id, hidden)`);
 //   db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_created_by ON uploaded_files (created_by_user_id)`);
 //   db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_uploaded_at ON uploaded_files (uploaded_at)`);
 //   db.run(`CREATE INDEX IF NOT EXISTS idx_qc_data_file_id ON qc_data (file_id)`);
 //   db.run(`CREATE INDEX IF NOT EXISTS idx_sample_map_file_id ON sample_id_X_file_id (file_id)`);
+//   db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_parent_id ON uploaded_files (parent_id)`);
+// });
 
-//   // ---------------------------
-//   // Seed default organizations (unique names required)
-//   // ---------------------------
+// // ----------------------------------------------------
+// // Default Seeds
+// // ----------------------------------------------------
+// db.serialize(() => {
 //   db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (1, 'Main Lab')`);
 //   db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (2, 'Client Lab A')`);
 //   db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (3, 'Client Lab B')`);
 
-//   // ---------------------------
-//   // Seed users (as requested)
-//   //   - admin@gmail.com  / Admin1   (org 1, admin)
-//   //   - client1@gmail.com /   (org 2)
-//   //   - client2@gmail.com / Client2 (org 3)
-//   // ---------------------------
 //   const seedUser = async (email, plainPassword, isAdmin, mustChange, orgId) => {
 //     db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, row) => {
 //       if (err) return console.error("Error checking for user:", err.message);
 //       if (!row) {
 //         try {
-//           const hashedPassword = await bcrypt.hash(plainPassword, 10);
+//           const hashed = await bcrypt.hash(plainPassword, 10);
 //           db.run(
 //             `INSERT INTO users (email, password, is_admin, must_change_password, org_id)
 //              VALUES (?, ?, ?, ?, ?)`,
-//             [email, hashedPassword, isAdmin ? 1 : 0, mustChange ? 1 : 0, orgId],
-//             (err) => {
-//               if (err) console.error("Insert error:", err.message);
+//             [email, hashed, isAdmin ? 1 : 0, mustChange ? 1 : 0, orgId],
+//             (err2) => {
+//               if (err2) console.error("Insert error:", err2.message);
 //               else console.log(`Inserted user: ${email}`);
 //             }
 //           );
-//         } catch (e) {
-//           console.error("Hash error:", e.message);
+//         } catch (e2) {
+//           console.error("Hash error:", e2.message);
 //         }
 //       } else {
 //         console.log(`User already exists: ${email}`);
@@ -435,15 +584,9 @@ module.exports = db;
 //     });
 //   };
 
-//   // Admin (org 1)
 //   seedUser("admin@gmail.com", "Admin1", true, false, 1);
-
-//   // Client 1 (org 2)
 //   seedUser("client1@gmail.com", "Client1", false, false, 2);
-
-//   // Client 2 (org 3)
 //   seedUser("client2@gmail.com", "Client2", false, false, 3);
 // });
 
 // module.exports = db;
-

@@ -7,7 +7,7 @@ const hideFile = async(req, res) => {
         const row = await fileModel.getFileById(id);
         const name = row.filename;
         const newname = name + '_deleted';
-        const result = await fileModel.hideFileById(id, newname);
+        const result = await fileModel.hideFileById(id, newname, req?.rbac?.userId);
         res.json(result);
     } catch (err) {
         console.error('DB hide error:', err.message);

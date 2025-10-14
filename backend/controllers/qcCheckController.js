@@ -4,7 +4,7 @@ const fileModel = require('../models/fileModel');
 class QcCheckController {
 
   static async meta(req, res) {
-    const fileId = req.query.file_id;
+    const fileId = req.query.file_id || req.body.file_id;
     const { isAdmin, orgId } = req.rbac || {};
 
     if (isNaN(fileId)) {
@@ -12,7 +12,7 @@ class QcCheckController {
     }
 
     try {
-      // Enforce RBAC: check file belongs to org unless admin
+
       const metadata = await fileModel.getFileMetadata(fileId, isAdmin, orgId);
 
       if (metadata) {
@@ -23,7 +23,7 @@ class QcCheckController {
           uploaded_by: 'user2', // TODO: replace placeholder once schema supports uploader
           file_type: Type
         };
-        return res.status(200).json(responseHeaders);
+        return res.status(200).json({ success: true, ...responseHeaders });
       } else {
         return res.status(404).json({ message: `File with ID ${fileId} not found.` });
       }
@@ -84,7 +84,6 @@ class QcCheckController {
         const path = require('path');
         const db = new sqlite3.Database(path.join(__dirname, '../database.sqlite'));
 
-        // 🔹 Computed rows (main QC table)
         computedRows = await new Promise((resolve, reject) => {
           db.all(
             `SELECT 
@@ -108,7 +107,7 @@ class QcCheckController {
 
         const sjsCols = require("../colHeaders").OTstdcleaned
           .concat(require("../colHeaders").OMstdcleaned)
-          .map(col => `"${col}"`)   // quote each col so spaces/units are safe
+          .map(col => `"${col}"`)   
           .join(", ");
 
         sjsRows = await new Promise((resolve) => {
@@ -134,8 +133,7 @@ class QcCheckController {
 
 
 
-        // 🔹 Raw/detail rows (mini-table per element)
-        // 🔹 Use the same fields that actually exist in qc_data
+
         detailRows = await new Promise((resolve) => {
           db.all(
             `SELECT 
@@ -174,7 +172,7 @@ class QcCheckController {
       return res.json({
         success: true,
         summary,
-        qcData: computedRows,   // main QC table
+        qcData: computedRows,   
         data: { data: detailRows || [], totalItems: detailRows.length, currentPage: 1 },
         sjsData : sjsRows
       });

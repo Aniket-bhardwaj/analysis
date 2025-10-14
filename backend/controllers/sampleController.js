@@ -39,7 +39,6 @@ class SampleController {
     try {
       const { isAdmin, orgId } = req.rbac;   
       const sampleId = parseInt(req.query.sampleId, 10);
-      console.log("🛠️ Controller received sampleId:", sampleId);
 
       if (isNaN(sampleId)) {
         return res.status(400).json({ error: 'Invalid or missing sampleId' });

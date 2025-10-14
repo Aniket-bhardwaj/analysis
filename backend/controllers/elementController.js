@@ -24,7 +24,7 @@ class ElementController {
     try {
       const { isAdmin, orgId } = req.rbac || {};
 
-      // 🔒 RBAC-aware dropdown
+
       const allElements = await ElementService.getAllElementNames({
         isAdmin: isAdmin ? 1 : 0,
         orgId
@@ -33,7 +33,7 @@ class ElementController {
       res.json({ elements: allElements });
     } catch (err) {
       console.error('Error in getElementOptions:', err);
-      // fallback: still send static list if something breaks
+ 
       res.json({ elements: [...MEconc, ...TEconc] });
     }
   }
