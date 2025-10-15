@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Header from '@/components/header';
 import { useParams, useLocation } from 'react-router-dom';
 import { apiFetch } from '../csrfClient';
 
@@ -262,7 +263,6 @@ const QCChecks = () => {
             <Typography variant="h4" sx={{ fontWeight: 600 }}>
               QC Checks
             </Typography>
-
             {/* This Stack now contains the view mode buttons AND the filter */}
             <Stack
               direction="row"
@@ -326,6 +326,7 @@ const QCChecks = () => {
                 selectedFile={selectedFileId}
                 selectedDateRange={selectedDateRange}
               />
+              <Header />
             </Stack>
           </Box>
 
