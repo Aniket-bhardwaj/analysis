@@ -1,29 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../csrfClient';
-import { Upload, TrendingUp, Database, CheckCircle, AlertCircle, FileText } from 'lucide-react';
+import { TrendingUp, Database, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import Navbar from '@/components/navbar';
-import '../styles/homepage.css';
+import Header from '@/components/header'; // Step 1: Import the Header
 import QCGraph from '@/components/qc_graph';
+import '../styles/homepage.css';
 
 const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
-  const [selectedItem, setSelectedItem] = useState('dashboard');
+  const [selectedItem, setSelectedItem] = useState('Dashboard'); // Corrected the selected item state
 
   // Fetch dashboard data
   const fetchDashboardData = async () => {
-    const userData = JSON.parse(sessionStorage.getItem('user')).user;
+    // Ensure user data exists before proceeding
+    const userSession = sessionStorage.getItem('user');
+    if (!userSession) {
+      setError('User not logged in.');
+      setLoading(false);
+      return;
+    }
+    const userData = JSON.parse(userSession).user;
+
     try {
       setLoading(true);
-
-      // CORRECTED: Use the full backend URL and add credentials option
       const apiUrl = `${import.meta.env.VITE_API_URL}/dashboard`;
-      console.log(`Fetching dashboard data from: ${apiUrl}`);
-
       const response = await apiFetch(apiUrl, {
-        credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+        credentials: 'include',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -33,16 +38,11 @@ const DashboardPage = () => {
         }),
       });
 
-      console.log('Response status:', response.status);
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = response.data;
-      console.log('Dashboard data received:', result);
-
-      // Assuming the backend sends data directly without a 'success' wrapper
       setDashboardData(result);
       setLastRefresh(new Date());
       setError(null);
@@ -60,13 +60,6 @@ const DashboardPage = () => {
     const interval = setInterval(fetchDashboardData, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
-
-  // Format date for display
-  const formatDate = (date) => {
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return 'Invalid Date';
-    return `${d.getDate()}/${d.getMonth() + 1}`;
-  };
 
   // Compute last week's range
   const today = new Date();
@@ -108,7 +101,7 @@ const DashboardPage = () => {
       <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
 
       <div className="dashboard-content">
-        {/* Header */}
+        {/* Step 2: Update the Header Section */}
         <div className="dashboard-header">
           <div className="header-content">
             <div className="header-info">
@@ -117,6 +110,8 @@ const DashboardPage = () => {
                 {lastRefresh && `Last updated: ${lastRefresh.toLocaleTimeString()}`}
               </p>
             </div>
+            {/* The new header component is placed here */}
+            <Header />
           </div>
         </div>
 

@@ -111,43 +111,75 @@ class TableService {
     }
   }
 
-  static generateSJSTableFromRows(avgRow, rsdRow, sjsStdRow, errorRow) {
-    if (!avgRow || Object.keys(avgRow).length === 0) {
-      return { tableData: [], elements: [] };
-    }
 
-    const elementColumns = Object.keys(avgRow);
-
-    const tableData = elementColumns.map((col) => {
-      const cleanFullName = col.replace(/_Corrected$/, '');
-      const avg = avgRow[col];
-      const rsd = rsdRow ? rsdRow[col] : null;
-      const sjsStd = parseFloat(sjsStdRow[col]);
-
-      return {
-        fullElementName: cleanFullName,
-        element: cleanFullName.split(' ')[0],
-        valueAvg: avg != null ? +avg.toFixed(3) : null,
-        sjsStd: !isNaN(sjsStd) ? +sjsStd.toFixed(3) : null,
-
-        //  pull from SJS-Std row
-        error_pct: sjsStdRow?.error_pct ?? null,
-        tolerance_pct: sjsStdRow?.tolerance_pct ?? null,
-        rsd_pct: sjsStdRow?.rsd_pct ?? null,
-        status: sjsStdRow?.status ?? null,
-
-        // keep element-level RSD from avg/rsdRow
-        rsd: rsd != null ? +rsd.toFixed(2) : null,
-
-        distributionData: [],
-      };
-    });
-
+static generateSJSTableFromRows(avgRow, rsdRow, sjsStdRow, errorRow) {
+  if (!avgRow || Object.keys(avgRow).length === 0) {
     return {
-      tableData,
-      elements: Array.from(new Set(tableData.map((r) => r.fullElementName))),
+      tableData: [],
+      elements: []
     };
   }
+
+  const elementColumns = Object.keys(avgRow);
+
+  // Step 1: build initial rows
+  const tableData = elementColumns.map((col) => {
+    const cleanFullName = col.replace(/_Corrected$/, ''); // remove _Corrected
+    const avg = avgRow[col];
+    const rsd = rsdRow ? rsdRow[col] : null;
+    const sjsStd = parseFloat(sjsStdRow[col]);
+    const errorVal = parseFloat(errorRow[col]);
+    const sjsValid = !isNaN(sjsStd) && !isNaN(errorVal) && sjsStd !== 0 && avg != null;
+
+    const errorAllowedPercent = sjsValid ? 10 : null;
+    const actualErrorPercent = sjsValid ? (Math.abs(avg - sjsStd) / sjsStd) * 100 : null;
+    const isWithinTolerance = sjsValid ? actualErrorPercent <= errorAllowedPercent : null;
+
+    return {
+      fullElementName: cleanFullName, // e.g. '45 Sc [ No Gas ] Conc. [ ppb ]'
+      element: cleanFullName.split(' ')[0], // e.g. '45' or 'Al'
+      valueAvg: avg != null ? +avg.toFixed(3) : null,
+      sjsStd: !isNaN(sjsStd) ? +sjsStd.toFixed(3) : null,
+      errorAllowedPercent: errorAllowedPercent != null ? +errorAllowedPercent.toFixed(2) : null,
+      actualErrorPercent: actualErrorPercent != null ? +actualErrorPercent.toFixed(2) : null,
+      isWithinTolerance,
+      rsd: rsd != null ? +rsd.toFixed(2) : null,
+      distributionData: []
+    };
+  });
+
+  // Step 2: group by short element name
+  const grouped = {};
+  for (const row of tableData) {
+    if (!grouped[row.element]) grouped[row.element] = [];
+    grouped[row.element].push(row);
+  }
+
+  // Step 3: filter based on pass/fail logic
+  let finalData = [];
+  for (const groupRows of Object.values(grouped)) {
+    if (groupRows.length === 1) {
+      finalData.push(groupRows[0]);
+    } else if (groupRows.length === 2) {
+      const passRows = groupRows.filter(r => r.isWithinTolerance);
+      const failRows = groupRows.filter(r => r.isWithinTolerance === false);
+      if (passRows.length === 2 || failRows.length === 2) {
+        finalData = finalData.concat(groupRows); // keep both
+      } else if (passRows.length === 1) {
+        finalData.push(passRows[0]); // keep only the passing one
+      } else {
+        finalData = finalData.concat(groupRows); // fallback
+      }
+    } else {
+      finalData = finalData.concat(groupRows); // unexpected case
+    }
+  }
+
+  return {
+    tableData: finalData,
+    elements: Array.from(new Set(finalData.map(r => r.fullElementName)))
+  };
+}
 
   // static generateSJSTableFromRows(avgRow, rsdRow, sjsStdRow, errorRow) {
   //   if (!avgRow || Object.keys(avgRow).length === 0) {
@@ -203,13 +235,8 @@ class TableService {
         orgId
       );
 
-      //  now includes error_pct, tolerance_pct, rsd_pct, status
-      const [sjsStdRow, errorRow] = await TableModel.getSJSRows(
-        fileId,
-        elementColumns,
-        isAdmin,
-        orgId
-      );
+      // Get the global standard and error rows
+      const [sjsStdRow, errorRow] = await TableModel.getSJSRows(elementColumns);
 
       return this.generateSJSTableFromRows(avgRow, rsdRow, sjsStdRow, errorRow);
     } catch (err) {

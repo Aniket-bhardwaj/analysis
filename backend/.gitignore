@@ -6,6 +6,13 @@ node_modules/
 *.sqlite-wal
 *.sqlite-shm
 
+# Ignore database files
+database.sqlite
+database_backup.sqlite
+database.sqlite-wal
+database.sqlite-shm
+sessions.sqlite
+
 # Ignore environment and log files
 .env
 *.log

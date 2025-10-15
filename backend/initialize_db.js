@@ -19,8 +19,8 @@ const dbPath = path.resolve(__dirname, "database.sqlite");
 // Database Connection
 // ----------------------------------------------------
 const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) console.error("❌ SQLite connection error:", err.message);
-  else console.log("✅ Connected to SQLite database!");
+  if (err) console.error(" SQLite connection error:", err.message);
+  else console.log("Connected to SQLite database!");
 });
 
 // Global safeguard for runtime DB errors
@@ -122,26 +122,123 @@ db.serialize(() => {
     )
   `);
 
-  // 7️⃣ SJS Table
+// <<<<<<< HEAD
+//   // 7️⃣ SJS Table
+//   const allCols = [...OTstdcleaned, ...OMstdcleaned];
+//   const columnDefs = allCols.map((col) => `"${col}" TEXT`).join(", ");
+//   db.run(
+//     `CREATE TABLE IF NOT EXISTS sjs (
+// =======
+//   // ---------------------------
+//   // Table: sjs
+//   // ---------------------------
+
+//   // Merge trace + major element names
+//   const allCols = [...OTstdcleaned, ...OMstdcleaned];
+//   const columnDefs = allCols.map(col => `"${col}" TEXT`).join(', ');
+  
+//   const createTableSQL = `
+//     CREATE TABLE IF NOT EXISTS sjs (
+// >>>>>>> 957ba64e058e3187abc2493f2c2974d68ad92b64
+//       id INTEGER PRIMARY KEY,
+//       label TEXT NOT NULL,
+// <<<<<<< HEAD
+//       ${columnDefs},
+//       error_pct REAL,
+//       tolerance_pct REAL,
+//       rsd_pct REAL,
+//       status TEXT,
+//       FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
+//     )`,
+//     (err) => {
+//       if (err) console.error("Error creating sjs table:", err.message);
+//       else console.log("sjs table created.");
+//     }
+//   );
+// =======
+//       ${columnDefs}
+//     );
+//   `;
+
+//   db.run(createTableSQL, (err) => {
+//     if (err) return console.error(' Error creating sjs table:', err);
+//     console.log('sjs table created.');
+
+//     // Prepare insert query with 81 placeholders (1 id + 1 label + 61 + 18 = 81)
+//     const placeholders = Array(allCols.length + 2).fill('?').join(', ');
+//     const insertSQL = `INSERT OR IGNORE INTO sjs VALUES (${placeholders})`;
+
+//     // Build the rows
+//     const row1 = [1, 'SJS-Std', ...Tval, ...Mval];
+//     const row2 = [2, 'Error', ...Terr, ...Merr];
+
+//     // Insert both rows
+//     db.run(insertSQL, row1, (err) => {
+//       if (err) {
+//           console.error(' Error inserting Row 1 (SJS-Std):', err.message);
+//       } else if (this.changes > 0) {
+//           console.log('Row 1 (SJS-Std) inserted');
+//       }
+//     });
+
+//     db.run(insertSQL, row2, (err) => {
+//         if (err) {
+//             console.error(' Error inserting Row 2 (Error):', err.message);
+//         } else if (this.changes > 0) {
+//             console.log('Row 2 (Error) inserted');
+//         }
+//     });
+//   });
+// >>>>>>> 957ba64e058e3187abc2493f2c2974d68ad92b64
+
+  // ---------------------------
+  // Table: sjs
+  // ---------------------------
+
+  // Merge trace + major element names
   const allCols = [...OTstdcleaned, ...OMstdcleaned];
-  const columnDefs = allCols.map((col) => `"${col}" TEXT`).join(", ");
-  db.run(
-    `CREATE TABLE IF NOT EXISTS sjs (
+  const columnDefs = allCols.map(col => `"${col}" TEXT`).join(', ');
+
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS sjs (
       id INTEGER PRIMARY KEY,
-      file_id INTEGER NOT NULL,
       label TEXT NOT NULL,
-      ${columnDefs},
-      error_pct REAL,
-      tolerance_pct REAL,
-      rsd_pct REAL,
-      status TEXT,
-      FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
-    )`,
-    (err) => {
-      if (err) console.error("Error creating sjs table:", err.message);
-      else console.log("sjs table created.");
-    }
-  );
+      ${columnDefs}
+    );
+  `;
+
+  db.run(createTableSQL, (err) => {
+    if (err) return console.error(' Error creating sjs table:', err);
+    console.log('sjs table created.');
+
+    // Prepare insert query with 81 placeholders (1 id + 1 label + 61 + 18 = 81)
+    const placeholders = Array(allCols.length + 2).fill('?').join(', ');
+    const insertSQL = `INSERT OR IGNORE INTO sjs VALUES (${placeholders})`;
+
+
+    // Build the rows
+    const row1 = [1, 'SJS-Std', ...Tval, ...Mval];
+    const row2 = [2, 'Error', ...Terr, ...Merr];
+    console.log('➡️ allCols length:', allCols.length);
+    console.log('➡️ row1 length:', row1.length, 'row2 length:', row2.length);
+    console.log('➡️ placeholders count:', allCols.length + 2);
+    // Insert both rows
+    db.run(insertSQL, row1, (err) => {
+      if (err) {
+        console.error(' Error inserting Row 1 (SJS-Std):', err.message);
+      } else if (this.changes > 0) {
+        console.log('Row 1 (SJS-Std) inserted');
+      }
+    });
+
+    db.run(insertSQL, row2, (err) => {
+      if (err) {
+        console.error(' Error inserting Row 2 (Error):', err.message);
+      } else if (this.changes > 0) {
+        console.log('Row 2 (Error) inserted');
+      }
+    });
+  });
 
   // 8️⃣ Users
   db.run(`
@@ -207,12 +304,12 @@ db.serialize(() => {
     },
     sjs: {
       id: "INTEGER PRIMARY KEY AUTOINCREMENT",
-      file_id: "INTEGER NOT NULL",
+      // file_id: "INTEGER NOT NULL",
       label: "TEXT",
-      error_pct: "REAL",
-      tolerance_pct: "REAL",
-      rsd_pct: "REAL",
-      status: "TEXT"
+      // error_pct: "REAL",
+      // tolerance_pct: "REAL",
+      // rsd_pct: "REAL",
+      // status: "TEXT"
     }
   };
 
@@ -222,7 +319,7 @@ db.serialize(() => {
       [table],
       (err, row) => {
         if (err) {
-          console.error(`❌ Error checking table ${table}:`, err.message);
+          console.error(` Error checking table ${table}:`, err.message);
           return;
         }
 
@@ -231,7 +328,7 @@ db.serialize(() => {
             .map(([name, type]) => `${name} ${type}`)
             .join(", ");
           db.run(`CREATE TABLE IF NOT EXISTS ${table} (${colsSQL})`, e2 => {
-            if (e2) console.error(`❌ Failed to create ${table}:`, e2.message);
+            if (e2) console.error(` Failed to create ${table}:`, e2.message);
             else console.log(`🆕 Created new table: ${table}`);
           });
           return;
@@ -239,7 +336,7 @@ db.serialize(() => {
 
         db.all(`PRAGMA table_info(${table})`, (err2, existingCols) => {
           if (err2) {
-            console.error(`❌ Failed to inspect ${table}:`, err2.message);
+            console.error(` Failed to inspect ${table}:`, err2.message);
             return;
           }
           const existingNames = existingCols.map(c => c.name);
@@ -248,9 +345,9 @@ db.serialize(() => {
               const alterSQL = `ALTER TABLE ${table} ADD COLUMN ${col} ${def}`;
               db.run(alterSQL, e3 => {
                 if (e3 && !e3.message.includes("duplicate column name")) {
-                  console.error(`❌ ${table}: failed to add '${col}' →`, e3.message);
+                  console.error(` ${table}: failed to add '${col}' →`, e3.message);
                 } else {
-                  console.log(`✅ ${table}: ensured column '${col}'`);
+                  console.log(`${table}: ensured column '${col}'`);
                 }
               });
             }

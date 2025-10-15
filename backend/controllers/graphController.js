@@ -2,7 +2,7 @@ const graphModel = require('../models/graphModel');
 const QcGraphService = require('../services/qcGraphService');
 
 exports.getElements = async (req, res) => {
-  // ✅ accept params from body OR query
+  // accept params from body OR query
   const file_id   = req.body.file_id   || req.query.file_id;
   const start_date = req.body.start_date || req.query.start_date;
   const end_date   = req.body.end_date   || req.query.end_date;

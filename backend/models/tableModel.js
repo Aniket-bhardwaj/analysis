@@ -160,56 +160,20 @@ class TableModel {
     });
   }
 
- 
-  static async getSJSRows(fileId, elementColumns, isAdmin, orgId) {
-    return new Promise((resolve, reject) => {
-      if (!fileId) {
-        // For date-range queries where fileId=null, just return empty placeholders
-        return resolve([{}, {}]);
+ static async getSJSRows(elementColumns) {
+  return new Promise((resolve, reject) => {
+    const columnsToSelect = elementColumns.map(col => `"${col}"`).join(', ');
+    const query = `SELECT ${columnsToSelect} FROM sjs`;
+
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        console.error("Error fetching SJS rows:", err);
+        return reject(err);
       }
-      if (!elementColumns || elementColumns.length === 0) {
-        return resolve([{}, {}]);
-      }
-
-      const cols = elementColumns.map(col => `"${col}"`).join(', ');
-
-      const query = `
-        SELECT 
-          s.id,
-          s.file_id,
-          s.label,
-          s.error_pct,
-          s.tolerance_pct,
-          s.rsd_pct,
-          s.status,
-          ${cols}
-        FROM sjs s
-        JOIN uploaded_files f ON s.file_id = f.id
-        WHERE s.file_id = ?
-          AND s.label IN ('SJS-Std', 'Error')
-          AND (
-            (? = 1) OR (? = 0 AND f.org_id = ?)
-          )
-        ORDER BY CASE s.label
-          WHEN 'SJS-Std' THEN 1
-          WHEN 'Error' THEN 2
-        END
-      `;
-
-
-      db.all(query, [fileId, isAdmin ? 1 : 0, isAdmin ? 1 : 0, orgId], (err, rows) => {
-        if (err) {
-          console.error("Error fetching SJS rows:", err);
-          return reject(err);
-        }
-        // Always return exactly two slots
-        const sjsStdRow = rows.find(r => r.label === 'SJS-Std') || {};
-        const errorRow = rows.find(r => r.label === 'Error') || {};
-        resolve([sjsStdRow, errorRow]);
-      });
+      resolve(rows); // rows[0] = SJS-Std, rows[1] = Error
     });
-  }
-
+  });
+}
 }
 
 module.exports = TableModel;

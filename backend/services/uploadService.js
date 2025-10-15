@@ -201,27 +201,29 @@ async function insertAllData(
 // 3. Apply Correction Factors
 
 
-
 async function insertCorrected(fileId, csvType, headers) {
+
+
   try {
+    // // Step 1: Get QC MES rows for this file
+    // const qcRows = await dataModel.getAllQCMESRows(fileId);
+    // const selectedRow = qcRows[0];
+    // const usedLabel = selectedRow["Solution Label"];
+
+    // Step 2: Determine applicable element columns
     const allowedCols = csvType === 1 ? MEconc : TEconc;
     const elementCols = headers.filter(header => allowedCols.includes(header));
 
-    //  get all QC labels dynamically 
-    const qcLabels = await dataModel.getQCLabelsForFile(fileId);
-    if (!qcLabels || qcLabels.length === 0) {
-      throw new Error("No QC labels found for this file");
-    }
 
-    // Pick the first "Standard" row if present, otherwise fallback
-    const chosenQC = qcLabels.find(l => l.startsWith("Standard")) || qcLabels[0];
-    console.log(`[insertCorrected] Using QC reference label: ${chosenQC}`);
 
-    // fetch averages for that chosen QC label
-    const averages = await dataModel.getQCAveragesByLabel(fileId, chosenQC, elementCols);
+    // Step 3: Get average measured values
+    const averages = await dataModel.getQCAveragesByLabel(fileId, qcl[csvType], elementCols);
 
-    const known = csvType === 1 ? 5 : 50; 
-    //  calculate correction factors
+
+
+    const known = csvType === 1 ? 5 : 50; // e.g., extract 50 from "QC MES 50"
+
+    // Step 4: Calculate correction factors
     const factors = {};
     for (const [key, avg] of Object.entries(averages)) {
       if (avg !== null && !isNaN(avg)) {
@@ -229,10 +231,14 @@ async function insertCorrected(fileId, csvType, headers) {
       }
     }
 
-    // apply to all sample rows
+    // Step 5: Apply correction to samples
     const sampleIds = await dataModel.getSampleIdsForFile(fileId);
+
+
     for (const sampleId of sampleIds) {
       const row = await dataModel.getSampleById(sampleId, elementCols);
+
+
       if (!row) continue;
 
       const updates = {};
@@ -248,51 +254,21 @@ async function insertCorrected(fileId, csvType, headers) {
       }
     }
 
-    // apply to SJS-Std rows
+    // Step 6: Apply correction to SJS-Std rows
     const stdIds = await dataModel.getStdIdsForFile(fileId);
+ 
 
     for (const stdId of stdIds) {
+      const row = await dataModel.getStdById(stdId, elementCols);
+      if (!row) continue;
+
       const updates = {};
-
-      // fetch the stored SJS-Std row values
-      const correctedCols = elementCols.map(c => `${c}_Corrected`);
-      const sjsStdRow = await dataModel.getStdById(stdId, correctedCols);
-
-      for (const col of elementCols) {
-        const avg = averages[col];
-        const factor = factors[col];
-
-        // 🔑 fetch the correct DB column name
-        const dbCol = `${col}_Corrected`;
-        const sjsStd = parseFloat(sjsStdRow[dbCol]);
-
-        console.log("[DEBUG SJS]", {
-          stdId,
-          dbCol,
-          avg,
-          sjsStd,
-          factor,
-        });
-
-        if (
-          avg != null &&
-          !isNaN(avg) &&
-          !isNaN(sjsStd) &&
-          sjsStd !== 0 &&
-          factor !== undefined
-        ) {
-          const correctedVal = avg * (1 + factor);
-          updates[dbCol] = correctedVal;
-
-          const errorPct = ((avg - sjsStd) / sjsStd) * 100;
-          updates.error_pct = +errorPct.toFixed(2);
-          updates.tolerance_pct = 10;
-          updates.status = Math.abs(errorPct) <= 10 ? "Pass" : "Fail";
+      for (const [element, factor] of Object.entries(factors)) {
+        const rawVal = row[element];
+        if (rawVal !== null && !isNaN(parseFloat(rawVal))) {
+          updates[`${element}_Corrected`] = parseFloat(rawVal) * (1 + factor);
         }
       }
-
-      updates.rsd_pct = 0;
-
 
       if (Object.keys(updates).length > 0) {
         await dataModel.updateStdCorrectedValues(stdId, updates);
@@ -300,11 +276,13 @@ async function insertCorrected(fileId, csvType, headers) {
     }
 
     return { error: null };
+
   } catch (err) {
-    console.error("[insertCorrected] Error:", err.message);
-    return { error: "Failed to apply correction factors: " + err.message };
+    console.error('[insertCorrected] Error:', err.message);
+    return { error: 'Failed to apply correction factors: ' + err.message };
   }
 }
+
 
 module.exports = {
   validate,
