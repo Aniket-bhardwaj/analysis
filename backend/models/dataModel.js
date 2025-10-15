@@ -163,9 +163,9 @@ function getSampleIdsForFile(fileId) {
 }
 
 function getStdIdsForFile(fileId) {
-  const sql = `SELECT id FROM sjs WHERE file_id = ? AND label = 'SJS-Std'`;
+  const sql = `SELECT id FROM qc_data WHERE file_id = ? AND "Solution Label" = ?`;
   return new Promise((resolve, reject) => {
-    db.all(sql, [fileId], (err, rows) => {
+    db.all(sql, [fileId, 'SJS-Std'], (err, rows) => {
       if (err) reject(err);
       else resolve(rows.map(r => r.id));
     });
@@ -200,8 +200,8 @@ function getStdById(id, elementCols) {
   const colsString = elementCols
     .map(col => `"${col.replace(/"/g, '""')}"`)
     .join(', ');
-  const sql = `SELECT ${colsString} FROM sjs WHERE id = ?`;
-
+  const sql = `SELECT ${colsString} FROM qc_data WHERE id = ?`;
+  
   return new Promise((resolve, reject) => {
     db.get(sql, [id], (err, row) => {
       if (err) reject(err);
@@ -211,29 +211,14 @@ function getStdById(id, elementCols) {
 }
 
 function updateStdCorrectedValues(id, updates) {
-  const qcFields = ["error_pct", "tolerance_pct", "rsd_pct", "status"];
-
-  const setClause = Object.keys(updates)
-    .map(k => {
-      let col;
-      if (qcFields.includes(k)) {
-        // these columns exist as-is
-        col = k;
-      } else {
-        // append _Corrected if not already there
-        col = k.endsWith("_Corrected") ? k : `${k}_Corrected`;
-      }
-      return `"${col.replace(/"/g, '""')}" = ?`;
-    })
-    .join(', ');
-
+  const setClause = Object.keys(updates).map(k => `"${k}" = ?`).join(', ');
   const values = Object.values(updates);
-  const sql = `UPDATE sjs SET ${setClause} WHERE id = ?`;
+  const sql = `UPDATE qc_data SET ${setClause} WHERE id = ?`;
 
   return new Promise((resolve, reject) => {
     db.run(sql, [...values, id], function (err) {
       if (err) reject(err);
-      else resolve(this.changes);
+      else resolve();
     });
   });
 }

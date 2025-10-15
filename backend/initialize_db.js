@@ -132,29 +132,48 @@ db.serialize(() => {
   // ---------------------------
   // Table: sjs
   // ---------------------------
+
+  // Merge trace + major element names
   const allCols = [...OTstdcleaned, ...OMstdcleaned];
-  const columnDefs = allCols.map((col) => `"${col}" TEXT`).join(", ");
-
-  db.run(
-    `CREATE TABLE IF NOT EXISTS sjs (
+  const columnDefs = allCols.map(col => `"${col}" TEXT`).join(', ');
+  
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS sjs (
       id INTEGER PRIMARY KEY,
-      file_id INTEGER NOT NULL,
       label TEXT NOT NULL,
-      ${columnDefs},
+      ${columnDefs}
+    );
+  `;
 
-      -- Extra QC stats
-      error_pct REAL,
-      tolerance_pct REAL,
-      rsd_pct REAL,
-      status TEXT,
+  db.run(createTableSQL, (err) => {
+    if (err) return console.error('❌ Error creating sjs table:', err);
+    console.log('✅ sjs table created.');
 
-      FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
-    )`,
-    (err) => {
-      if (err) return console.error("Error creating sjs table:", err);
-      console.log("sjs table created.");
-    }
-  );
+    // Prepare insert query with 81 placeholders (1 id + 1 label + 61 + 18 = 81)
+    const placeholders = Array(allCols.length + 2).fill('?').join(', ');
+    const insertSQL = `INSERT OR IGNORE INTO sjs VALUES (${placeholders})`;
+
+    // Build the rows
+    const row1 = [1, 'SJS-Std', ...Tval, ...Mval];
+    const row2 = [2, 'Error', ...Terr, ...Merr];
+
+    // Insert both rows
+    db.run(insertSQL, row1, (err) => {
+      if (err) {
+          console.error('❌ Error inserting Row 1 (SJS-Std):', err.message);
+      } else if (this.changes > 0) {
+          console.log('✅ Row 1 (SJS-Std) inserted');
+      }
+    });
+
+    db.run(insertSQL, row2, (err) => {
+        if (err) {
+            console.error('❌ Error inserting Row 2 (Error):', err.message);
+        } else if (this.changes > 0) {
+            console.log('✅ Row 2 (Error) inserted');
+        }
+    });
+  });
 
 
 

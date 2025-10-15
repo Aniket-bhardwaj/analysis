@@ -83,13 +83,14 @@ const SJSTable = ({ selectedFileId, selectedDateRange }) => {
         MINI_TABLE_PAGE_SIZE
       );
       const userData = JSON.parse(sessionStorage.getItem('user')).user;
-      const res = await apiFetch(`${url}&element=${encodeURIComponent(element)}`, {
+      const json = await apiFetch(`${url}&element=${encodeURIComponent(element)}`, {
         credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: userData.id }),
       });
-      const json = await res.json();
+      
+      console.log('Mini table data for', element, json);
 
       if (json.success) {
         setMiniTables((prev) => ({

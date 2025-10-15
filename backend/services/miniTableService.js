@@ -1,14 +1,15 @@
 const TableModel = require("../models/tableModel");
 const fileModel = require("../models/fileModel");
+const { is } = require("zod/v4/locales");
 
 const miniTableService = {
-  async getMiniTableForElement(fileId, solutionLabel, element) {
+  async getMiniTableForElement(fileId, solutionLabel, element,isAdmin, orgId) {
     try {
       console.log("Fetching mini table for element:", element, "in fileId:", fileId, "with solutionLabel:", solutionLabel);
       const fileType = await fileModel.getTypeById(fileId); // 1 = ppm, 2 = ppb
       const unit = fileType === 1 ? "ppm" : "ppb";
 
-      const rows = await TableModel.getMiniTableRaw(fileId, solutionLabel, element);
+      const rows = await TableModel.getMiniTableRaw(fileId, solutionLabel, element ,isAdmin, orgId);
       //console.log("🛠️ Received rows in service:", rows);
 
       if (!rows || rows.length === 0) return [];
@@ -50,13 +51,13 @@ const miniTableService = {
     }
   },
 
-  async getSJSMiniTableForElement(fileId, solutionLabel, element) {
+  async getSJSMiniTableForElement(fileId, solutionLabel, element,isAdmin, orgId) {
   try {
     console.log("Fetching SJS mini table for element:", element, "in fileId:", fileId, "with solutionLabel:", solutionLabel);
     const fileType = await fileModel.getTypeById(fileId); // 1 = ppm, 2 = ppb
     element += "_Corrected";
 
-    const rows = await TableModel.getMiniTableRaw(fileId, solutionLabel, element);
+    const rows = await TableModel.getMiniTableRaw(fileId, solutionLabel, element, isAdmin, orgId);
     if (!rows || rows.length === 0) return [];
 
     const [sjsStdRow, errorRow] = await TableModel.getSJSRows([element]);
