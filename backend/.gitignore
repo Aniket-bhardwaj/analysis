@@ -1,0 +1,21 @@
+# Ignore dependencies
+node_modules/
+
+# Ignore local databases
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Ignore environment and log files
+.env
+*.log
+
+# Ignore uploads and temporary files
+uploads/
+pdfs/
+tmp/
+*.csv
+*.pdf
+
+# Ignore system files
+.DS_Store
