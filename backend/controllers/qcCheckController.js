@@ -114,12 +114,9 @@ class QcCheckController {
           db.all(
             `SELECT 
                 id,
-                file_id,
                 label,
                 ${sjsCols}
-            FROM sjs
-            WHERE file_id = ?`,
-            [file_id],
+            FROM sjs`,
             (err, rows) => {
               if (err) {
                 console.error("Error fetching SJS rows:", err.message);
