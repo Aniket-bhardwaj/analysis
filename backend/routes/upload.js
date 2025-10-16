@@ -6,8 +6,8 @@
   const path = require('path');
   const fs = require('fs');
   const db = require('../initialize_db');
-  const { uploadFile } = require('../controllers/uploadController');
-  const uploadController = require('../controllers/uploadController');
+  const { uploadFile, getFilesByOrg } = require('../controllers/uploadController');
+
 
   const router = express.Router();
 
@@ -170,7 +170,8 @@
   // =====================================================
   // Pull Organization-Level File Data
   // =====================================================
-  router.get('/uploaded-files/org/:orgId', uploadController.getFilesByOrg);
+  router.get('/uploaded-files/org/:orgId', getFilesByOrg);
+
 
   // =====================================================
   //  Fetch all Organizations (for Admin dropdown in UI)

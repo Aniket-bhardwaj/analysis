@@ -75,6 +75,48 @@ const SJSTable = ({ selectedFileId, selectedDateRange }) => {
     }
   };
 
+  // const fetchMiniTableData = async (element, page = 1) => {
+  //   try {
+  //     const url = buildUrl(
+  //       `${import.meta.env.VITE_API_URL}/sjs-mini-table`,
+  //       page,
+  //       MINI_TABLE_PAGE_SIZE
+  //     );
+  //     const userData = JSON.parse(sessionStorage.getItem('user')).user;
+  //     const json = await apiFetch(`${url}&element=${encodeURIComponent(element)}`, {
+  //       credentials: 'include',
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ userId: userData.id }),
+  //     });
+      
+  //     console.log('Mini table data for', element, json);
+
+  //     if (json.success) {
+  //       setMiniTables((prev) => ({
+  //         ...prev,
+  //         [element]: {
+  //           data: json.miniTable || [],
+  //           totalItems: json.totalItems || 0,
+  //           currentPage: json.page || 1,
+  //         },
+  //       }));
+  //     } else {
+  //       console.error('[Frontend] Error fetching SJS mini table:', json.message);
+  //       setMiniTables((prev) => ({
+  //         ...prev,
+  //         [element]: { data: [], totalItems: 0, currentPage: 1 },
+  //       }));
+  //     }
+  //   } catch (err) {
+  //     console.error('[Frontend] Error fetching SJS mini table:', err);
+  //     setMiniTables((prev) => ({
+  //       ...prev,
+  //       [element]: { data: [], totalItems: 0, currentPage: 1 },
+  //     }));
+  //   }
+  // };
+
   const fetchMiniTableData = async (element, page = 1) => {
     try {
       const url = buildUrl(
@@ -89,20 +131,24 @@ const SJSTable = ({ selectedFileId, selectedDateRange }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: userData.id }),
       });
-      
+
       console.log('Mini table data for', element, json);
 
-      if (json.success) {
+      // ✅ unwrap the data payload
+      const payload = json?.data || json;
+
+      if (Array.isArray(payload) || payload.miniTable) {
+        const miniData = Array.isArray(payload) ? payload : payload.miniTable;
         setMiniTables((prev) => ({
           ...prev,
           [element]: {
-            data: json.miniTable || [],
-            totalItems: json.totalItems || 0,
-            currentPage: json.page || 1,
+            data: miniData || [],
+            totalItems: payload.totalItems || miniData.length || 0,
+            currentPage: payload.page || 1,
           },
         }));
       } else {
-        console.error('[Frontend] Error fetching SJS mini table:', json.message);
+        console.error('[Frontend] Error fetching SJS mini table:', payload?.message || payload);
         setMiniTables((prev) => ({
           ...prev,
           [element]: { data: [], totalItems: 0, currentPage: 1 },
@@ -116,6 +162,7 @@ const SJSTable = ({ selectedFileId, selectedDateRange }) => {
       }));
     }
   };
+
 
   const toggleRowExpansion = (element) => {
     const next = new Set(expandedRows);
