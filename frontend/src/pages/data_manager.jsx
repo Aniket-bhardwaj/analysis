@@ -74,6 +74,8 @@ const DataManagerPage = () => {
   const [expandedFileId, setExpandedFileId] = useState(null);
   const [selectedFileId, setSelectedFileId] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [selectedItem, setSelectedItem] = useState('Data Manager');
+
   // State for the new upload flow (CSV + PDF)
   const [csvFile, setCsvFile] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
@@ -88,6 +90,22 @@ const DataManagerPage = () => {
   const [attachments, setAttachments] = useState([]);
   const [fetchedParents, setFetchedParents] = useState(new Set());
   const [loadingAttachments, setLoadingAttachments] = useState(false);
+  const [targetOrgId, setTargetOrgId] = useState('');
+  const [orgList, setOrgList] = useState([]);
+
+  const storedUser = sessionStorage.getItem('user');
+  let isAdmin = false;
+
+  try {
+    const userObj = storedUser ? JSON.parse(storedUser).user : null;
+    isAdmin =
+      userObj &&
+      (String(userObj.is_admin) === '1' ||
+        userObj.role?.toLowerCase() === 'admin' ||
+        userObj.email?.toLowerCase().includes('admin@'));
+  } catch (e) {
+    console.warn('Invalid user object in sessionStorage:', e);
+  }
 
   // Utility to invalidate cached attachment fetch for a parent
   const invalidateAttachmentCache = (pid) => {
@@ -126,7 +144,7 @@ const DataManagerPage = () => {
             const summaryRes = await apiFetch(
               `${import.meta.env.VITE_API_URL}/summary?file_id=${fileId}`,
               {
-                credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+                credentials: 'include', 
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -144,23 +162,32 @@ const DataManagerPage = () => {
               }
               failedElements = summary.failedElements || [];
             } else {
-              // Silently fail if summary isn't available, default to error status
             }
           } catch (err) {
-            console.error(`❌ Failed to fetch summary for file ${fileId}:`, err.message);
+            console.error(`Failed to fetch summary for file ${fileId}:`, err.message);
           }
           return { ...file, qualityStatus, failedElements };
         })
       );
       setFiles(filesWithStatus);
     } catch (err) {
-      console.error('❌ Failed to fetch uploaded files:', err.message);
+      console.error('Failed to fetch uploaded files:', err.message);
     }
   };
 
   useEffect(() => {
     fetchUploadedFiles();
   }, []);
+  useEffect(() => {
+    if (isAdmin) {
+      apiFetch(`${import.meta.env.VITE_API_URL}/organizations`, { method: 'GET' })
+        .then((res) => {
+          if (res.ok) setOrgList(res.data || []);
+        })
+        .catch((err) => console.error('Failed to fetch organizations:', err));
+    }
+  }, [isAdmin]);
+
 
   // --- UPLOAD LOGIC (NEW: CSV + PDF) ---
   const handleDrag = (e) => {
@@ -221,61 +248,44 @@ const DataManagerPage = () => {
     const formData = new FormData();
     formData.append('csvfile', csv);
     formData.append('pdffile', pdf);
-    // formData.append('userId', userData.id);
+
     try {
       setIsUploading(true);
       setUploadProgress(0);
-      console.log(formData);
+
       const token = await ensureCsrf();
-      await fetch(`${import.meta.env.VITE_API_URL}/upload-files`, {
-        headers: {
-          'X-CSRF-Token': token,
-        },
-        credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+
+      // 🧠 Determine correct upload URL
+      // If admin selected a target org, append it as ?orgId=<id>
+      const uploadUrl = `${import.meta.env.VITE_API_URL}/upload-files${
+        isAdmin && targetOrgId ? `?orgId=${targetOrgId}` : ''
+      }`;
+
+      console.log('Uploading to:', uploadUrl);
+
+      const res = await fetch(uploadUrl, {
+        headers: { 'X-CSRF-Token': token },
+        credentials: 'include', // send cookies/session
         method: 'POST',
         body: formData,
       });
-      // const xhr = new XMLHttpRequest();
-      // xhr.upload.addEventListener('progress', (e) => {
-      //   if (e.lengthComputable) {
-      //     const percentComplete = (e.loaded / e.total) * 100;
-      //     setUploadProgress(Math.round(percentComplete));
-      //   }
-      // });
 
-      // const uploadPromise = new Promise((resolve, reject) => {
-      //   xhr.onload = () => {
-      //     try {
-      //       const response = JSON.parse(xhr.responseText || '{}');
-      //       if (xhr.status >= 200 && xhr.status < 300) {
-      //         resolve(response);
-      //       } else {
-      //         reject(new Error(response.error || 'Upload failed'));
-      //       }
-      //     } catch {
-      //       reject(new Error('Invalid server response.'));
-      //     }
-      //   };
-      //   xhr.onerror = () => reject(new Error('Network error during upload.'));
-      // });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Upload failed (${res.status})`);
+      }
 
-      // xhr.open('POST', `${import.meta.env.VITE_API_URL}/upload-files`);
-      // xhr.withCredentials = true;
-      // console.log('before csrf ensure');
-      // const token = await ensureCsrf();
-      // console.log('after csrf ensure');
-      // xhr.setRequestHeader('X-CSRF-Token', token);
-      // xhr.send(formData);
-
-      // await uploadPromise;
       setSnackbarMessage(`File${isReplacement ? ' replaced' : 's uploaded'} successfully`);
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
+
+      // Refresh file list
       fetchUploadedFiles();
 
-      // Clear selected files after successful upload
+      // Clear selected files
       setCsvFile(null);
       setPdfFile(null);
+      setTargetOrgId(''); // optional: reset dropdown after upload
     } catch (err) {
       console.error('Error uploading files:', err);
       setSnackbarMessage(err.message || 'Something went wrong during upload.');
@@ -286,6 +296,85 @@ const DataManagerPage = () => {
       setUploadProgress(0);
     }
   };
+
+  // const handleFileUpload = async (csv, pdf, isReplacement = false) => {
+  //   if (!csv || !pdf) {
+  //     setSnackbarMessage('Both a CSV and a PDF file are required.');
+  //     setSnackbarSeverity('error');
+  //     setSnackbarOpen(true);
+  //     return;
+  //   }
+
+  //   const userData = JSON.parse(sessionStorage.getItem('user')).user;
+
+  //   const formData = new FormData();
+  //   formData.append('csvfile', csv);
+  //   formData.append('pdffile', pdf);
+  //   // formData.append('userId', userData.id);
+  //   try {
+  //     setIsUploading(true);
+  //     setUploadProgress(0);
+  //     console.log(formData);
+  //     const token = await ensureCsrf();
+  //     await fetch(`${import.meta.env.VITE_API_URL}/upload-files`, {
+  //       headers: {
+  //         'X-CSRF-Token': token,
+  //       },
+  //       credentials: 'include', // <-- IMPORTANT: This sends the session cookie
+  //       method: 'POST',
+  //       body: formData,
+  //     });
+  //     // const xhr = new XMLHttpRequest();
+  //     // xhr.upload.addEventListener('progress', (e) => {
+  //     //   if (e.lengthComputable) {
+  //     //     const percentComplete = (e.loaded / e.total) * 100;
+  //     //     setUploadProgress(Math.round(percentComplete));
+  //     //   }
+  //     // });
+
+  //     // const uploadPromise = new Promise((resolve, reject) => {
+  //     //   xhr.onload = () => {
+  //     //     try {
+  //     //       const response = JSON.parse(xhr.responseText || '{}');
+  //     //       if (xhr.status >= 200 && xhr.status < 300) {
+  //     //         resolve(response);
+  //     //       } else {
+  //     //         reject(new Error(response.error || 'Upload failed'));
+  //     //       }
+  //     //     } catch {
+  //     //       reject(new Error('Invalid server response.'));
+  //     //     }
+  //     //   };
+  //     //   xhr.onerror = () => reject(new Error('Network error during upload.'));
+  //     // });
+
+  //     // xhr.open('POST', `${import.meta.env.VITE_API_URL}/upload-files`);
+  //     // xhr.withCredentials = true;
+  //     // console.log('before csrf ensure');
+  //     // const token = await ensureCsrf();
+  //     // console.log('after csrf ensure');
+  //     // xhr.setRequestHeader('X-CSRF-Token', token);
+  //     // xhr.send(formData);
+
+  //     // await uploadPromise;
+  //     setSnackbarMessage(`File${isReplacement ? ' replaced' : 's uploaded'} successfully`);
+  //     setSnackbarSeverity('success');
+  //     setSnackbarOpen(true);
+  //     fetchUploadedFiles();
+
+  //     // Clear selected files after successful upload
+  //     setCsvFile(null);
+  //     setPdfFile(null);
+  //   } catch (err) {
+  //     console.error('Error uploading files:', err);
+  //     setSnackbarMessage(err.message || 'Something went wrong during upload.');
+  //     setSnackbarSeverity('error');
+  //     setSnackbarOpen(true);
+  //   } finally {
+  //     setIsUploading(false);
+  //     setUploadProgress(0);
+  //   }
+  // };
 
   // --- FILE ACTIONS (DELETE, DOWNLOAD, REPLACE) ---
   const handleDelete = async (id) => {
@@ -612,21 +701,21 @@ const handleDownloadPdf = async (fileId) => {
     );
   };
 
-  const [selectedItem, setSelectedItem] = useState('Data Manager');
-  // --- Determine user role ---
-  const storedUser = sessionStorage.getItem('user');
-  let isAdmin = false;
+  // const [selectedItem, setSelectedItem] = useState('Data Manager');
+  // // --- Determine user role ---
+  // const storedUser = sessionStorage.getItem('user');
+  // let isAdmin = false;
 
-  try {
-    const userObj = storedUser ? JSON.parse(storedUser).user : null;
-    isAdmin =
-      userObj &&
-      (String(userObj.is_admin) === '1' ||
-      userObj.role?.toLowerCase() === 'admin' ||
-      userObj.email?.toLowerCase().includes('admin@'));
-  } catch (e) {
-    console.warn('Invalid user object in sessionStorage:', e);
-  }
+  // try {
+  //   const userObj = storedUser ? JSON.parse(storedUser).user : null;
+  //   isAdmin =
+  //     userObj &&
+  //     (String(userObj.is_admin) === '1' ||
+  //     userObj.role?.toLowerCase() === 'admin' ||
+  //     userObj.email?.toLowerCase().includes('admin@'));
+  // } catch (e) {
+  //   console.warn('Invalid user object in sessionStorage:', e);
+  // }
 
 
   return (
@@ -641,7 +730,6 @@ const handleDownloadPdf = async (fileId) => {
           <Header />
         </Box>
         
-        {/* --- UPLOAD CARD (NEW UI - Admins Only) --- */}
         {isAdmin && (
           <Card className="upload-card">
             <CardContent>
@@ -713,6 +801,27 @@ const handleDownloadPdf = async (fileId) => {
                         )}
                       </Box>
                     )}
+                    {/* --- Admin override selectors --- */}
+                    {isAdmin && (
+                      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+                        <TextField
+                          select
+
+                          value={targetOrgId}
+                          onChange={(e) => setTargetOrgId(e.target.value)}
+                          SelectProps={{ native: true }}
+                          sx={{ width: '250px' }}
+                        >
+                          <option value="">-- Choose Organization --</option>
+                          {orgList.map((org) => (
+                            <option key={org.id} value={org.id}>
+                              {org.name}
+                            </option>
+                          ))}
+                        </TextField>
+                      </Box>
+                    )}
+
                     <Button
                       variant="contained"
                       color="primary"
@@ -851,15 +960,6 @@ const handleDownloadPdf = async (fileId) => {
                               <DownloadIcon />
                             </IconButton>
                           </Tooltip>
-
-                          {file.hasPdf && (
-                            <Tooltip title="Download PDF">
-                              <IconButton onClick={() => handleDownloadPdf(file.id)}
-                              disabled={downloadingId === file.id}>
-                                <PictureAsPdfOutlinedIcon />
-                              </IconButton>
-                            </Tooltip>
-                          )}
 
                           <Tooltip title="Manage Attachments">
                             <IconButton
