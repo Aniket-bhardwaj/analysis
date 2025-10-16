@@ -173,27 +173,27 @@
   router.get('/uploaded-files/org/:orgId', uploadController.getFilesByOrg);
 
   // =====================================================
-//  Fetch all Organizations (for Admin dropdown in UI)
-// =====================================================
-router.get('/organizations', async (req, res) => {
-  try {
-    const sql = `
-      SELECT id, name
-      FROM organizations
-      ORDER BY name COLLATE NOCASE ASC
-    `;
-    db.all(sql, [], (err, rows) => {
-      if (err) {
-        console.error('[organizations] DB error:', err.message);
-        return res.status(500).json({ error: 'Failed to fetch organizations' });
-      }
-      return res.json(rows || []);
-    });
-  } catch (err) {
-    console.error('[organizations] Unexpected error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  //  Fetch all Organizations (for Admin dropdown in UI)
+  // =====================================================
+  router.get('/organizations', async (req, res) => {
+    try {
+      const sql = `
+        SELECT id, name
+        FROM organizations
+        ORDER BY name COLLATE NOCASE ASC
+      `;
+      db.all(sql, [], (err, rows) => {
+        if (err) {
+          console.error('[organizations] DB error:', err.message);
+          return res.status(500).json({ error: 'Failed to fetch organizations' });
+        }
+        return res.json(rows || []);
+      });
+    } catch (err) {
+      console.error('[organizations] Unexpected error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
 
   module.exports = router;
 

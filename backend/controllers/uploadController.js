@@ -150,6 +150,45 @@ const uploadFile = async (req, res) => {
     }
   });
 };
+// =====================================================
+// Get all uploaded files for a specific organization
+// =====================================================
+const getFilesByOrg = async (req, res) => {
+  try {
+    const { orgId } = req.params;
+    const user = req.user || req.rbac;
 
-module.exports = { uploadFile };
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    if (!user.isAdmin && user.orgId !== Number(orgId))
+      return res.status(403).json({ error: 'Forbidden' });
+
+    const sql = `
+      SELECT
+        f.id, f.filename, f.file_path, f.pdfname, f.pdf_path, f.uploaded_at, f.type,
+        f.org_id, o.name AS org_name, u.email AS uploader_email
+      FROM uploaded_files f
+      LEFT JOIN organizations o ON f.org_id = o.id
+      LEFT JOIN users u ON f.created_by_user_id = u.id
+      WHERE f.org_id = ? AND f.hidden = 0 AND f.type IN (1,2)
+      ORDER BY f.uploaded_at DESC
+    `;
+
+    db.all(sql, [orgId], (err, rows) => {
+      if (err) {
+        console.error('[getFilesByOrg] DB error:', err.message);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(rows || []);
+    });
+  } catch (err) {
+    console.error('[getFilesByOrg] Exception:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+module.exports = { 
+  uploadFile,
+  getFilesByOrg
+
+ };
 
