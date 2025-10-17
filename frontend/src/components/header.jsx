@@ -41,7 +41,10 @@ const Header = () => {
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-      <Box sx={{ textAlign: 'right' }}>
+      <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
+        {getInitials(user.email)}
+      </Avatar>
+      <Box sx={{ textAlign: 'left' }}>
         <Typography
           variant="subtitle1"
           sx={{ fontWeight: 'bold', textTransform: 'capitalize', lineHeight: 1.2 }}
@@ -52,9 +55,6 @@ const Header = () => {
           {user.org_name}
         </Typography>
       </Box>
-      <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
-        {getInitials(user.email)}
-      </Avatar>
     </Box>
   );
 };

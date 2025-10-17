@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../csrfClient';
+import Header from '@/components/header';
 import {
   Drawer,
   List,
@@ -285,6 +286,9 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
             </ListItemButton>
           </ListItem>
         </List>
+      </Box>
+      <Box className="profile-container">
+      <Header />
       </Box>
     </Drawer>
   );

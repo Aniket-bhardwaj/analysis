@@ -38,6 +38,13 @@
   flex-shrink: 0;
 }
 
+.profile-container {
+  align-self: left;
+  padding-left: 30px;
+  position: absolute;
+  bottom: 2rem;
+}
+
 .dashboard-drawer-paper {
   width: 280px;
   box-sizing: border-box;
@@ -52,10 +59,10 @@
 }
 
 .logo-image {
-  max-width: 65px;
+  max-width: 120px;
   height: auto;
   margin-bottom: 8px;
-  margin-left: 10px;
+  margin-left: 60px;
 }
 
 /* Menu Navigation */

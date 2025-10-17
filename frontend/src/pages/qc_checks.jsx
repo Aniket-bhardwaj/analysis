@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Header from '@/components/header';
 import { useParams, useLocation } from 'react-router-dom';
 import { apiFetch } from '../csrfClient';
 
@@ -367,7 +366,6 @@ const QCChecks = () => {
                 selectedFile={selectedFileId}
                 selectedDateRange={selectedDateRange}
               />
-              <Header />
             </Stack>
           </Box>
 

@@ -84,7 +84,7 @@ const LoginPage = () => {
         </div>
         <div className="relative z-10 p-20 h-full flex flex-col">
           <div className="mb-8">
-            <img src="/images/whitelogoiitk.png" alt="Mati Logo" className="h-24 w-auto" />
+            <img src="/images/whitelogoiitk.png" alt="IITK Logo" className="h-40 w-auto" />
           </div>
           <div className="mt-auto">
             <h1 className="text-[56px] font-poppins font-light text-white leading-[67px]">

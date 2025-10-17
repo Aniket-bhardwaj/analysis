@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../csrfClient';
 import { TrendingUp, Database, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import Navbar from '@/components/navbar';
-import Header from '@/components/header'; // Step 1: Import the Header
 import QCGraph from '@/components/qc_graph';
 import '../styles/homepage.css';
 
@@ -111,7 +110,6 @@ const DashboardPage = () => {
               </p>
             </div>
             {/* The new header component is placed here */}
-            <Header />
           </div>
         </div>
 

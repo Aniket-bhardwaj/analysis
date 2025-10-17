@@ -2,7 +2,6 @@ import { ensureCsrf, apiFetch } from '../csrfClient';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '@/components/navbar';
-import Header from '@/components/header';
 import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import {
@@ -727,7 +726,6 @@ const handleDownloadPdf = async (fileId) => {
           <Typography variant="h4" className="page-title">
             Data Manager
           </Typography>
-          <Header />
         </Box>
         
         {isAdmin && (

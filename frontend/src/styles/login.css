@@ -12,4 +12,7 @@ html, body {
   height: 100%;
 }
 
+.mb-8 {
+  padding-left: 12rem;
+}
 /* Import fonts */
