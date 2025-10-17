@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Avatar } from '@mui/material';
+import { ensureCsrf, apiFetch } from '../csrfClient';
 
 // Helper function to get initials from an email address
 const getInitials = (email = '') => {
@@ -12,27 +13,48 @@ const Header = () => {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    try {
-      const userDataString = sessionStorage.getItem('user');
-      if (userDataString) {
-        // As seen in LoginPage.jsx, the user object is nested within the session data
-        const userData = JSON.parse(userDataString).user;
+  const userDataString = sessionStorage.getItem('user');
+  if (!userDataString) return;
 
-        // Derive a display username from the email (e.g., "admin@gmail.com" -> "admin")
-        const username = userData.email.split('@')[0];
+  const userData = JSON.parse(userDataString).user;
+  const username = userData.email.split('@')[0];
 
-        // Use the organization name provided from the backend.
-        // This assumes your /auth/login endpoint returns `org_name` in the user object.
-        // If it's missing, it falls back to showing the organization ID.
-        const orgName = userData.org_id==1? 'Main Lab' : (userData.org_id==2? 'Client Lab A' : 'Client Lab B'); //To Fix
+  // 1️⃣ Set initial user state with org_id only (no org_name yet)
+  setUser({ ...userData, username, org_name: 'Loading...' });
 
-        setUser({ ...userData, username, org_name: orgName });
+  // 2️⃣ Fetch organization list (like you do in admin useEffect)
+  apiFetch(`${import.meta.env.VITE_API_URL}/organizations`, { method: 'GET' })
+    .then((res) => {
+      if (res.ok && Array.isArray(res.data)) {
+        // 3️⃣ Find matching organization by ID
+        const matchedOrg = res.data.find(
+          (org) => String(org.id) === String(userData.org_id)
+        );
+
+        // 4️⃣ Update user with fetched org_name
+        setUser({
+          ...userData,
+          username,
+          org_name: matchedOrg ? matchedOrg.name : `Org #${userData.org_id}`,
+        });
+      } else {
+        console.warn('Failed to fetch organizations or no data returned');
+        setUser({
+          ...userData,
+          username,
+          org_name: `Org #${userData.org_id}`,
+        });
       }
-    } catch (error) {
-      console.error('Failed to parse user data from sessionStorage:', error);
-      setUser(null); // Clear user state on error
-    }
-  }, []);
+    })
+    .catch((err) => {
+      console.error('Error fetching organization name:', err);
+      setUser({
+        ...userData,
+        username,
+        org_name: `Org #${userData.org_id}`,
+      });
+    });
+}, []);
 
   if (!user) {
     // Return null or a loading placeholder. Null avoids layout shifts.
