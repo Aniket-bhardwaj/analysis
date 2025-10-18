@@ -41,7 +41,7 @@ const DashboardPage = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = response.data;
+      const result = response.data.data;
       setDashboardData(result);
       setLastRefresh(new Date());
       setError(null);
