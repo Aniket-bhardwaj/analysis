@@ -34,7 +34,7 @@ const miniTableService = {
 
           return {
             timestamp: timeField,
-            value: isNaN(rawVal) ? null : rawVal,
+            value: isNaN(rawVal) ? null : rawVal.toFixed(3),
             units: unit,
             errorPercentage: errorPercent,
             status,
@@ -88,7 +88,7 @@ const miniTableService = {
 
         return {
           timestamp: timeField,
-          value: isNaN(rawVal) ? null : rawVal,
+          value: isNaN(rawVal) ? null : rawVal.toFixed(3),
           sjsStd: errorFactor,
           tolerance: errorTolerance,
           actual: errorPercent,
