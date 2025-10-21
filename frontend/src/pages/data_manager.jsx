@@ -70,6 +70,8 @@ const DataManagerPage = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all'); // TWEAKED: Default state for filter category
+  const [selectedValue, setSelectedValue] = useState(''); // ADDED: State for the second dropdown's value
   const [expandedFileId, setExpandedFileId] = useState(null);
   const [selectedFileId, setSelectedFileId] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -632,25 +634,77 @@ const handleDownloadPdf = async (fileId) => {
   };
 
   // --- MEMOIZED FILTERING & DERIVED STATE ---
+
+  // ADDED: Memoized hook to generate unique options for the second dropdown
+  const filterOptions = useMemo(() => {
+    if (filterType === 'all' || !files.length) return [];
+    
+    const valueMap = {
+      name: file => file.name,
+      user: file => file.user,
+      uploadDate: file => file.uploadDate,
+    };
+
+    const keyAccessor = valueMap[filterType];
+    if (!keyAccessor) return [];
+
+    const uniqueValues = [...new Set(files.map(keyAccessor))];
+    return uniqueValues.sort();
+  }, [files, filterType]);
+
+  // TWEAKED: Main filtering logic to handle the new two-step filter and search interaction
   const filteredFiles = useMemo(() => {
-    if (!searchQuery) return files;
-    const query = searchQuery.toLowerCase();
-    // Using the original, correct file properties for filtering
-    return files.filter(
-      (file) =>
-        file.name.toLowerCase().includes(query) ||
-        file.user.toLowerCase().includes(query) ||
-        file.email.toLowerCase().includes(query) ||
-        file.uploadDate.toLowerCase().includes(query)
-    );
-  }, [files, searchQuery]);
+    let tempFiles = [...files];
+
+    // 1. Apply dropdown filter if a specific value is selected
+    if (filterType !== 'all' && selectedValue) {
+      tempFiles = tempFiles.filter(file => {
+        if (filterType === 'name') return file.name === selectedValue;
+        if (filterType === 'user') return file.user === selectedValue;
+        if (filterType === 'uploadDate') return file.uploadDate === selectedValue;
+        return true;
+      });
+    }
+
+    // 2. Apply search query on the result of the dropdown filter (or on all files)
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      
+      // If no filter is applied, search works across all fields
+      if (filterType === 'all' || !selectedValue) {
+        return tempFiles.filter(
+          (file) =>
+            file.name.toLowerCase().includes(query) ||
+            file.user.toLowerCase().includes(query) ||
+            file.email.toLowerCase().includes(query) ||
+            file.uploadDate.toLowerCase().includes(query)
+        );
+      } else {
+      // If a filter IS applied, search within the already filtered results
+        return tempFiles.filter(
+          (file) =>
+            file.name.toLowerCase().includes(query) ||
+            file.user.toLowerCase().includes(query) ||
+            file.email.toLowerCase().includes(query) ||
+            file.uploadDate.toLowerCase().includes(query)
+        );
+      }
+    }
+
+    return tempFiles;
+  }, [files, searchQuery, filterType, selectedValue]);
 
   const paginatedFiles = filteredFiles.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
 
   // --- EFFECTS ---
   useEffect(() => {
     setPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, filterType, selectedValue]); // TWEAKED: Reset page when selectedValue changes
+
+  // ADDED: Reset second dropdown when filter category changes
+  useEffect(() => {
+    setSelectedValue('');
+  }, [filterType]);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -729,8 +783,49 @@ const handleDownloadPdf = async (fileId) => {
         </Box>
         
         {isAdmin && (
+
           <Card className="upload-card">
-            <CardContent>
+            
+            <CardContent className='upload-place'>
+              {/* --- Admin override selectors --- */}
+                    {isAdmin && (
+                      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'left', px: '10px' }}>
+                        <TextField
+                          select
+
+                          value={targetOrgId}
+                          onChange={(e) => setTargetOrgId(e.target.value)}
+                          SelectProps={{ native: true }}
+                          sx={{ width: '250px' }}
+                        >
+                          <option value="">-- Choose Organization --</option>
+                          {orgList.map((org) => (
+                            <option key={org.id} value={org.id}>
+                              {org.name}
+                            </option>
+                          ))}
+                        </TextField>
+                      </Box>
+                    )}
+                    {/* --- Season selecting dropdown --- */}
+                    {isAdmin && (
+                      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'left', px: '10px' }}>
+                        <TextField
+                          select
+
+                          value={targetOrgId}
+                          onChange={(e) => setTargetOrgId(e.target.value)}
+                          SelectProps={{ native: true }}
+                          sx={{ width: '250px' }}
+                        >
+                          {/* fix this  */}
+                          <option value="">-- Choose season --</option>
+                          <option value="rabi">Rabi</option>
+                          <option value="kharif">Kharif</option>
+                          <option value="zaid">Zaid</option> 
+                        </TextField>
+                      </Box>
+                    )}
               <Box
                 className={`upload-zone ${dragActive ? 'drag-active' : ''}`}
                 onDragEnter={handleDrag}
@@ -753,6 +848,8 @@ const handleDownloadPdf = async (fileId) => {
                   </Box>
                 ) : (
                   <Box className="upload-normal-state">
+                     
+                    <Box className="upload-section">
                     <Button
                       variant="contained"
                       component="label"
@@ -799,27 +896,6 @@ const handleDownloadPdf = async (fileId) => {
                         )}
                       </Box>
                     )}
-                    {/* --- Admin override selectors --- */}
-                    {isAdmin && (
-                      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
-                        <TextField
-                          select
-
-                          value={targetOrgId}
-                          onChange={(e) => setTargetOrgId(e.target.value)}
-                          SelectProps={{ native: true }}
-                          sx={{ width: '250px' }}
-                        >
-                          <option value="">-- Choose Organization --</option>
-                          {orgList.map((org) => (
-                            <option key={org.id} value={org.id}>
-                              {org.name}
-                            </option>
-                          ))}
-                        </TextField>
-                      </Box>
-                    )}
-
                     <Button
                       variant="contained"
                       color="primary"
@@ -830,6 +906,7 @@ const handleDownloadPdf = async (fileId) => {
                       Upload
                     </Button>
                   </Box>
+                  </Box>
                 )}
               </Box>
             </CardContent>
@@ -837,48 +914,64 @@ const handleDownloadPdf = async (fileId) => {
         )}
 
 
-        {/* --- SEARCH BAR --- */}
-        <Box sx={{ my: 2 }}>
+        {/* --- TWEAKED: SEARCH BAR & DYNAMIC FILTERS --- */}
+        <Box sx={{ my: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+          {/* First Dropdown: Filter Category */}
+          <TextField
+            select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            variant="outlined"
+            SelectProps={{ native: true }}
+            sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '25px' } }}
+          >
+            <option value="all">Filter by...</option>
+            <option value="name">Filename</option>
+            <option value="user">Username</option>
+            <option value="uploadDate">Upload Date</option>
+          </TextField>
+
+          {/* Second Dropdown: Specific Value (Conditional) */}
+          {filterType !== 'all' && (
+            <TextField
+              select
+              value={selectedValue}
+              onChange={(e) => setSelectedValue(e.target.value)}
+              variant="outlined"
+              SelectProps={{ native: true }}
+              sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: '25px' } }}
+              disabled={!filterOptions.length}
+            >
+              <option value="">{`-- Select ${filterType === 'uploadDate' ? 'Date' : filterType.charAt(0).toUpperCase() + filterType.slice(1)} --`}</option>
+              {filterOptions.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </TextField>
+          )}
+
+          {/* Search Bar */}
           <TextField
             variant="outlined"
             fullWidth
-            placeholder="Search by filename, upload date, or username"
+            placeholder="Search by file name, Username or Upload Date"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: '#9e9e9e' }} />
-                </InputAdornment>
-              ),
-              endAdornment: searchQuery && (
-                <InputAdornment position="end">
-                  <IconButton onClick={() => setSearchQuery('')} edge="end" size="small">
-                    <ClearIcon sx={{ color: '#9e9e9e' }} />
-                  </IconButton>
-                </InputAdornment>
-              ),
+              startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ color: '#9e9e9e' }} /></InputAdornment>),
+              endAdornment: searchQuery && (<InputAdornment position="end"><IconButton onClick={() => setSearchQuery('')} edge="end" size="small"><ClearIcon sx={{ color: '#9e9e9e' }} /></IconButton></InputAdornment>),
             }}
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '25px',
                 backgroundColor: '#ffffff',
                 boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-                '&:hover fieldset': {
-                  borderColor: '#b0b0b0',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#1976d2',
-                  boxShadow: '0 0 0 3px rgba(25, 118, 210, 0.2)',
-                },
+                '&:hover fieldset': { borderColor: '#b0b0b0' },
+                '&.Mui-focused fieldset': { borderColor: '#1976d2', boxShadow: '0 0 0 3px rgba(25, 118, 210, 0.2)' },
               },
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#e0e0e0',
-              },
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e0e0e0' },
             }}
           />
         </Box>
-
         {/* --- FILES TABLE (ORIGINAL STRUCTURE) --- */}
         <Card className="files-table-card">
           <CardContent>
@@ -894,8 +987,8 @@ const handleDownloadPdf = async (fileId) => {
                     <TableCell className="table-cell-header" align="center">
                       Quality Check
                     </TableCell>
-                    <TableCell className="table-cell-header">Type</TableCell>
-                    <TableCell className="table-cell-header">User</TableCell>
+                    <TableCell className="table-cell-header">Season</TableCell>
+                    <TableCell className="table-cell-header">Organization</TableCell>
                     <TableCell className="table-cell-header">Upload Date</TableCell>
                     <TableCell className="table-cell-header">Actions</TableCell>
                   </TableRow>
@@ -1254,3 +1347,4 @@ const handleDownloadPdf = async (fileId) => {
 };
 
 export default DataManagerPage;
+
