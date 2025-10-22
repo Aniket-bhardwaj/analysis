@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../csrfClient';
 import Header from '@/components/header';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+
 import {
   Drawer,
   List,
@@ -85,7 +87,6 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
     >
       <Box className="logo-container">
         <img src="/images/bluelogoiitk.png" alt="IITK Logo" className="logo-image" />
-        <hr/>
         <List className="menu-list">
           {/* Dashboard */}
           <ListItem disablePadding className="menu-list-item">
@@ -267,6 +268,40 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
             </List>
           </Collapse>
 
+
+          {/* Manage Access (Admin only) */}
+          {(() => {
+            const userData = sessionStorage.getItem('user');
+            const user = userData ? JSON.parse(userData).user : null;
+            const isAdmin = user?.is_admin || user?.role === 'admin';
+            if (!isAdmin) return null;
+
+            return (
+              <ListItem disablePadding className="menu-list-item">
+                <ListItemButton
+                  onClick={() => handleItemClick('Manage Access', '/admin/manage-access')}
+                  className={`menu-button ${
+                    selectedItem === 'Manage Access'
+                      ? 'menu-button-selected'
+                      : 'menu-button-default'
+                  }`}
+                >
+                  <ListItemIcon>
+                    <AdminPanelSettingsIcon />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Manage Access"
+                    primaryTypographyProps={{
+                      className:
+                        selectedItem === 'Manage Access'
+                          ? 'menu-text-selected'
+                          : 'menu-text-default',
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            );
+          })()}
           {/* Logout */}
           <ListItem disablePadding className="menu-list-item">
             <ListItemButton
@@ -287,7 +322,6 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
             </ListItemButton>
           </ListItem>
         </List>
-        <hr/>
       </Box>
       <Box className="profile-container">
       <Header />

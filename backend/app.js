@@ -20,7 +20,7 @@ const { conditionalCsrf } = require("./middleware/csrf");
 const app = express();
 const PORT = process.env.PORT || 8080;
 const isProd = process.env.NODE_ENV === "production";
-
+const adminRoutes = require("./routes/admin");
 app.disable("x-powered-by");
 
 // Minimal, safe-by-default Permissions Policy
@@ -156,7 +156,7 @@ app.use("/api", isAuthenticated, attachRBAC, qcCheckRoutes);
 app.use("/api", isAuthenticated, attachRBAC, dashboardRoutes);
 app.use("/api", isAuthenticated, attachRBAC, sampleRoutes);
 app.use("/api", isAuthenticated, attachRBAC, elementRoutes);
-
+app.use("/api/admin", isAuthenticated, attachRBAC, adminRoutes);
 
 app.use((err, req, res, next) => {
   if (

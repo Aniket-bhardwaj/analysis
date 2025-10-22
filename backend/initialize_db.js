@@ -264,7 +264,9 @@ db.serialize(() => {
   const schemaMap = {
     organizations: {
       id: "INTEGER PRIMARY KEY AUTOINCREMENT",
-      name: "TEXT UNIQUE NOT NULL"
+      name: "TEXT UNIQUE NOT NULL",
+      active: "INTEGER DEFAULT 1",
+      created_at: "DATETIME"
     },
     users: {
       id: "INTEGER PRIMARY KEY AUTOINCREMENT",
@@ -358,6 +360,19 @@ db.serialize(() => {
   };
 
   Object.entries(schemaMap).forEach(([table, columns]) => ensureTable(table, columns));
+  // --- One-time backfill for organizations.created_at ---
+  db.all(`PRAGMA table_info(organizations)`, (err, cols) => {
+    if (!err && cols.some(c => c.name === 'created_at')) {
+      db.run(`
+        UPDATE organizations 
+        SET created_at = CURRENT_TIMESTAMP 
+        WHERE created_at IS NULL
+      `, (e2) => {
+        if (e2) console.error(" Failed to backfill created_at:", e2.message);
+        else console.log("organizations.created_at backfilled where missing.");
+      });
+    }
+  });
 
   db.serialize(() => {
     console.log("🔩 Ensuring indexes...");

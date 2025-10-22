@@ -8,7 +8,7 @@ import DataManagerPage from './pages/data_manager';
 import QCChecks from './pages/qc_checks';
 import AnalysisPage from './pages/analysis';
 import MainLayout from './MainLayout';
-
+import ManageAccessPage from './pages/admin/manage-access';
 // If ProtectedRoute is at src/ProtectedRoute.jsx use "./ProtectedRoute"
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -30,6 +30,7 @@ export default function AppRoutes() {
         <Route path="/data-manager" element={<DataManagerPage />} />
         <Route path="/qc-checks/:section?" element={<QCChecks />} />
         <Route path="/analysis/*" element={<AnalysisPage />} />
+        <Route path="/admin/manage-access" element={<ManageAccessPage />} />
       </Route>
 
       {/* fallback */}
