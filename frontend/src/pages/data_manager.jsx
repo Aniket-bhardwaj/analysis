@@ -792,6 +792,7 @@ const handleDownloadPdf = async (fileId) => {
           <Card className="upload-card">
             
             <CardContent className='upload-place'>
+              <Box>
               {/* --- Admin override selectors --- */}
                     {isAdmin && (
                       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'left', px: '10px' }}>
@@ -814,7 +815,7 @@ const handleDownloadPdf = async (fileId) => {
                     )}
                     {/* --- Season selecting dropdown --- */}
                     {isAdmin && (
-                      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'left', px: '10px' }}>
+                      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'left', px: '10px', position: 'relative' }}>
                         <TextField
                           select
                           value={selectedSeason}
@@ -828,6 +829,7 @@ const handleDownloadPdf = async (fileId) => {
                         </TextField>
                       </Box>
                     )}
+                    </Box>
               <Box
                 className={`upload-zone ${dragActive ? 'drag-active' : ''}`}
                 onDragEnter={handleDrag}

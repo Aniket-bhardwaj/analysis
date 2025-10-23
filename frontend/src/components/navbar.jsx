@@ -87,6 +87,7 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
     >
       <Box className="logo-container">
         <img src="/images/bluelogoiitk.png" alt="IITK Logo" className="logo-image" />
+        <hr/>
         <List className="menu-list">
           {/* Dashboard */}
           <ListItem disablePadding className="menu-list-item">
@@ -322,6 +323,7 @@ const Navbar = ({ selectedItem, setSelectedItem }) => {
             </ListItemButton>
           </ListItem>
         </List>
+        <hr/>
       </Box>
       <Box className="profile-container">
       <Header />
