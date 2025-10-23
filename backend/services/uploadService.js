@@ -60,7 +60,8 @@ async function insertAllData(
   pdfSavedPath,
   orgId,
   createdByUserId,
-  isAdmin = false 
+  isAdmin = false,
+  season = 'pre_basalt'
 ) {
   let fileId;
 
@@ -72,11 +73,12 @@ async function insertAllData(
     const fileRow = await fileModel.insertFile(
       originalName,
       savedFilePath,
-      fileType,            // 👈 replace csvType with fileType
+      fileType,            
       pdfOriginalName,
       pdfSavedPath,
       orgId,
-      createdByUserId
+      createdByUserId,
+      season
     );
 
     fileId = fileRow.id;

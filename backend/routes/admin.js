@@ -13,11 +13,6 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// Helper: generate secure random password (used only as fallback)
-function generateTempPassword(length = 10) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@$!';
-  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-}
 
 /* ============================================================
    ORGANIZATION MANAGEMENT

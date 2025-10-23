@@ -26,7 +26,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // Global safeguard for runtime DB errors
 db.on("error", (err) => {
   if (err?.message?.includes("duplicate column name: parent_id")) {
-    console.log("⚠️ parent_id already exists (ignored).");
+    console.log("parent_id already exists (ignored).");
   } else {
     console.error(" SQLite emitted an error:", err.message);
   }
@@ -40,7 +40,7 @@ db.run("PRAGMA journal_mode = WAL");
 // Base Schema Creation
 // ----------------------------------------------------
 db.serialize(() => {
-  // 1️⃣ Organizations
+  //  Organizations
   db.run(`
     CREATE TABLE IF NOT EXISTS organizations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,7 +48,7 @@ db.serialize(() => {
     )
   `);
 
-  // 2️⃣ Uploaded Files
+  //  Uploaded Files
   db.run(`
     CREATE TABLE IF NOT EXISTS uploaded_files (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,12 +62,12 @@ db.serialize(() => {
       org_id INTEGER DEFAULT 1,
       created_by_user_id INTEGER,
       parent_id INTEGER DEFAULT NULL,
-      FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      season TEXT DEFAULT 'pre_basalt',
       FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
     )
   `);
 
-  // 3️⃣ Sample Data
+  //  Sample Data
   const colsDef = completeHeaders.map((col) => `"${col}" TEXT`).join(", ");
   db.run(`
     CREATE TABLE IF NOT EXISTS sample_data (
@@ -78,7 +78,7 @@ db.serialize(() => {
     )
   `);
 
-  // 4️⃣ Mapping Table
+  //  Mapping Table
   db.run(`
     CREATE TABLE IF NOT EXISTS sample_id_X_file_id (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,7 +89,7 @@ db.serialize(() => {
     )
   `);
 
-  // 5️⃣ QC Data
+  //  QC Data
   const colsDef2 = qcHeaders.map((col) => `"${col}" TEXT`).join(", ");
   db.run(`
     CREATE TABLE IF NOT EXISTS qc_data (
@@ -111,7 +111,7 @@ db.serialize(() => {
     )
   `);
 
-  // 6️⃣ Rest Data
+  //  Rest Data
   const colsDef3 = rest_dataHeaders.map((col) => `"${col}" TEXT`).join(", ");
   db.run(`
     CREATE TABLE IF NOT EXISTS rest_data (
@@ -122,74 +122,6 @@ db.serialize(() => {
     )
   `);
 
-// <<<<<<< HEAD
-//   // 7️⃣ SJS Table
-//   const allCols = [...OTstdcleaned, ...OMstdcleaned];
-//   const columnDefs = allCols.map((col) => `"${col}" TEXT`).join(", ");
-//   db.run(
-//     `CREATE TABLE IF NOT EXISTS sjs (
-// =======
-//   // ---------------------------
-//   // Table: sjs
-//   // ---------------------------
-
-//   // Merge trace + major element names
-//   const allCols = [...OTstdcleaned, ...OMstdcleaned];
-//   const columnDefs = allCols.map(col => `"${col}" TEXT`).join(', ');
-  
-//   const createTableSQL = `
-//     CREATE TABLE IF NOT EXISTS sjs (
-// >>>>>>> 957ba64e058e3187abc2493f2c2974d68ad92b64
-//       id INTEGER PRIMARY KEY,
-//       label TEXT NOT NULL,
-// <<<<<<< HEAD
-//       ${columnDefs},
-//       error_pct REAL,
-//       tolerance_pct REAL,
-//       rsd_pct REAL,
-//       status TEXT,
-//       FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
-//     )`,
-//     (err) => {
-//       if (err) console.error("Error creating sjs table:", err.message);
-//       else console.log("sjs table created.");
-//     }
-//   );
-// =======
-//       ${columnDefs}
-//     );
-//   `;
-
-//   db.run(createTableSQL, (err) => {
-//     if (err) return console.error(' Error creating sjs table:', err);
-//     console.log('sjs table created.');
-
-//     // Prepare insert query with 81 placeholders (1 id + 1 label + 61 + 18 = 81)
-//     const placeholders = Array(allCols.length + 2).fill('?').join(', ');
-//     const insertSQL = `INSERT OR IGNORE INTO sjs VALUES (${placeholders})`;
-
-//     // Build the rows
-//     const row1 = [1, 'SJS-Std', ...Tval, ...Mval];
-//     const row2 = [2, 'Error', ...Terr, ...Merr];
-
-//     // Insert both rows
-//     db.run(insertSQL, row1, (err) => {
-//       if (err) {
-//           console.error(' Error inserting Row 1 (SJS-Std):', err.message);
-//       } else if (this.changes > 0) {
-//           console.log('Row 1 (SJS-Std) inserted');
-//       }
-//     });
-
-//     db.run(insertSQL, row2, (err) => {
-//         if (err) {
-//             console.error(' Error inserting Row 2 (Error):', err.message);
-//         } else if (this.changes > 0) {
-//             console.log('Row 2 (Error) inserted');
-//         }
-//     });
-//   });
-// >>>>>>> 957ba64e058e3187abc2493f2c2974d68ad92b64
 
   // ---------------------------
   // Table: sjs
@@ -219,9 +151,9 @@ db.serialize(() => {
     // Build the rows
     const row1 = [1, 'SJS-Std', ...Tval, ...Mval];
     const row2 = [2, 'Error', ...Terr, ...Merr];
-    console.log('➡️ allCols length:', allCols.length);
-    console.log('➡️ row1 length:', row1.length, 'row2 length:', row2.length);
-    console.log('➡️ placeholders count:', allCols.length + 2);
+    console.log('allCols length:', allCols.length);
+    console.log('row1 length:', row1.length, 'row2 length:', row2.length);
+    console.log('placeholders count:', allCols.length + 2);
     // Insert both rows
     db.run(insertSQL, row1, (err) => {
       if (err) {
@@ -240,7 +172,7 @@ db.serialize(() => {
     });
   });
 
-  // 8️⃣ Users
+  //  Users
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -256,7 +188,7 @@ db.serialize(() => {
 });
 
 // ----------------------------------------------------
-// 💪 UNIVERSAL AUTO-MIGRATOR (Full Self-Healing Schema)
+// UNIVERSAL AUTO-MIGRATOR 
 // ----------------------------------------------------
 db.serialize(() => {
   console.log("🔧 Running universal auto-migration (tables + columns)…");
@@ -288,7 +220,8 @@ db.serialize(() => {
       hidden: "INTEGER DEFAULT 0",
       org_id: "INTEGER DEFAULT 1",
       created_by_user_id: "INTEGER DEFAULT NULL",
-      parent_id: "INTEGER DEFAULT NULL"
+      parent_id: "INTEGER DEFAULT NULL",
+      season: "TEXT DEFAULT 'pre_basalt'"
     },
     sample_data: {
       id: "INTEGER PRIMARY KEY AUTOINCREMENT",
@@ -306,12 +239,10 @@ db.serialize(() => {
     },
     sjs: {
       id: "INTEGER PRIMARY KEY AUTOINCREMENT",
-      // file_id: "INTEGER NOT NULL",
+
       label: "TEXT",
-      // error_pct: "REAL",
-      // tolerance_pct: "REAL",
-      // rsd_pct: "REAL",
-      // status: "TEXT"
+
+
     }
   };
 
@@ -375,7 +306,7 @@ db.serialize(() => {
   });
 
   db.serialize(() => {
-    console.log("🔩 Ensuring indexes...");
+    console.log("Ensuring indexes...");
     db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_org_hidden ON uploaded_files (org_id, hidden)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_created_by ON uploaded_files (created_by_user_id)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_uploaded_at ON uploaded_files (uploaded_at)`);
@@ -389,6 +320,7 @@ db.serialize(() => {
 // ----------------------------------------------------
 // Default Seeds
 // ----------------------------------------------------
+
 db.serialize(() => {
   db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (1, 'Main Lab')`);
   db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (2, 'Client Lab A')`);

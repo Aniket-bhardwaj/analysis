@@ -34,8 +34,9 @@
   });
   const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 
+
   // =====================================================
-  //  Admin-only CSV + PDF upload
+  //  Admin-only CSV + PDF upload (with season)
   // =====================================================
   router.post(
     '/upload-files',
@@ -50,8 +51,36 @@
       { name: 'csvfile', maxCount: 1 },
       { name: 'pdffile', maxCount: 1 },
     ]),
+    // ✅ Pass along the `season` (handled inside uploadController.uploadFile)
+    (req, res, next) => {
+      // Make sure season is available to controller
+      if (!req.body.season) {
+        console.warn('⚠️ No season field provided — defaulting to pre_basalt');
+        req.body.season = 'pre_basalt';
+      }
+      next();
+    },
     uploadFile
   );
+
+  // // =====================================================
+  // //  Admin-only CSV + PDF upload
+  // // =====================================================
+  // router.post(
+  //   '/upload-files',
+  //   (req, res, next) => {
+  //     const isAdmin = req?.rbac?.isAdmin || req?.user?.is_admin === 1;
+  //     if (!isAdmin) {
+  //       return res.status(403).json({ error: 'Only admins can upload main CSV and PDF files.' });
+  //     }
+  //     next();
+  //   },
+  //   upload.fields([
+  //     { name: 'csvfile', maxCount: 1 },
+  //     { name: 'pdffile', maxCount: 1 },
+  //   ]),
+  //   uploadFile
+  // );
 
   // =====================================================
   //  Legacy single-file CSV upload (admin only)

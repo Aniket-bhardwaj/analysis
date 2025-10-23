@@ -93,20 +93,24 @@ const DataManagerPage = () => {
   const [loadingAttachments, setLoadingAttachments] = useState(false);
   const [targetOrgId, setTargetOrgId] = useState('');
   const [orgList, setOrgList] = useState([]);
+  const [selectedSeason, setSelectedSeason] = useState('');
+
 
   const storedUser = sessionStorage.getItem('user');
   let isAdmin = false;
 
   try {
-    const userObj = storedUser ? JSON.parse(storedUser).user : null;
-    isAdmin =
-      userObj &&
-      (String(userObj.is_admin) === '1' ||
-        userObj.role?.toLowerCase() === 'admin' ||
-        userObj.email?.toLowerCase().includes('admin@'));
-  } catch (e) {
-    console.warn('Invalid user object in sessionStorage:', e);
-  }
+  const userObj = storedUser ? JSON.parse(storedUser).user : null;
+  isAdmin =
+    !!userObj &&
+    (userObj.is_admin === true ||
+     userObj.is_admin === 1 ||
+     userObj.role?.toLowerCase() === 'admin' ||
+     userObj.email?.toLowerCase().includes('admin@'));
+} catch (e) {
+  console.warn('Invalid user object in sessionStorage:', e);
+}
+
 
   // Utility to invalidate cached attachment fetch for a parent
   const invalidateAttachmentCache = (pid) => {
@@ -286,7 +290,8 @@ const DataManagerPage = () => {
       // Clear selected files
       setCsvFile(null);
       setPdfFile(null);
-      setTargetOrgId(''); // optional: reset dropdown after upload
+      setTargetOrgId(''); 
+      setSelectedSeason('');
     } catch (err) {
       console.error('Error uploading files:', err);
       setSnackbarMessage(err.message || 'Something went wrong during upload.');
@@ -812,17 +817,14 @@ const handleDownloadPdf = async (fileId) => {
                       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'left', px: '10px' }}>
                         <TextField
                           select
-
-                          value={targetOrgId}
-                          onChange={(e) => setTargetOrgId(e.target.value)}
+                          value={selectedSeason}
+                          onChange={(e) => setSelectedSeason(e.target.value)}
                           SelectProps={{ native: true }}
                           sx={{ width: '250px' }}
                         >
-                          {/* fix this  */}
-                          <option value="">-- Choose season --</option>
-                          <option value="rabi">Rabi</option>
-                          <option value="kharif">Kharif</option>
-                          <option value="zaid">Zaid</option> 
+                          <option value="">-- Choose Season --</option>
+                          <option value="pre_basalt">Pre Basalt</option>
+                          <option value="post_basalt">Post Basalt</option>
                         </TextField>
                       </Box>
                     )}
@@ -1025,8 +1027,20 @@ const handleDownloadPdf = async (fileId) => {
                           {renderQualityStatus(file.qualityStatus, file.name, file.id)}
                         </TableCell>
                         <TableCell className="table-cell">
-                          <Chip label={file.type} className="file-type-chip" size="small" />
+                          <Chip
+                            label={
+                              file.seasonLabel ||
+                              (file.season === "pre_basalt"
+                                ? "Pre Basalt"
+                                : file.season === "post_basalt"
+                                ? "Post Basalt"
+                                : "Unspecified")
+                            }
+                            color={file.season === "post_basalt" ? "primary" : "default"}
+                            size="small"
+                          />
                         </TableCell>
+
                         <TableCell className="table-cell">
                           <Box className="user-cell">
                             <Box className="user-info">

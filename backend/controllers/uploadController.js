@@ -59,7 +59,10 @@ const uploadFile = async (req, res) => {
   if (!orgId) {
     return res.status(401).json({ error: 'Unauthorized: missing org context' });
   }
-
+  const seasonRaw = req.body?.season || req.query?.season;
+  const season = ['pre_basalt', 'post_basalt'].includes((seasonRaw || '').toLowerCase())
+    ? seasonRaw.toLowerCase()
+    : 'pre_basalt';
 
   // === Upload handling remains unchanged ===
   const isMultiUpload = !!req.files;
@@ -124,7 +127,8 @@ const uploadFile = async (req, res) => {
         pdfSavedPathRel,
         orgId,       
         userId,
-        isAdmin
+        isAdmin,
+        season
       );
 
       if (insertError) throw new Error(insertError);
@@ -139,6 +143,7 @@ const uploadFile = async (req, res) => {
         return res.status(200).json({
           message: `File(s) uploaded and processed successfully for org ${orgId}`,
           fileId,
+          season
         });
       });
     } catch (err) {
@@ -167,7 +172,8 @@ const getFilesByOrg = async (req, res) => {
     const sql = `
       SELECT
         f.id, f.filename, f.file_path, f.pdfname, f.pdf_path, f.uploaded_at, f.type,
-        f.org_id, o.name AS org_name, u.email AS uploader_email
+        f.org_id, o.name AS org_name, u.email AS uploader_email,
+        f.season
       FROM uploaded_files f
       LEFT JOIN organizations o ON f.org_id = o.id
       LEFT JOIN users u ON f.created_by_user_id = u.id

@@ -190,13 +190,32 @@ function filterColumnsByKeys(rows, csvType,headers) {
 // -----------------------------
 // 🧪 Separate Samples from QC
 // -----------------------------
+// function splitSamplesAndQc(rows) {
+//   const samples = [], qc = [];
+//   for (const row of rows) {
+//     const label = row['Solution Label'];
+//     if (label.startsWith('MCS')) samples.push(row);
+//     else qc.push(row);
+//   }
+//   return { samples, qc };
+// }
 function splitSamplesAndQc(rows) {
   const samples = [], qc = [];
+
   for (const row of rows) {
-    const label = row['Solution Label'];
+    // Find the column that represents "Solution Label"
+    const labelKey = Object.keys(row).find(
+      k => k.toLowerCase().replace(/\s+/g, '') === 'solutionlabel'
+    );
+
+    const label = row[labelKey]?.trim() || '';
+
+    // Classify rows
     if (label.startsWith('MCS')) samples.push(row);
     else qc.push(row);
   }
+
+  console.log(`[splitSamplesAndQc] → Samples: ${samples.length}, QC: ${qc.length}`);
   return { samples, qc };
 }
 
