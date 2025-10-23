@@ -640,7 +640,7 @@ const handleDownloadPdf = async (fileId) => {
 
   // --- MEMOIZED FILTERING & DERIVED STATE ---
 
-  // ADDED: Memoized hook to generate unique options for the second dropdown
+  // TWEAKED: Memoized hook to generate unique options for the second dropdown
   const filterOptions = useMemo(() => {
     if (filterType === 'all' || !files.length) return [];
     
@@ -648,13 +648,35 @@ const handleDownloadPdf = async (fileId) => {
       name: file => file.name,
       user: file => file.user,
       uploadDate: file => file.uploadDate,
+      organization: file => file.user, // ADDED: Based on table logic, 'Organization' is file.user
+      season: file => file.season,       // ADDED
     };
 
     const keyAccessor = valueMap[filterType];
     if (!keyAccessor) return [];
 
-    const uniqueValues = [...new Set(files.map(keyAccessor))];
-    return uniqueValues.sort();
+    const uniqueValues = new Set(files.map(keyAccessor));
+
+    // MODIFIED to handle seasons cleanly
+    if (filterType === 'season') {
+      const seasonOptions = [];
+      if (uniqueValues.has('pre_basalt')) seasonOptions.push({ value: 'pre_basalt', label: 'Pre Basalt' });
+      if (uniqueValues.has('post_basalt')) seasonOptions.push({ value: 'post_basalt', label: 'Post Basalt' });
+      
+      // Check if any other values exist that aren't pre/post basalt
+      const otherValuesExist = [...uniqueValues].some(v => v !== 'pre_basalt' && v !== 'post_basalt');
+      if (otherValuesExist) {
+         // This assumes any other value should be grouped as "Unspecified"
+         // This matches the table chip's logic
+         seasonOptions.push({ value: 'Unspecified', label: 'Unspecified' }); 
+      }
+      return seasonOptions;
+    }
+    
+    // MODIFIED to return {value, label} for consistency
+    // For other filter types, value and label are the same
+    return [...uniqueValues].sort().map(val => (val ? { value: val, label: val } : { value: 'Unspecified', label: 'Unspecified' })).filter((v,i,a)=>a.findIndex(t=>(t.value === v.value))===i); // ensure unique values
+
   }, [files, filterType]);
 
   // TWEAKED: Main filtering logic to handle the new two-step filter and search interaction
@@ -667,6 +689,19 @@ const handleDownloadPdf = async (fileId) => {
         if (filterType === 'name') return file.name === selectedValue;
         if (filterType === 'user') return file.user === selectedValue;
         if (filterType === 'uploadDate') return file.uploadDate === selectedValue;
+        if (filterType === 'organization') { // ADDED
+          if (selectedValue === 'Unspecified') {
+            return !file.user;
+          }
+          return file.user === selectedValue;
+        }
+        if (filterType === 'season') { // ADDED
+           if (selectedValue === 'Unspecified') {
+             // Match anything that isn't pre or post basalt
+             return file.season !== 'pre_basalt' && file.season !== 'post_basalt';
+           }
+           return file.season === selectedValue;
+        }
         return true;
       });
     }
@@ -675,29 +710,39 @@ const handleDownloadPdf = async (fileId) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       
+      // ADDED: Helper function for season search
+      const getSeasonLabel = (season) => {
+        if (season === "pre_basalt") return "pre basalt";
+        if (season === "post_basalt") return "post basalt";
+        return "unspecified";
+      };
+      
       // If no filter is applied, search works across all fields
       if (filterType === 'all' || !selectedValue) {
         return tempFiles.filter(
           (file) =>
-            file.name.toLowerCase().includes(query) ||
-            file.user.toLowerCase().includes(query) ||
-            file.email.toLowerCase().includes(query) ||
-            file.uploadDate.toLowerCase().includes(query)
+            (file.name && file.name.toLowerCase().includes(query)) ||
+            (file.user && file.user.toLowerCase().includes(query)) || // This covers both user and organization
+            (file.email && file.email.toLowerCase().includes(query)) ||
+            (file.uploadDate && file.uploadDate.toLowerCase().includes(query)) ||
+            getSeasonLabel(file.season).includes(query) // ADDED: Search by season label
         );
       } else {
       // If a filter IS applied, search within the already filtered results
         return tempFiles.filter(
           (file) =>
-            file.name.toLowerCase().includes(query) ||
-            file.user.toLowerCase().includes(query) ||
-            file.email.toLowerCase().includes(query) ||
-            file.uploadDate.toLowerCase().includes(query)
+            (file.name && file.name.toLowerCase().includes(query)) ||
+            (file.user && file.user.toLowerCase().includes(query)) || // This covers both user and organization
+            (file.email && file.email.toLowerCase().includes(query)) ||
+            (file.uploadDate && file.uploadDate.toLowerCase().includes(query)) ||
+            getSeasonLabel(file.season).includes(query) // ADDED: Search by season label
         );
       }
     }
 
     return tempFiles;
   }, [files, searchQuery, filterType, selectedValue]);
+
 
   const paginatedFiles = filteredFiles.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
 
@@ -759,23 +804,6 @@ const handleDownloadPdf = async (fileId) => {
     );
   };
 
-  // const [selectedItem, setSelectedItem] = useState('Data Manager');
-  // // --- Determine user role ---
-  // const storedUser = sessionStorage.getItem('user');
-  // let isAdmin = false;
-
-  // try {
-  //   const userObj = storedUser ? JSON.parse(storedUser).user : null;
-  //   isAdmin =
-  //     userObj &&
-  //     (String(userObj.is_admin) === '1' ||
-  //     userObj.role?.toLowerCase() === 'admin' ||
-  //     userObj.email?.toLowerCase().includes('admin@'));
-  // } catch (e) {
-  //   console.warn('Invalid user object in sessionStorage:', e);
-  // }
-
-
   return (
     <Box className="dashboard-container file-upload-container">
       <Navbar selectedItem={selectedItem} setSelectedItem={setSelectedItem} />
@@ -815,7 +843,7 @@ const handleDownloadPdf = async (fileId) => {
                     )}
                     {/* --- Season selecting dropdown --- */}
                     {isAdmin && (
-                      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'left', px: '10px', position: 'relative' }}>
+                      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'left', px: '10px', position: 'relative'}}>
                         <TextField
                           select
                           value={selectedSeason}
@@ -882,6 +910,7 @@ const handleDownloadPdf = async (fileId) => {
                           gap: 2,
                           justifyContent: 'center',
                           alignItems: 'center',
+                          flexDirection: 'column'
                         }}
                       >
                         {csvFile && (
@@ -927,11 +956,12 @@ const handleDownloadPdf = async (fileId) => {
             onChange={(e) => setFilterType(e.target.value)}
             variant="outlined"
             SelectProps={{ native: true }}
-            sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '25px' } }}
+            sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: '25px' } }}
           >
             <option value="all">Filter by...</option>
             <option value="name">Filename</option>
-            <option value="user">Username</option>
+            <option value="organization">Organization</option> {/* ADDED */}
+            <option value="season">Season</option> {/* ADDED */}
             <option value="uploadDate">Upload Date</option>
           </TextField>
 
@@ -943,12 +973,19 @@ const handleDownloadPdf = async (fileId) => {
               onChange={(e) => setSelectedValue(e.target.value)}
               variant="outlined"
               SelectProps={{ native: true }}
-              sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: '25px' } }}
+              sx={{ minWidth: 220, '& .MuiOutlinedInput-root': { borderRadius: '25px' } }}
               disabled={!filterOptions.length}
             >
-              <option value="">{`-- Select ${filterType === 'uploadDate' ? 'Date' : filterType.charAt(0).toUpperCase() + filterType.slice(1)} --`}</option>
+              {/* MODIFIED to include new types */}
+              <option value="">{`-- Select ${
+                  filterType === 'uploadDate' ? 'Date' : 
+                  filterType === 'season' ? 'Season' : 
+                  filterType === 'organization' ? 'Organization' : 
+                  filterType.charAt(0).toUpperCase() + filterType.slice(1)
+                } --`}</option>
+              {/* MODIFIED to use {value, label} objects */}
               {filterOptions.map(option => (
-                <option key={option} value={option}>{option}</option>
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </TextField>
           )}
@@ -957,7 +994,7 @@ const handleDownloadPdf = async (fileId) => {
           <TextField
             variant="outlined"
             fullWidth
-            placeholder="Search by file name, Username or Upload Date"
+            placeholder="Search by File Name, Organization, Season or Upload Date" // MODIFIED
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             InputProps={{
