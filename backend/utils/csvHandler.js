@@ -187,18 +187,6 @@ function filterColumnsByKeys(rows, csvType,headers) {
   });
 }
 
-// -----------------------------
-// 🧪 Separate Samples from QC
-// -----------------------------
-// function splitSamplesAndQc(rows) {
-//   const samples = [], qc = [];
-//   for (const row of rows) {
-//     const label = row['Solution Label'];
-//     if (label.startsWith('MCS')) samples.push(row);
-//     else qc.push(row);
-//   }
-//   return { samples, qc };
-// }
 function splitSamplesAndQc(rows) {
   const samples = [], qc = [];
 
@@ -212,6 +200,7 @@ function splitSamplesAndQc(rows) {
 
     // Classify rows
     if (label.startsWith('MCS')) samples.push(row);
+    if (label.startsWith('MCB')) samples.push(row);
     else qc.push(row);
   }
 

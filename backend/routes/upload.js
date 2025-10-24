@@ -6,7 +6,7 @@
   const path = require('path');
   const fs = require('fs');
   const db = require('../initialize_db');
-  const { uploadFile, getFilesByOrg } = require('../controllers/uploadController');
+  const { uploadFile, getFilesByOrg, deleteBundle } = require('../controllers/uploadController');
 
 
   const router = express.Router();
@@ -51,7 +51,7 @@
       { name: 'csvfile', maxCount: 1 },
       { name: 'pdffile', maxCount: 1 },
     ]),
-    // ✅ Pass along the `season` (handled inside uploadController.uploadFile)
+    //  Pass along the `season` (handled inside uploadController.uploadFile)
     (req, res, next) => {
       // Make sure season is available to controller
       if (!req.body.season) {
@@ -64,23 +64,12 @@
   );
 
   // // =====================================================
-  // //  Admin-only CSV + PDF upload
+  // //  Admin Delete
   // // =====================================================
-  // router.post(
-  //   '/upload-files',
-  //   (req, res, next) => {
-  //     const isAdmin = req?.rbac?.isAdmin || req?.user?.is_admin === 1;
-  //     if (!isAdmin) {
-  //       return res.status(403).json({ error: 'Only admins can upload main CSV and PDF files.' });
-  //     }
-  //     next();
-  //   },
-  //   upload.fields([
-  //     { name: 'csvfile', maxCount: 1 },
-  //     { name: 'pdffile', maxCount: 1 },
-  //   ]),
-  //   uploadFile
-  // );
+
+  router.post('/delete-bundle/:fileId', deleteBundle);
+
+
 
   // =====================================================
   //  Legacy single-file CSV upload (admin only)

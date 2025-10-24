@@ -422,16 +422,16 @@ export default function ManageAccessPage() {
         <Alert
           severity={snackbar.severity}
           sx={{ width: "100%", display: "flex", alignItems: "center" }}
-          action={
-            <Tooltip title="Copy">
-              <IconButton
-                onClick={() => navigator.clipboard.writeText(snackbar.message)}
-                size="small"
-              >
-                <ContentCopyIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          }
+          // action={
+          //   <Tooltip title="Copy">
+          //     <IconButton
+          //       onClick={() => navigator.clipboard.writeText(snackbar.message)}
+          //       size="small"
+          //     >
+          //       <ContentCopyIcon fontSize="small" />
+          //     </IconButton>
+          //   </Tooltip>
+          // }
         >
           {snackbar.message}
         </Alert>

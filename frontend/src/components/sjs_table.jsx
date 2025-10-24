@@ -134,7 +134,7 @@ const SJSTable = ({ selectedFileId, selectedDateRange }) => {
 
       console.log('Mini table data for', element, json);
 
-      // ✅ unwrap the data payload
+      //  unwrap the data payload
       const payload = json?.data || json;
 
       if (Array.isArray(payload) || payload.miniTable) {

@@ -240,6 +240,9 @@ const DataManagerPage = () => {
     e.target.value = ''; // Reset input to allow re-selecting the same files
   };
 
+  
+
+  // --- FILE ACTIONS (DELETE, DOWNLOAD, REPLACE) ---
   const handleFileUpload = async (csv, pdf, isReplacement = false) => {
     if (!csv || !pdf) {
       setSnackbarMessage('Both a CSV and a PDF file are required.');
@@ -248,11 +251,15 @@ const DataManagerPage = () => {
       return;
     }
 
-    const userData = JSON.parse(sessionStorage.getItem('user')).user;
+    // Always resolve an explicit season value for backend
+    const effectiveSeason = selectedSeason?.trim() || 'pre_basalt';
+
+    const userData = JSON.parse(sessionStorage.getItem('user'))?.user;
 
     const formData = new FormData();
     formData.append('csvfile', csv);
     formData.append('pdffile', pdf);
+    formData.append('season', effectiveSeason);
 
     try {
       setIsUploading(true);
@@ -260,41 +267,63 @@ const DataManagerPage = () => {
 
       const token = await ensureCsrf();
 
-      // 🧠 Determine correct upload URL
-      // If admin selected a target org, append it as ?orgId=<id>
-      const uploadUrl = `${import.meta.env.VITE_API_URL}/upload-files${
-        isAdmin && targetOrgId ? `?orgId=${targetOrgId}` : ''
-      }`;
+      // Find the org name based on selected ID
+      const selectedOrg = orgList.find(org => org.id === targetOrgId);
+      const orgName = selectedOrg?.name?.trim() || '';
 
-      console.log('Uploading to:', uploadUrl);
+      const uploadUrl = `${import.meta.env.VITE_API_URL}/upload-files`;
+
+      // Add orgName to the form data (so backend receives it as part of POST body)
+      if (isAdmin && orgName) {
+        formData.append('orgName', orgName);
+      }
+
+
+      console.log(`Uploading to: ${uploadUrl} (season=${effectiveSeason})`);
 
       const res = await fetch(uploadUrl, {
         headers: { 'X-CSRF-Token': token },
-        credentials: 'include', // send cookies/session
+        credentials: 'include',
         method: 'POST',
         body: formData,
       });
 
+      //  Handle backend-supplied messages properly
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Upload failed (${res.status})`);
+        let data;
+        try {
+          data = await res.json();
+        } catch {
+          data = {};
+        }
+        const errMsg =
+          data?.error ||
+          data?.message ||
+          `Upload failed with status ${res.status}`;
+        throw new Error(errMsg);
       }
 
-      setSnackbarMessage(`File${isReplacement ? ' replaced' : 's uploaded'} successfully`);
+      const result = await res.json().catch(() => ({}));
+      const msg =
+        result?.message ||
+        `File${isReplacement ? ' replaced' : 's uploaded'} successfully`;
+
+      setSnackbarMessage(msg);
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
 
-      // Refresh file list
-      fetchUploadedFiles();
+      await fetchUploadedFiles();
 
-      // Clear selected files
+      //  Reset UI state
       setCsvFile(null);
       setPdfFile(null);
-      setTargetOrgId(''); 
+      setTargetOrgId('');
       setSelectedSeason('');
     } catch (err) {
       console.error('Error uploading files:', err);
-      setSnackbarMessage(err.message || 'Something went wrong during upload.');
+      const displayMsg =
+        err?.message || 'Something went wrong during upload.';
+      setSnackbarMessage(displayMsg);
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     } finally {
@@ -303,86 +332,9 @@ const DataManagerPage = () => {
     }
   };
 
-  // const handleFileUpload = async (csv, pdf, isReplacement = false) => {
-  //   if (!csv || !pdf) {
-  //     setSnackbarMessage('Both a CSV and a PDF file are required.');
-  //     setSnackbarSeverity('error');
-  //     setSnackbarOpen(true);
-  //     return;
-  //   }
-
-  //   const userData = JSON.parse(sessionStorage.getItem('user')).user;
-
-  //   const formData = new FormData();
-  //   formData.append('csvfile', csv);
-  //   formData.append('pdffile', pdf);
-  //   // formData.append('userId', userData.id);
-  //   try {
-  //     setIsUploading(true);
-  //     setUploadProgress(0);
-  //     console.log(formData);
-  //     const token = await ensureCsrf();
-  //     await fetch(`${import.meta.env.VITE_API_URL}/upload-files`, {
-  //       headers: {
-  //         'X-CSRF-Token': token,
-  //       },
-  //       credentials: 'include', // <-- IMPORTANT: This sends the session cookie
-  //       method: 'POST',
-  //       body: formData,
-  //     });
-  //     // const xhr = new XMLHttpRequest();
-  //     // xhr.upload.addEventListener('progress', (e) => {
-  //     //   if (e.lengthComputable) {
-  //     //     const percentComplete = (e.loaded / e.total) * 100;
-  //     //     setUploadProgress(Math.round(percentComplete));
-  //     //   }
-  //     // });
-
-  //     // const uploadPromise = new Promise((resolve, reject) => {
-  //     //   xhr.onload = () => {
-  //     //     try {
-  //     //       const response = JSON.parse(xhr.responseText || '{}');
-  //     //       if (xhr.status >= 200 && xhr.status < 300) {
-  //     //         resolve(response);
-  //     //       } else {
-  //     //         reject(new Error(response.error || 'Upload failed'));
-  //     //       }
-  //     //     } catch {
-  //     //       reject(new Error('Invalid server response.'));
-  //     //     }
-  //     //   };
-  //     //   xhr.onerror = () => reject(new Error('Network error during upload.'));
-  //     // });
-
-  //     // xhr.open('POST', `${import.meta.env.VITE_API_URL}/upload-files`);
-  //     // xhr.withCredentials = true;
-  //     // console.log('before csrf ensure');
-  //     // const token = await ensureCsrf();
-  //     // console.log('after csrf ensure');
-  //     // xhr.setRequestHeader('X-CSRF-Token', token);
-  //     // xhr.send(formData);
-
-  //     // await uploadPromise;
-  //     setSnackbarMessage(`File${isReplacement ? ' replaced' : 's uploaded'} successfully`);
-  //     setSnackbarSeverity('success');
-  //     setSnackbarOpen(true);
-  //     fetchUploadedFiles();
-
-  //     // Clear selected files after successful upload
-  //     setCsvFile(null);
-  //     setPdfFile(null);
-  //   } catch (err) {
-  //     console.error('Error uploading files:', err);
-  //     setSnackbarMessage(err.message || 'Something went wrong during upload.');
-  //     setSnackbarSeverity('error');
-  //     setSnackbarOpen(true);
-  //   } finally {
-  //     setIsUploading(false);
-  //     setUploadProgress(0);
-  //   }
-  // };
-
-  // --- FILE ACTIONS (DELETE, DOWNLOAD, REPLACE) ---
+  
+ 
+ 
   const handleDelete = async (id) => {
   if (!id) return;
   setConfirmDialogOpen(false);
@@ -633,6 +585,31 @@ const handleDownloadPdf = async (fileId) => {
     } catch (err) {
       console.error('Attachment delete failed:', err);
       setSnackbarMessage(err.message || 'Attachment delete failed.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+  const handleDeleteBundle = async (fileId) => {
+    if (!isAdmin || !fileId) return;
+    if (!window.confirm('Are you sure you want to delete this entire bundle (CSV, PDF, and attachments)?')) return;
+
+    try {
+      const res = await apiFetch(`${import.meta.env.VITE_API_URL}/delete-bundle/${fileId}`, {
+        method: 'POST',
+      });
+
+      if (res.ok && res.data?.success) {
+        setSnackbarMessage('Bundle deleted successfully (CSV, PDF, and attachments).');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+        fetchUploadedFiles();
+        return;
+      }
+
+      throw new Error(res.data?.error || 'Failed to delete bundle');
+    } catch (err) {
+      console.error('Error deleting bundle:', err);
+      setSnackbarMessage(err.message || 'Something went wrong while deleting the bundle.');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     }
@@ -1116,6 +1093,17 @@ const handleDownloadPdf = async (fileId) => {
                               <CloudUpload />
                             </IconButton>
                           </Tooltip>
+                          {isAdmin && (
+                            <Tooltip title="Delete Entire Bundle (CSV, PDF, and Attachments)">
+                              <IconButton
+                                color="error"
+                                onClick={() => handleDeleteBundle(file.id)}
+                                size="small"
+                              >
+                                <Delete />
+                              </IconButton>
+                            </Tooltip>
+                          )}
 
                         </TableCell>
                       </TableRow>
@@ -1193,13 +1181,13 @@ const handleDownloadPdf = async (fileId) => {
           onClose={() => setSnackbarOpen(false)}
           severity={snackbarSeverity}
           sx={{ width: '100%', display: 'flex', alignItems: 'center' }}
-          action={
-            <Tooltip title="Copy to clipboard">
-              <IconButton onClick={handleCopyToClipboard} color="inherit" size="small">
-                <ContentCopyIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          }
+          // action={
+          //   <Tooltip title="Copy to clipboard">
+          //     <IconButton onClick={handleCopyToClipboard} color="inherit" size="small">
+          //       <ContentCopyIcon fontSize="small" />
+          //     </IconButton>
+          //   </Tooltip>
+          // }
         >
           {snackbarMessage}
         </Alert>
