@@ -6,6 +6,6 @@ const QcCheckController = require("../controllers/qcCheckController");
 router.post("/qc-check/file-meta", QcCheckController.meta);
 
 // GET: summary data for a given file and solution label
-router.post("/qc-check/summary", QcCheckController.getSummary);
+router.post("/qc-check/qcsummary", QcCheckController.getSummary);
 
 module.exports = router;

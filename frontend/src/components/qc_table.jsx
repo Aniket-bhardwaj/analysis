@@ -7,9 +7,6 @@ import { apiFetch } from '../csrfClient';
 const formatDate = (dateObj) =>
   `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 
-const QC_TOLERANCE_PERCENT = 10; // adjust if your lab uses a different % for QC
-const num = (v) =>
-  v === undefined || v === null || v === '' ? null : Number(v);
 
 const QCTable = ({ selectedFileId, selectedDateRange }) => {
   const [qcData, setQcData] = useState([]);
@@ -22,8 +19,8 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
   const MINI_TABLE_PAGE_SIZE = 10; // Define page size
 
   useEffect(() => {
-    console.log('📣 [useEffect] selectedFileId:', selectedFileId);
-    console.log('📣 [useEffect] selectedDateRange:', selectedDateRange);
+    console.log("📣 [useEffect] selectedFileId:", selectedFileId);
+    console.log("📣 [useEffect] selectedDateRange:", selectedDateRange);
 
     if (selectedFileId || (selectedDateRange?.startDate && selectedDateRange?.endDate)) {
       fetchQCData();
@@ -52,87 +49,27 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
   };
 
   const fetchQCData = async () => {
-    if (!selectedFileId) return;
-
-    const userData = JSON.parse(sessionStorage.getItem("user")).user;
-
     try {
-      const res = await apiFetch(`/qc-check/summary?file_id=${selectedFileId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      // buildUrl for fetchQCData does not need page/pageSize for the main table
+      const url = buildUrl(`${import.meta.env.VITE_API_URL}/table-data`);
+      console.log("📡 Fetching QC data from:", url);
+      const userData = JSON.parse(sessionStorage.getItem('user')).user;
+      const response = await apiFetch(url, {
+        credentials: 'include',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: userData.id }),
-        credentials: "include",
       });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const result = response.data;
 
-      console.log("📣 QC API Response:", res);
-
-      // Pick correct source of rows
-      const rows =
-        res?.qcData || res?.summary?.tableData || res?.data?.qcData || [];
-
-      if (!Array.isArray(rows) || rows.length === 0) {
-        console.warn("⚠️ No QC rows in response");
-        setQcData([]);
-        return;
-      }
-
-      // Normalize field names + compute status
-      const normalized = rows.map((r, idx) => {
-        const errorPct = num(r.errorPercentage ?? r.error_percentage);
-
-        // derive within tolerance if backend didn't send boolean
-        const within =
-          typeof r.isWithinTolerance === "boolean"
-            ? r.isWithinTolerance
-            : errorPct === null
-            ? null
-            : Math.abs(errorPct) <= QC_TOLERANCE_PERCENT;
-
-        return {
-          id: idx + 1,
-          element: r.element || r.fullElementName || "N/A",
-          fullElementName: r.fullElementName || r.element || "N/A",
-          valueAvg: r.valueAvg ?? r.value_avg ?? r.value ?? null,
-          correctedValueAvg: r.correctedValueAvg ?? r.corrected_value_avg ?? null,
-          rsd: r.rsd ?? r.rsd_pct ?? null,
-          errorPercentage: errorPct,
-          solutionLabel: r.solutionLabel ?? r["Solution Label"] ?? "N/A",
-          isWithinTolerance: within,
-          status: within === null ? "N/A" : within ? "Pass" : "Fail",
-          miniTableData: r.miniTableData || [],
-        };
-      });
-
-      // De-duplicate by fullElementName (or element) and drop rows with no values
-      const uniqueMap = new Map();
-
-      for (const row of normalized) {
-        // Skip rows that are all N/A
-        if (
-          row.valueAvg === null &&
-          row.correctedValueAvg === null &&
-          row.rsd === null &&
-          row.errorPercentage === null
-        ) {
-          continue;
-        }
-
-        const key = row.fullElementName || row.element;
-        if (!uniqueMap.has(key)) {
-          uniqueMap.set(key, row);
-        }
-      }
-
-      setQcData([...uniqueMap.values()]);
-
+      console.log("✅ Fetched result:", result);
+      setQcData(result.tableData || []);
     } catch (err) {
-      console.error("❌ Error fetching QC data:", err);
+      console.error('❌ Error fetching QC data:', err);
       setQcData([]);
     }
   };
-
-
-
 
   const handleSort = (key) => {
     if (sortConfig.key !== key) {
@@ -148,47 +85,38 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
 
   const fetchMiniTableData = async (element, page = 1) => {
     try {
+      const url = buildUrl(`${import.meta.env.VITE_API_URL}/element-mini-table`, page, MINI_TABLE_PAGE_SIZE);
       const userData = JSON.parse(sessionStorage.getItem('user')).user;
-      const url = buildUrl(
-        `${import.meta.env.VITE_API_URL}/element-mini-table`,
-        page,
-        MINI_TABLE_PAGE_SIZE
-      );
       const res = await apiFetch(`${url}&element=${encodeURIComponent(element)}`, {
         credentials: 'include',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: userData.id,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userData.id }),
       });
-
-      // 🔧 apiFetch already parses JSON → use res.data
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = res.data;
 
       if (json.success) {
-        setMiniTables((prev) => ({
+        setMiniTables(prev => ({
           ...prev,
           [element]: {
             data: json.miniTable || [],
             totalItems: json.totalItems || 0,
             currentPage: json.page || 1,
-          },
+          }
         }));
       } else {
-        console.error('❌ [Frontend] Error fetching mini table:', json.message);
-        setMiniTables((prev) => ({
+        console.error("❌ [Frontend] Error fetching mini table:", json.message);
+        setMiniTables(prev => ({
           ...prev,
-          [element]: { data: [], totalItems: 0, currentPage: 1 },
+          [element]: { data: [], totalItems: 0, currentPage: 1 }
         }));
       }
     } catch (err) {
-      console.error('❌ [Frontend] Error fetching mini table:', err);
-      setMiniTables((prev) => ({
+      console.error("❌ [Frontend] Error fetching mini table:", err);
+      setMiniTables(prev => ({
         ...prev,
-        [element]: { data: [], totalItems: 0, currentPage: 1 },
+        [element]: { data: [], totalItems: 0, currentPage: 1 }
       }));
     }
   };
@@ -199,59 +127,58 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
       next.delete(fullElementName);
     } else {
       next.add(fullElementName);
-      if (
-        !miniTables[fullElementName] ||
-        !miniTables[fullElementName].data ||
-        miniTables[fullElementName].data.length === 0
-      ) {
+      if (!miniTables[fullElementName] || !miniTables[fullElementName].data || miniTables[fullElementName].data.length === 0) {
         fetchMiniTableData(fullElementName, 1); // directly pass full name
       }
     }
     setExpandedRows(next);
   };
 
+
   const sortMiniTable = (element, key) => {
     const current = miniSortConfig[element] || { key: '', direction: 'asc' };
     const direction = current.key === key && current.direction === 'asc' ? 'desc' : 'asc';
-    const sorted = [...(miniTables[element]?.data || [])].sort((a, b) => {
+    const sorted = [...(miniTables[element] || [])].sort((a, b) => {
       const aVal = a[key];
       const bVal = b[key];
       if (aVal < bVal) return direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return direction === 'asc' ? 1 : -1;
       return 0;
     });
-    setMiniTables((prev) => ({
-      ...prev,
-      [element]: { ...prev[element], data: sorted },
-    }));
-    setMiniSortConfig((prev) => ({ ...prev, [element]: { key, direction } }));
+    setMiniTables(prev => ({ ...prev, [element]: sorted }));
+    setMiniSortConfig(prev => ({ ...prev, [element]: { key, direction } }));
   };
 
   const handleMiniTablePageChange = (element, newPage) => {
     fetchMiniTableData(element, newPage);
   };
 
+  // ✨ CHANGED: Updated the sorting logic to handle 'status' and correctly sort string vs. numeric values.
   const sortedData = useMemo(() => {
     if (!sortConfig.key || !sortConfig.direction) return qcData;
 
+    // When sorting by 'status', we use the data from 'errorPercentage'.
     const keyForSorting = sortConfig.key === 'status' ? 'errorPercentage' : sortConfig.key;
 
     return [...qcData].sort((a, b) => {
       const aVal = a[keyForSorting];
       const bVal = b[keyForSorting];
 
+      // Handle string sorting for the 'element' column
       if (keyForSorting === 'element') {
         return sortConfig.direction === 'asc'
           ? String(aVal).localeCompare(String(bVal))
           : String(bVal).localeCompare(String(aVal));
       }
 
+      // Handle numeric sorting for all other columns
       if (Number(aVal) < Number(bVal)) return sortConfig.direction === 'asc' ? -1 : 1;
       if (Number(aVal) > Number(bVal)) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
   }, [qcData, sortConfig]);
 
+  // ✨ ADDED: 'status' to the array of sortable keys.
   const sortableKeys = ['element', 'valueAvg', 'rsd', 'errorPercentage', 'status'];
 
   return (
@@ -263,7 +190,7 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
           zIndex: 100,
           backgroundColor: '#f5f5f5',
           borderBottom: '1px solid #ddd',
-          py: 1,
+          py: 1
         }}
       >
         <Typography variant="h6" sx={{ pl: 1 }}>
@@ -276,21 +203,23 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
           width: '100%',
           borderCollapse: 'collapse',
           marginTop: 0,
-          fontSize: '0.95rem',
+          fontSize: '0.95rem'
         }}
       >
         <thead>
           <tr>
-            {[
-              { key: 'element', label: 'Element' },
-              { key: 'valueAvg', label: 'Value (avg)' },
-              { key: 'rsd', label: 'RSD%' },
-              { key: 'errorPercentage', label: 'Error%' },
-              { key: 'status', label: 'Status' },
+            {[{ key: 'element', label: 'Element' },
+            { key: 'valueAvg', label: 'Value (avg)' },
+            { key: 'rsd', label: 'RSD%' },
+            { key: 'errorPercentage', label: 'Error%' },
+            // ✨ CHANGED: Assigned a key to the 'Status' column to make it sortable.
+            { key: 'status', label: 'Status' }
             ].map((col, idx) => {
               const isSortable = sortableKeys.includes(col.key);
               const isActive = sortConfig.key === col.key;
-              const displayArrow = isActive ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅';
+              const displayArrow = isActive
+                ? sortConfig.direction === 'asc' ? '▲' : '▼'
+                : '⇅';
 
               return (
                 <th
@@ -307,7 +236,7 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
                     borderBottom: '1px solid #ccc',
                     cursor: isSortable ? 'pointer' : 'default',
                     userSelect: 'none',
-                    whiteSpace: 'nowrap',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   <Box
@@ -316,8 +245,8 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
                       alignItems: 'center',
                       gap: 1,
                       '&:hover .hoverArrow': {
-                        visibility: 'visible',
-                      },
+                        visibility: 'visible'
+                      }
                     }}
                   >
                     {col.label}
@@ -328,7 +257,7 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
                         sx={{
                           fontSize: '0.75rem',
                           color: '#888',
-                          visibility: isActive ? 'visible' : 'hidden',
+                          visibility: isActive ? 'visible' : 'hidden'
                         }}
                       >
                         {displayArrow}
@@ -344,15 +273,16 @@ const QCTable = ({ selectedFileId, selectedDateRange }) => {
         <tbody>
           {sortedData.map((row, index) => (
             <QCRow
-              key={`${row.fullElementName || row.element}-${index}`}
+              key={row.fullElementName || index}
               row={row}
               isExpanded={expandedRows.has(row.fullElementName)}
               toggleRowExpansion={toggleRowExpansion}
-              miniTableData={miniTables[row.fullElementName] || {}}
+              // Pass the specific miniTable object for the element, or a default structure
+              miniTableData={miniTables[row.fullElementName] || { data: [], totalItems: 0, currentPage: 1 }}
               pageSize={MINI_TABLE_PAGE_SIZE}
               handleMiniTablePageChange={handleMiniTablePageChange}
-              miniSortConfig={miniSortConfig}
-              sortMiniTable={sortMiniTable}
+              miniSortConfig={miniSortConfig} // Keep this for client-side sort state
+              sortMiniTable={sortMiniTable}   // Keep this for client-side sort function
             />
           ))}
         </tbody>

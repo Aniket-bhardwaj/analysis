@@ -70,6 +70,7 @@ class TableModel {
     const baseWhereClause = `
       f.uploaded_at >= ? AND f.uploaded_at <= ?
       AND f.hidden = 0
+      AND f.type IN (1, 2)
       AND (
         (? = 1) OR (? = 0 AND f.org_id = ?)
       )

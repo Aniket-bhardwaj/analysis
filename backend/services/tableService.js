@@ -273,7 +273,7 @@ static generateSJSTableFromRows(avgRow, rsdRow, sjsStdRow, errorRow) {
     try {
       const solutionLabel = 'SJS-Std';
       const combined = [...OMstdcleaned, ...OTstdcleaned];
-
+      
       const { avgRow, rsdRow } = await TableModel.getQCDataWithDateRange(
         startDate,
         endDate,
@@ -284,10 +284,8 @@ static generateSJSTableFromRows(avgRow, rsdRow, sjsStdRow, errorRow) {
       );
 
       const [sjsStdRow, errorRow] = await TableModel.getSJSRows(
-        null, // patched getSJSRows handles null
-        combined,
-        isAdmin,
-        orgId
+        // patched getSJSRows handles null
+        combined
       );
 
       return this.generateSJSTableFromRows(avgRow, rsdRow, sjsStdRow, errorRow);

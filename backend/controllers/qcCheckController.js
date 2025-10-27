@@ -72,94 +72,13 @@ class QcCheckController {
       }
 
       let summary;
-      let computedRows = [];
-      let detailRows = [];
-      let sjsRows = []; 
 
       if (file_id) {
         const solution_label = await QcCheckService.getSolutionLabelsForFile(file_id, isAdmin, orgId);
         summary = await QcCheckService.getSummaryForQC(file_id, solution_label, isAdmin, orgId);
+        
+        
 
-        const sqlite3 = require('sqlite3').verbose();
-        const path = require('path');
-        const db = new sqlite3.Database(path.join(__dirname, '../database.sqlite'));
-
-        computedRows = await new Promise((resolve, reject) => {
-          db.all(
-            `SELECT 
-                element,
-                fullElementName,
-                valueAvg AS valueAvg,
-                correctedValueAvg AS correctedValueAvg,
-                rsd AS rsd,
-                errorPercentage AS errorPercentage,
-                "Solution Label" AS solutionLabel,
-                rowType
-            FROM qc_data
-            WHERE file_id = ? AND rowType = 'computed'`,
-            [file_id],
-            (err, rows) => {
-              if (err) reject(err);
-              else resolve(rows);
-            }
-          );
-        });
-
-        const sjsCols = require("../colHeaders").OTstdcleaned
-          .concat(require("../colHeaders").OMstdcleaned)
-          .map(col => `"${col}"`)   
-          .join(", ");
-
-        sjsRows = await new Promise((resolve) => {
-          db.all(
-            `SELECT 
-                id,
-                label,
-                ${sjsCols}
-            FROM sjs`,
-            (err, rows) => {
-              if (err) {
-                console.error("Error fetching SJS rows:", err.message);
-                resolve([]);
-              } else {
-                resolve(rows);
-              }
-            }
-          );
-        });
-
-
-
-
-        detailRows = await new Promise((resolve) => {
-          db.all(
-            `SELECT 
-                element,
-                fullElementName,
-                valueAvg,
-                correctedValueAvg,
-                rsd,
-                errorPercentage,
-                "Solution Label" AS solutionLabel,
-                rowType
-            FROM qc_data
-            WHERE file_id = ? AND rowType = 'computed'`,
-            [file_id],
-            (err, rows) => {
-              if (err) {
-                console.error("Error fetching detailRows:", err.message);
-                resolve([]);
-              } else {
-                resolve(rows);
-              }
-            }
-          );
-        });
-
-
-
-
-        db.close();
       } else if (start_date && end_date) {
         const sd = start_date;
         const ed = end_date;
@@ -168,10 +87,7 @@ class QcCheckController {
 
       return res.json({
         success: true,
-        summary,
-        qcData: computedRows,   
-        data: { data: detailRows || [], totalItems: detailRows.length, currentPage: 1 },
-        sjsData : sjsRows
+        summary
       });
 
 

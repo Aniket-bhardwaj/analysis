@@ -62,7 +62,6 @@ class TableController {
           isAdmin,
           orgId
         );
-        console.log('Mini table rows for file_id', file_id_item, data);
 
         if (data && data.length > 0) {
           allMiniTableRowsForElement = allMiniTableRowsForElement.concat(data);
@@ -144,7 +143,6 @@ class TableController {
         if (data && data.length > 0) {
           allMiniTableRowsForElement = allMiniTableRowsForElement.concat(data);
         }
-        console.log('SJS Mini table rows for file_id', id, data);
       }
 
       const totalItems = allMiniTableRowsForElement.length;
@@ -236,7 +234,6 @@ class TableController {
         result = await tableService.getSJSTableData(parseInt(file_id, 10), isAdmin, orgId);
       } else if (start_date && end_date) {
         result = await tableService.getFinalSJSTableData(start_date, end_date, isAdmin, orgId);
-        console.log('Result for SJS Table Data by Date Range:', result);
       }
 
       if (!result || !result.tableData || result.tableData.length === 0) {

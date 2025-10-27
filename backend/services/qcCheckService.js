@@ -52,33 +52,7 @@ class QcCheckService {
       solutionLabel
     );
 
-    // --- persist computed rows (rowType = 'computed')
-    for (const row of tableData) {
-      await new Promise((resolve, reject) => {
-        db.run(
-          `INSERT INTO qc_data
-            (file_id, element, fullElementName, valueAvg, correctedValueAvg,
-             rsd, errorPercentage, isWithinTolerance, isNotWithinTolerance,
-             errorFactor, "Solution Label", rowType)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            fileId,
-            row.element,
-            row.fullElementName,
-            row.valueAvg,
-            row.correctedValueAvg,
-            row.rsd,
-            row.errorPercentage,
-            row.isWithinTolerance ? 1 : 0,
-            row.isNotWithinTolerance ? 1 : 0,
-            row.errorFactor,
-            solutionLabel,
-            "computed" // 🔑 explicitly mark computed rows
-          ],
-          (err) => (err ? reject(err) : resolve())
-        );
-      });
-    }
+    
 
     // --- summaries (for frontend response)
     const totalElements = tableData.length;
@@ -103,8 +77,7 @@ class QcCheckService {
       elementsWithinTolerance,
       averageRSD,
       averageErrorPercentage,
-      failedElements,
-      tableData // 🔑 frontend now sees computed rows only
+      failedElements
     };
   }
 
@@ -126,7 +99,11 @@ class QcCheckService {
       const { tableData: data1 } = TableService.generateQCTableRowsFromData(avgRow1, rsdRow1, solutionLabel1);
       const { tableData: data2 } = TableService.generateQCTableRowsFromData(avgRow2, rsdRow2, solutionLabel2);
 
-      const totalElements = data1.length + data2.length;
+      const totalElements =
+  data1.filter(row => row.valueAvg !== null).length +
+  data2.filter(row => row.valueAvg !== null).length;
+
+
       const elementsNotWithinTolerance =
         data1.filter(r => r.isNotWithinTolerance).length +
         data2.filter(r => r.isNotWithinTolerance).length;
