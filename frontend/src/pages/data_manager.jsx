@@ -710,7 +710,7 @@ const handleDownloadPdf = async (fileId) => {
       name: file => file.name,
       user: file => file.user,
       uploadDate: file => file.uploadDate,
-      organization: file => file.user, 
+      organization: file => file.orgName, 
       season: file => file.season,     
     };
 
@@ -1145,7 +1145,7 @@ const handleDownloadPdf = async (fileId) => {
                           <Box className="user-cell">
                             <Box className="user-info">
                               <Typography variant="body2" className="user-name">
-                                {file.user}
+                                {file.orgName}
                               </Typography>
                               <Typography variant="caption" className="user-email">
                                 {file.email}

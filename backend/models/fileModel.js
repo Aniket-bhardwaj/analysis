@@ -21,7 +21,7 @@ function insertFile(
       `INSERT INTO uploaded_files
          (filename, file_path, pdfname, pdf_path, uploaded_at, type, hidden, org_id, created_by_user_id, season)
        VALUES
-         (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 0, ?, ?, ?)`,
+         (?, ?, ?, ?, datetime('now', '+5 hours', '30 minutes'), ?, 0, ?, ?, ?)`,
       [
         originalName,
         savedFilePath,
