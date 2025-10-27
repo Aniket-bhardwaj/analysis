@@ -6,6 +6,27 @@ const fs = require('fs');
 const { parse } = require('csv-parse/sync');
 const readline = require('readline');
 const csv = require('csv-parser');
+const db = require('../initialize_db');
+
+/**
+ * Dynamically load standard reference and error rows
+ * for QC comparison depending on season.
+ */
+async function getStandardValues(season = 'pre_basalt') {
+  return new Promise((resolve, reject) => {
+    // Decide which table to query
+    const table = season === 'post_basalt' ? 'sjs_mcb' : 'sjs';
+    const refLabel = season === 'post_basalt' ? 'BHVO-2 STD' : 'SJS-Std';
+
+    db.all(`SELECT * FROM ${table}`, (err, rows) => {
+      if (err) return reject(err);
+      const refRow = rows.find(r => r.label === refLabel);
+      const errRow = rows.find(r => r.label === 'Error');
+      console.log(`[getStandardValues] Using table "${table}" for season "${season}"`);
+      resolve({ table, refRow, errRow });
+    });
+  });
+}
 
 const {
   OcleanedHeaders1,
@@ -187,39 +208,68 @@ function filterColumnsByKeys(rows, csvType,headers) {
   });
 }
 
-function splitSamplesAndQc(rows) {
+function splitSamplesAndQc(rows, season = 'pre_basalt') {
   const samples = [], qc = [];
 
+  // 🧭 Season-specific QC patterns (identical to validateQcLabels)
+  let qcPattern;
+
+  if (season === 'pre_basalt') {
+    qcPattern = /^(Blank|Standard|BLK|QC MES|SJS-Std|Wash)/i;
+  } else if (season === 'post_basalt') {
+    qcPattern = /^(Blank|Standard|BLK|QC MES|BCR-2 STD|BHVO-2 STD|Wash)/i;
+  } else {
+    console.warn(`[splitSamplesAndQc] Unknown season "${season}", using default QC pattern.`);
+    qcPattern = /^(Blank|Standard|BLK|QC MES|SJS-Std|Wash)/i;
+  }
+
   for (const row of rows) {
-    // Find the column that represents "Solution Label"
+    // Find the "Solution Label" column (case-insensitive)
     const labelKey = Object.keys(row).find(
       k => k.toLowerCase().replace(/\s+/g, '') === 'solutionlabel'
     );
 
     const label = row[labelKey]?.trim() || '';
 
-    // Classify rows
-    if (label.startsWith('MCS')) samples.push(row);
-    if (label.startsWith('MCB')) samples.push(row);
-    else qc.push(row);
+    // ✅ Match against season’s QC pattern
+    if (qcPattern.test(label)) qc.push(row);
+    else samples.push(row);
   }
 
-  console.log(`[splitSamplesAndQc] → Samples: ${samples.length}, QC: ${qc.length}`);
+  console.log(`[splitSamplesAndQc] (${season}) → Samples: ${samples.length}, QC: ${qc.length}`);
   return { samples, qc };
 }
 
+
 // -----------------------------
-// QC Label Validation
+// QC Label Validation (Season-specific)
 // -----------------------------
-function validateQcLabels(qc) {
-  const required = [
-    { name: 'Blank', regex: /^Blank$/ },
-    { name: 'Standard', regex: /^Standard/i },
-    { name: 'BLK', regex: /^BLK/i },
-    { name: 'QC MES', regex: /^QC MES/i },
-    { name: 'SJS-Std', regex: /^SJS-Std$/ },
-    { name: 'Wash', regex: /^Wash$/ },
-  ];
+function validateQcLabels(qc, season = 'pre_basalt') {
+  let required;
+
+  if (season === 'pre_basalt') {
+    required = [
+      { name: 'Blank', regex: /^Blank$/ },
+      { name: 'Standard', regex: /^Standard/i },
+      { name: 'BLK', regex: /^BLK/i },
+      { name: 'QC MES', regex: /^QC MES/i },
+      { name: 'SJS-Std', regex: /^SJS-Std$/ },
+      { name: 'Wash', regex: /^Wash$/ },
+    ];
+  } else if (season === 'post_basalt') {
+    // Placeholder rules — replace these later with actual post-basalt QC labels
+    required = [
+      { name: 'Blank', regex: /^Blank$/ },
+      { name: 'Standard', regex: /^Standard/i },
+      { name: 'BLK', regex: /^BLK/i },
+      { name: 'QC MES', regex: /^QC MES/i },
+      { name: 'BCR-2 STD', regex: /^BCR-2 STD$/},
+      { name: 'BHVO-2 STD', regex : /^BHVO-2 STD$/},
+      { name: 'Wash', regex: /^Wash$/ },
+    ];
+  } else {
+    throw new Error(`Unknown season: ${season}`);
+  }
 
   const found = Array(required.length).fill(false);
   const invalid = [];
@@ -243,11 +293,51 @@ function validateQcLabels(qc) {
     .map(p => p.name);
 
   if (missing.length || invalid.length) {
-    throw new Error(`Missing: ${missing.join(', ')}\nInvalid: ${invalid.join(', ')}`);
+    throw new Error(
+      `Season: ${season}\nMissing: ${missing.join(', ') || 'None'}\nInvalid: ${invalid.join(', ') || 'None'}`
+    );
   }
 
   return true;
 }
+
+// function validateQcLabels(qc) {
+//   const required = [
+//     { name: 'Blank', regex: /^Blank$/ },
+//     { name: 'Standard', regex: /^Standard/i },
+//     { name: 'BLK', regex: /^BLK/i },
+//     { name: 'QC MES', regex: /^QC MES/i },
+//     { name: 'SJS-Std', regex: /^SJS-Std$/ },
+//     { name: 'Wash', regex: /^Wash$/ },
+//   ];
+
+//   const found = Array(required.length).fill(false);
+//   const invalid = [];
+
+//   for (const row of qc) {
+//     const label = row['Solution Label']?.trim();
+//     if (!label) continue;
+//     let match = false;
+//     for (let i = 0; i < required.length; i++) {
+//       if (required[i].regex.test(label)) {
+//         found[i] = true;
+//         match = true;
+//         break;
+//       }
+//     }
+//     if (!match) invalid.push(label);
+//   }
+
+//   const missing = required
+//     .filter((_, i) => !found[i])
+//     .map(p => p.name);
+
+//   if (missing.length || invalid.length) {
+//     throw new Error(`Missing: ${missing.join(', ')}\nInvalid: ${invalid.join(', ')}`);
+//   }
+
+//   return true;
+// }
 
 // -----------------------------
 // 📤 Exports
@@ -261,5 +351,6 @@ module.exports = {
   validateQcLabels,
   normalizeHeaders,
   filterColumnsByKeys,
-  filterOutCpsAndIstd
+  filterOutCpsAndIstd,
+  getStandardValues
 };

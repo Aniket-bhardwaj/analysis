@@ -3,7 +3,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '@/components/navbar';
 import { ExpandMore, ExpandLess } from '@mui/icons-material';
-import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import {
   Box,
   Typography,
@@ -240,8 +239,6 @@ const DataManagerPage = () => {
     e.target.value = ''; // Reset input to allow re-selecting the same files
   };
 
-  
-
   // --- FILE ACTIONS (DELETE, DOWNLOAD, REPLACE) ---
   const handleFileUpload = async (csv, pdf, isReplacement = false) => {
     if (!csv || !pdf) {
@@ -253,7 +250,6 @@ const DataManagerPage = () => {
 
     // Always resolve an explicit season value for backend
     const effectiveSeason = selectedSeason?.trim() || 'pre_basalt';
-
     const userData = JSON.parse(sessionStorage.getItem('user'))?.user;
 
     const formData = new FormData();
@@ -267,19 +263,17 @@ const DataManagerPage = () => {
 
       const token = await ensureCsrf();
 
-      // Find the org name based on selected ID
-      const selectedOrg = orgList.find(org => org.id === targetOrgId);
+      // ✅ Resolve selected org (safe for string or number IDs)
+      const selectedOrg = orgList.find(org => String(org.id) === String(targetOrgId));
       const orgName = selectedOrg?.name?.trim() || '';
 
-      const uploadUrl = `${import.meta.env.VITE_API_URL}/upload-files`;
-
-      // Add orgName to the form data (so backend receives it as part of POST body)
       if (isAdmin && orgName) {
         formData.append('orgName', orgName);
+        formData.append('orgId', selectedOrg?.id);
       }
 
-
-      console.log(`Uploading to: ${uploadUrl} (season=${effectiveSeason})`);
+      const uploadUrl = `${import.meta.env.VITE_API_URL}/upload-files`;
+      console.log(`Uploading to: ${uploadUrl} (season=${effectiveSeason}, org=${orgName})`);
 
       const res = await fetch(uploadUrl, {
         headers: { 'X-CSRF-Token': token },
@@ -288,7 +282,6 @@ const DataManagerPage = () => {
         body: formData,
       });
 
-      //  Handle backend-supplied messages properly
       if (!res.ok) {
         let data;
         try {
@@ -314,15 +307,14 @@ const DataManagerPage = () => {
 
       await fetchUploadedFiles();
 
-      //  Reset UI state
+      // Reset UI state
       setCsvFile(null);
       setPdfFile(null);
       setTargetOrgId('');
       setSelectedSeason('');
     } catch (err) {
       console.error('Error uploading files:', err);
-      const displayMsg =
-        err?.message || 'Something went wrong during upload.';
+      const displayMsg = err?.message || 'Something went wrong during upload.';
       setSnackbarMessage(displayMsg);
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
@@ -331,6 +323,100 @@ const DataManagerPage = () => {
       setUploadProgress(0);
     }
   };
+
+
+  // // --- FILE ACTIONS (DELETE, DOWNLOAD, REPLACE) ---
+  // const handleFileUpload = async (csv, pdf, isReplacement = false) => {
+  //   if (!csv || !pdf) {
+  //     setSnackbarMessage('Both a CSV and a PDF file are required.');
+  //     setSnackbarSeverity('error');
+  //     setSnackbarOpen(true);
+  //     return;
+  //   }
+
+  //   // Always resolve an explicit season value for backend
+  //   const effectiveSeason = selectedSeason?.trim() || 'pre_basalt';
+
+  //   const userData = JSON.parse(sessionStorage.getItem('user'))?.user;
+
+  //   const formData = new FormData();
+  //   formData.append('csvfile', csv);
+  //   formData.append('pdffile', pdf);
+  //   formData.append('season', effectiveSeason);
+
+  //   try {
+  //     setIsUploading(true);
+  //     setUploadProgress(0);
+
+  //     const token = await ensureCsrf();
+
+  //     // Find the org name based on selected ID
+  //     // const selectedOrg = orgList.find(org => org.id === targetOrgId);
+  //     // const orgName = selectedOrg?.name?.trim() || '';
+  //     // Fix: ensure both sides are same type before comparing
+  //     const selectedOrg = orgList.find(org => String(org.id) === String(targetOrgId));
+  //     const orgName = selectedOrg?.name?.trim() || '';
+
+  //     const uploadUrl = `${import.meta.env.VITE_API_URL}/upload-files`;
+
+  //     // Add orgName to the form data (so backend receives it as part of POST body)
+  //     if (isAdmin && orgName) {
+  //       formData.append('orgName', orgName);
+  //     }
+
+
+  //     console.log(`Uploading to: ${uploadUrl} (season=${effectiveSeason})`);
+
+  //     const res = await fetch(uploadUrl, {
+  //       headers: { 'X-CSRF-Token': token },
+  //       credentials: 'include',
+  //       method: 'POST',
+  //       body: formData,
+  //     });
+
+  //     //  Handle backend-supplied messages properly
+  //     if (!res.ok) {
+  //       let data;
+  //       try {
+  //         data = await res.json();
+  //       } catch {
+  //         data = {};
+  //       }
+  //       const errMsg =
+  //         data?.error ||
+  //         data?.message ||
+  //         `Upload failed with status ${res.status}`;
+  //       throw new Error(errMsg);
+  //     }
+
+  //     const result = await res.json().catch(() => ({}));
+  //     const msg =
+  //       result?.message ||
+  //       `File${isReplacement ? ' replaced' : 's uploaded'} successfully`;
+
+  //     setSnackbarMessage(msg);
+  //     setSnackbarSeverity('success');
+  //     setSnackbarOpen(true);
+
+  //     await fetchUploadedFiles();
+
+  //     //  Reset UI state
+  //     setCsvFile(null);
+  //     setPdfFile(null);
+  //     setTargetOrgId('');
+  //     setSelectedSeason('');
+  //   } catch (err) {
+  //     console.error('Error uploading files:', err);
+  //     const displayMsg =
+  //       err?.message || 'Something went wrong during upload.';
+  //     setSnackbarMessage(displayMsg);
+  //     setSnackbarSeverity('error');
+  //     setSnackbarOpen(true);
+  //   } finally {
+  //     setIsUploading(false);
+  //     setUploadProgress(0);
+  //   }
+  // };
 
   
  
@@ -617,7 +703,6 @@ const handleDownloadPdf = async (fileId) => {
 
   // --- MEMOIZED FILTERING & DERIVED STATE ---
 
-  // TWEAKED: Memoized hook to generate unique options for the second dropdown
   const filterOptions = useMemo(() => {
     if (filterType === 'all' || !files.length) return [];
     
@@ -625,8 +710,8 @@ const handleDownloadPdf = async (fileId) => {
       name: file => file.name,
       user: file => file.user,
       uploadDate: file => file.uploadDate,
-      organization: file => file.user, // ADDED: Based on table logic, 'Organization' is file.user
-      season: file => file.season,       // ADDED
+      organization: file => file.user, 
+      season: file => file.season,     
     };
 
     const keyAccessor = valueMap[filterType];
@@ -656,7 +741,7 @@ const handleDownloadPdf = async (fileId) => {
 
   }, [files, filterType]);
 
-  // TWEAKED: Main filtering logic to handle the new two-step filter and search interaction
+
   const filteredFiles = useMemo(() => {
     let tempFiles = [...files];
 
@@ -666,13 +751,13 @@ const handleDownloadPdf = async (fileId) => {
         if (filterType === 'name') return file.name === selectedValue;
         if (filterType === 'user') return file.user === selectedValue;
         if (filterType === 'uploadDate') return file.uploadDate === selectedValue;
-        if (filterType === 'organization') { // ADDED
+        if (filterType === 'organization') { 
           if (selectedValue === 'Unspecified') {
             return !file.user;
           }
           return file.user === selectedValue;
         }
-        if (filterType === 'season') { // ADDED
+        if (filterType === 'season') { 
            if (selectedValue === 'Unspecified') {
              // Match anything that isn't pre or post basalt
              return file.season !== 'pre_basalt' && file.season !== 'post_basalt';
@@ -683,7 +768,7 @@ const handleDownloadPdf = async (fileId) => {
       });
     }
 
-    // 2. Apply search query on the result of the dropdown filter (or on all files)
+    // 2. Apply search query on the result of the dropdown filter.
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       
@@ -726,8 +811,7 @@ const handleDownloadPdf = async (fileId) => {
   // --- EFFECTS ---
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, filterType, selectedValue]); // TWEAKED: Reset page when selectedValue changes
-
+  }, [searchQuery, filterType, selectedValue]); 
   // ADDED: Reset second dropdown when filter category changes
   useEffect(() => {
     setSelectedValue('');

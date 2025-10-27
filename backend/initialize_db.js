@@ -171,7 +171,42 @@ db.serialize(() => {
       }
     });
   });
+  
+  // ---------------------------
+  // Table: sjs_mcb  (BHVO-2 Reference)
+  // ---------------------------
 
+  const { OTstd_MCB, Tval_MCB, Terr_MCB } = require("./Oheaders");
+
+  const columnDefsMCB = OTstd_MCB.map(col => `"${col}" TEXT`).join(', ');
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS sjs_mcb (
+      id INTEGER PRIMARY KEY,
+      label TEXT NOT NULL,
+      ${columnDefsMCB}
+    );
+  `, (err) => {
+    if (err) return console.error(" Error creating sjs_mcb table:", err);
+    console.log("sjs_mcb table created.");
+
+    const placeholdersMCB = Array(OTstd_MCB.length + 2).fill("?").join(", ");
+    const insertSQL_MCB = `INSERT OR IGNORE INTO sjs_mcb VALUES (${placeholdersMCB})`;
+
+    const row1_MCB = [1, "BHVO-2 STD", ...Tval_MCB];
+    const row2_MCB = [2, "Error", ...Terr_MCB];
+
+    db.run(insertSQL_MCB, row1_MCB, function (err2) {
+      if (err2) console.error(" Error inserting BHVO-2 STD:", err2.message);
+      else if (this.changes > 0) console.log("Inserted BHVO-2 STD row");
+    });
+
+    db.run(insertSQL_MCB, row2_MCB, function (err3) {
+      if (err3) console.error(" Error inserting BHVO-2 Error row:", err3.message);
+      else if (this.changes > 0) console.log("Inserted BHVO-2 Error row");
+    });
+  });
+ 
   //  Users
   db.run(`
     CREATE TABLE IF NOT EXISTS users (

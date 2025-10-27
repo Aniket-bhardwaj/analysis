@@ -10,9 +10,12 @@ function getTotalFilesCount(isAdmin, orgId) {
     SELECT COUNT(*) AS count
     FROM uploaded_files f
     WHERE 
-      (? = 1)                         -- admin: see everything
-      OR (? = 0 AND f.org_id = ?)     -- non-admin: only their org
-    AND f.hidden = 0
+      (f.type IN (1, 2)) AND
+      (
+        (? = 1)                         -- admin: see everything
+        OR (? = 0 AND f.org_id = ?)     -- non-admin: only their org
+      )
+      AND f.hidden = 0
   `;
   return new Promise((resolve, reject) => {
     db.get(sql, [isAdmin ? 1 : 0, isAdmin ? 1 : 0, orgId], (err, row) => {

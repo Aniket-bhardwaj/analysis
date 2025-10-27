@@ -770,6 +770,38 @@ const Merr = [
 ]
 
 
+// ---- MCB (BHVO-2 STD) Reference ----
+const OTstd_MCB = [
+  "Si", "Ti", "Al", "Fe", "Mn", "Mg", "Ca", "Na", "K", "P",
+  "Sc", "V", "Cr", "Co", "Ni", "Cu", "Zn", "Rb", "Sr", "Y",
+  "Zr", "Nb", "Ba", "La", "Ce", "Nd", "Sm", "Eu", "Gd", "Tb",
+  "Dy", "Yb", "Lu", "Hf", "Ta", "Pb", "Th", "U"
+];
+
+// BHVO-2 certified values in ppm (from USGS COA)
+const Tval_MCB = [
+  216000,   // Si 21.6 wt %
+  13600,    // Ti 1.36 wt %
+  84500,    // Al 8.45 wt %
+  86300,    // Fe 8.63 wt %
+  1330,     // Mn
+  73700,    // Mg 7.37 wt %
+  81700,    // Ca 8.17 wt %
+  16400,    // Na 1.64 wt %
+  1540,     // K 0.154 wt %
+  1330,     // P 0.133 wt %
+  31, 317, 289, 52, 126, 89, 103, 4.6, 389, 24,
+  100, 18, 1340, 15.7, 38.7, 25.7, 7.8, 6.7, 6.5, 0.8,
+  5.0, 1.6, 4.4, 2.5, 2.5, 1.7, 1.4, 0.5
+];
+
+// BHVO-2 standard deviations (converted to ppm)
+const Terr_MCB = [
+  2000, 300, 700, 600, 40, 600, 800, 200, 15, 15,
+  2, 10, 8, 2, 6, 5, 5, 0.5, 10, 1,
+  5, 1, 50, 0.5, 1, 1, 0.4, 0.2, 0.3, 0.1,
+  0.3, 0.1, 0.1, 0.05, 0.05, 0.05, 0.02, 0.02
+];
 
 module.exports = {
   Oheaders2,
@@ -780,5 +812,8 @@ module.exports = {
   Tval,
   OMstd,
   Merr,
-  Mval
+  Mval,
+  OTstd_MCB,
+  Tval_MCB,
+  Terr_MCB
 };

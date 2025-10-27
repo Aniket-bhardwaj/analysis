@@ -36,86 +36,61 @@ const uploadFile = async (req, res) => {
     return res.status(413).json({ error: 'File too large (max 100MB).' });
   }
 
-  // --- RBAC-aware org detection ---
-  // let orgId = req?.rbac?.orgId;
-  // let orgName = req.body?.orgName || null;
-  // const userId = req?.rbac?.userId;
-  // const isAdmin = req?.rbac?.isAdmin || false;
-
-  // if (isAdmin) {
-  //   // Prefer RBAC target orgId
-  //   if (req?.rbac?.targetOrgId) orgId = req.rbac.targetOrgId;
-  //   else if (req.query?.orgId) orgId = Number(req.query.orgId);
-  // }
-
-  // // Default org name lookup (if only ID provided)
-  // if (!orgName && orgId) {
-  //   const row = await new Promise((resolve) =>
-  //     db.get(`SELECT name FROM organizations WHERE id = ?`, [orgId], (_, r) => resolve(r))
-  //   );
-  //   if (row) orgName = row.name;
-  // }
-
-  // if (!orgId && !orgName) {
-  //   return res.status(401).json({ error: 'Unauthorized: missing org context.' });
-  // }
-
-  // const seasonRaw = req.body?.season || req.query?.season;
-  // const season = ['pre_basalt', 'post_basalt'].includes((seasonRaw || '').toLowerCase())
-  //   ? seasonRaw.toLowerCase()
-  //   : 'pre_basalt';
-
-  // --- RBAC-aware org and season handling ---
+  // =====================================================
+  // RBAC + Admin-aware Org and Season Handling (fixed)
+  // =====================================================
   let orgId = req?.rbac?.orgId || null;
   let orgName = req.body?.orgName?.trim() || null;
-  const userId = req?.rbac?.userId;
-  const isAdmin = req?.rbac?.isAdmin || false;
+  const userId = req?.rbac?.userId || null;
+  const isAdmin = req?.rbac?.isAdmin || req?.user?.is_admin === 1;
 
-  // Admin override: prefer explicit target from frontend or query
   if (isAdmin) {
-    // If frontend sent an org name (FormData field)
-    if (req.body?.orgName) {
-      orgName = req.body.orgName.trim();
+    // If frontend sent orgName, resolve its ID directly from DB
+    if (orgName) {
+      const row = await new Promise((resolve) =>
+        db.get(
+          `SELECT id FROM organizations WHERE LOWER(name) = LOWER(?) LIMIT 1`,
+          [orgName],
+          (_, r) => resolve(r)
+        )
+      );
+      if (row && row.id) {
+        orgId = row.id;
+      } else {
+        console.warn(`Unknown orgName "${orgName}" — falling back to admin's own org.`);
+      }
     }
 
-    // Allow admin to override via orgId in body or query
+    // If query/body provided orgId explicitly, respect it
     if (req.query?.orgId || req.body?.orgId) {
       orgId = Number(req.query?.orgId || req.body?.orgId);
     }
 
-    // Also support RBAC-provided targetOrgId
+    // If RBAC middleware set a specific targetOrgId, prefer that finally
     if (req?.rbac?.targetOrgId) {
       orgId = req.rbac.targetOrgId;
     }
   }
 
-  //  If only orgName provided → look up its ID
-  if (orgName && !orgId) {
-    const row = await new Promise((resolve) =>
-      db.get(`SELECT id FROM organizations WHERE LOWER(name) = LOWER(?)`, [orgName], (_, r) => resolve(r))
-    );
-    if (row) orgId = row.id;
-  }
-
-  // If only orgId provided → look up its name
+  // If only orgId is known, look up the org name
   if (!orgName && orgId) {
     const row = await new Promise((resolve) =>
       db.get(`SELECT name FROM organizations WHERE id = ?`, [orgId], (_, r) => resolve(r))
     );
-    if (row) orgName = row.name;
+    if (row && row.name) orgName = row.name;
   }
 
-  //  Abort if both missing
-  if (!orgId && !orgName) {
-    return res.status(401).json({ error: 'Unauthorized: missing org context.' });
+  if (!orgId || !orgName) {
+    console.error('Missing org context', { orgId, orgName });
+    return res.status(401).json({ error: 'Unauthorized: missing or invalid organization context.' });
   }
 
-  //  Handle season logic (retain your original behavior)
   const seasonRaw = req.body?.season || req.query?.season;
   const season = ['pre_basalt', 'post_basalt'].includes((seasonRaw || '').toLowerCase())
     ? seasonRaw.toLowerCase()
     : 'pre_basalt';
 
+  console.log(`Upload context resolved → orgId=${orgId}, orgName="${orgName}", userId=${userId}, season=${season}`);
 
   // =====================================================
   // Validate files
@@ -158,7 +133,7 @@ const uploadFile = async (req, res) => {
       db.run('BEGIN TRANSACTION');
 
       const { error: validationError, samples, qc, csvType, headers } =
-        await uploadService.validate(csvSavedPathAbs, csvOriginalName);
+        await uploadService.validate(csvSavedPathAbs, csvOriginalName, season);
       if (validationError) throw new Error(validationError);
 
       const { error: insertError, fileId } = await uploadService.insertAllData(
@@ -189,7 +164,7 @@ const uploadFile = async (req, res) => {
         if (err) throw new Error('Failed to commit transaction: ' + err.message);
 
         console.log(
-          `✅ File(s) uploaded and processed successfully for org "${orgName || orgId}" (${season})`
+          `File(s) uploaded and processed successfully for org "${orgName || orgId}" (${season})`
         );
 
         return res.status(200).json({
@@ -275,6 +250,7 @@ module.exports = {
 
 
 
+
 // const path = require('path');
 // const fs = require('fs');
 // const db = require('../initialize_db');
@@ -282,18 +258,17 @@ module.exports = {
 
 // const projectRoot = path.join(__dirname, '..');
 
-
+// // -----------------------------------------------------
+// // Helper functions
+// // -----------------------------------------------------
 // function toRelative(p) {
 //   const rel = path.relative(projectRoot, p);
-//   return rel.split(path.sep).join('/'); 
+//   return rel.split(path.sep).join('/');
 // }
 
 // function isCsv(file) {
 //   if (!file) return false;
-//   const okTypes = new Set([
-//     'text/csv',
-//     'application/vnd.ms-excel', 
-//   ]);
+//   const okTypes = new Set(['text/csv', 'application/vnd.ms-excel']);
 //   const looksCsv = file.originalname?.toLowerCase().endsWith('.csv');
 //   return looksCsv || okTypes.has(file.mimetype);
 // }
@@ -306,42 +281,98 @@ module.exports = {
 //   );
 // }
 
-
 // // =====================================================
-// // Get all uploaded files for a specific organization
+// // Upload main CSV + PDF bundle
 // // =====================================================
-
 // const uploadFile = async (req, res) => {
 //   if (req.fileValidationError === 'LIMIT_FILE_SIZE') {
 //     return res.status(413).json({ error: 'File too large (max 100MB).' });
 //   }
 
-//   // --- RBAC-aware organization override (minimal change) ---
-//   let orgId = req?.rbac?.orgId;
+//   // --- RBAC-aware org detection ---
+//   // let orgId = req?.rbac?.orgId;
+//   // let orgName = req.body?.orgName || null;
+//   // const userId = req?.rbac?.userId;
+//   // const isAdmin = req?.rbac?.isAdmin || false;
+
+//   // if (isAdmin) {
+//   //   // Prefer RBAC target orgId
+//   //   if (req?.rbac?.targetOrgId) orgId = req.rbac.targetOrgId;
+//   //   else if (req.query?.orgId) orgId = Number(req.query.orgId);
+//   // }
+
+//   // // Default org name lookup (if only ID provided)
+//   // if (!orgName && orgId) {
+//   //   const row = await new Promise((resolve) =>
+//   //     db.get(`SELECT name FROM organizations WHERE id = ?`, [orgId], (_, r) => resolve(r))
+//   //   );
+//   //   if (row) orgName = row.name;
+//   // }
+
+//   // if (!orgId && !orgName) {
+//   //   return res.status(401).json({ error: 'Unauthorized: missing org context.' });
+//   // }
+
+//   // const seasonRaw = req.body?.season || req.query?.season;
+//   // const season = ['pre_basalt', 'post_basalt'].includes((seasonRaw || '').toLowerCase())
+//   //   ? seasonRaw.toLowerCase()
+//   //   : 'pre_basalt';
+
+//   // --- RBAC-aware org and season handling ---
+//   let orgId = req?.rbac?.orgId || null;
+//   let orgName = req.body?.orgName?.trim() || null;
 //   const userId = req?.rbac?.userId;
 //   const isAdmin = req?.rbac?.isAdmin || false;
 
-//   //  Allow admin override: if an admin selected an org via RBAC or query string
+//   // Admin override: prefer explicit target from frontend or query
 //   if (isAdmin) {
-//     // If RBAC middleware sets targetOrgId, prefer that
+//     // If frontend sent an org name (FormData field)
+//     if (req.body?.orgName) {
+//       orgName = req.body.orgName.trim();
+//     }
+
+//     // Allow admin to override via orgId in body or query
+//     if (req.query?.orgId || req.body?.orgId) {
+//       orgId = Number(req.query?.orgId || req.body?.orgId);
+//     }
+
+//     // Also support RBAC-provided targetOrgId
 //     if (req?.rbac?.targetOrgId) {
 //       orgId = req.rbac.targetOrgId;
 //     }
-//     // Or allow ?orgId=2 from frontend
-//     else if (req.query?.orgId) {
-//       orgId = Number(req.query.orgId);
-//     }
 //   }
 
-//   if (!orgId) {
-//     return res.status(401).json({ error: 'Unauthorized: missing org context' });
+//   //  If only orgName provided → look up its ID
+//   if (orgName && !orgId) {
+//     const row = await new Promise((resolve) =>
+//       db.get(`SELECT id FROM organizations WHERE LOWER(name) = LOWER(?)`, [orgName], (_, r) => resolve(r))
+//     );
+//     if (row) orgId = row.id;
 //   }
+
+//   // If only orgId provided → look up its name
+//   if (!orgName && orgId) {
+//     const row = await new Promise((resolve) =>
+//       db.get(`SELECT name FROM organizations WHERE id = ?`, [orgId], (_, r) => resolve(r))
+//     );
+//     if (row) orgName = row.name;
+//   }
+
+//   //  Abort if both missing
+//   if (!orgId && !orgName) {
+//     return res.status(401).json({ error: 'Unauthorized: missing org context.' });
+//   }
+
+//   //  Handle season logic (retain your original behavior)
 //   const seasonRaw = req.body?.season || req.query?.season;
 //   const season = ['pre_basalt', 'post_basalt'].includes((seasonRaw || '').toLowerCase())
 //     ? seasonRaw.toLowerCase()
 //     : 'pre_basalt';
 
-//   // === Upload handling remains unchanged ===
+
+//   // =====================================================
+//   // Validate files
+//   // =====================================================
 //   const isMultiUpload = !!req.files;
 //   const csvFile = isMultiUpload ? req.files?.csvfile?.[0] : req.file;
 //   const pdfFile = isMultiUpload ? req.files?.pdffile?.[0] : null;
@@ -350,18 +381,15 @@ module.exports = {
 //     if (pdfFile) fs.unlink(pdfFile.path, () => {});
 //     return res.status(400).json({ error: 'No CSV file uploaded.' });
 //   }
-
 //   if (isMultiUpload && !pdfFile) {
 //     fs.unlink(csvFile.path, () => {});
 //     return res.status(400).json({ error: 'A PDF file is required along with the CSV file.' });
 //   }
-
 //   if (!isCsv(csvFile)) {
 //     fs.unlink(csvFile.path, () => {});
 //     if (pdfFile) fs.unlink(pdfFile.path, () => {});
 //     return res.status(415).json({ error: 'Only CSV files are allowed for data.' });
 //   }
-
 //   if (pdfFile && !isPdf(pdfFile)) {
 //     fs.unlink(csvFile.path, () => {});
 //     fs.unlink(pdfFile.path, () => {});
@@ -372,28 +400,21 @@ module.exports = {
 //   const csvSavedPathAbs = csvFile.path;
 //   const pdfOriginalName = pdfFile ? pdfFile.originalname : null;
 //   const pdfSavedPathAbs = pdfFile ? pdfFile.path : null;
-
 //   const csvSavedPathRel = toRelative(csvSavedPathAbs);
 //   const pdfSavedPathRel = pdfSavedPathAbs ? toRelative(pdfSavedPathAbs) : null;
 
+//   // =====================================================
+//   // Begin transaction
+//   // =====================================================
 //   db.serialize(async () => {
 //     try {
 //       db.run('BEGIN TRANSACTION');
 
-//       const {
-//         error: validationError,
-//         samples,
-//         qc,
-//         csvType,
-//         headers,
-//       } = await uploadService.validate(csvSavedPathAbs, csvOriginalName);
-
+//       const { error: validationError, samples, qc, csvType, headers } =
+//         await uploadService.validate(csvSavedPathAbs, csvOriginalName);
 //       if (validationError) throw new Error(validationError);
 
-//       const {
-//         error: insertError,
-//         fileId,
-//       } = await uploadService.insertAllData(
+//       const { error: insertError, fileId } = await uploadService.insertAllData(
 //         csvOriginalName,
 //         csvSavedPathRel,
 //         samples,
@@ -402,25 +423,33 @@ module.exports = {
 //         headers,
 //         pdfOriginalName,
 //         pdfSavedPathRel,
-//         orgId,       
+//         orgId,
 //         userId,
 //         isAdmin,
-//         season
+//         season,
+//         orgName
 //       );
-
 //       if (insertError) throw new Error(insertError);
 
-//       const { error: correctionError } =
-//         await uploadService.insertCorrected(fileId, csvType, headers);
-
+//       const { error: correctionError } = await uploadService.insertCorrected(
+//         fileId,
+//         csvType,
+//         headers
+//       );
 //       if (correctionError) throw new Error(correctionError);
 
 //       db.run('COMMIT', (err) => {
 //         if (err) throw new Error('Failed to commit transaction: ' + err.message);
+
+//         console.log(
+//           `✅ File(s) uploaded and processed successfully for org "${orgName || orgId}" (${season})`
+//         );
+
 //         return res.status(200).json({
-//           message: `File(s) uploaded and processed successfully for org ${orgId}`,
+//           message: `File(s) uploaded and processed successfully for org "${orgName || orgId}".`,
 //           fileId,
-//           season
+//           season,
+//           orgName,
 //         });
 //       });
 //     } catch (err) {
@@ -431,20 +460,22 @@ module.exports = {
 //         if (err?.code === 'LIMIT_FILE_SIZE') {
 //           return res.status(413).json({ error: 'File too large (max 100MB).' });
 //         }
-//         return res.status(500).json({ error: err?.message || 'Database or CSV processing failed' });
+//         return res
+//           .status(500)
+//           .json({ error: err?.message || 'Database or CSV processing failed.' });
 //       });
 //     }
 //   });
 // };
+
+// // =====================================================
+// // Delete main bundle and attachments
+// // =====================================================
 // const deleteBundle = async (req, res) => {
 //   const { fileId } = req.params;
 //   try {
-//     // 1. Delete all attachments linked to this main file
 //     await db.run(`DELETE FROM uploaded_files WHERE parent_id = ?`, [fileId]);
-    
-//     // 2. Delete the main CSV/PDF record
 //     await db.run(`DELETE FROM uploaded_files WHERE id = ?`, [fileId]);
-
 //     res.json({ success: true, message: 'Bundle deleted successfully.' });
 //   } catch (err) {
 //     console.error('Error deleting bundle:', err);
@@ -452,6 +483,9 @@ module.exports = {
 //   }
 // };
 
+// // =====================================================
+// // List all uploaded files for org
+// // =====================================================
 // const getFilesByOrg = async (req, res) => {
 //   try {
 //     const { orgId } = req.params;
@@ -486,8 +520,9 @@ module.exports = {
 //   }
 // };
 
-// module.exports = { 
+// module.exports = {
 //   uploadFile,
 //   getFilesByOrg,
-//   deleteBundle
-//  };
+//   deleteBundle,
+// };
+
