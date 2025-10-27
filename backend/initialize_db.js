@@ -10,8 +10,10 @@ const {
   rest_dataHeaders,
   OTstdcleaned,
   OMstdcleaned,
+  OTstdcleaned_b,
+  OMstdcleaned_b
 } = require("./colHeaders");
-const { Tval, Terr, Merr, Mval } = require("./Oheaders");
+const { Tval, Terr, Merr, Mval,Tval_b,Terr_b,Mval_b,Merr_b } = require("./Oheaders");
 
 const dbPath = path.resolve(__dirname, "database.sqlite");
 
@@ -172,40 +174,56 @@ db.serialize(() => {
     });
   });
   
+ 
   // ---------------------------
-  // Table: sjs_mcb  (BHVO-2 Reference)
+  // Table: sjs
   // ---------------------------
 
-  const { OTstd_MCB, Tval_MCB, Terr_MCB } = require("./Oheaders");
+  // Merge trace + major element names
+  const allCols_b = [...OTstdcleaned_b, ...OMstdcleaned_b];
+  const columnDefs_b = allCols_b.map(col => `"${col}" TEXT`).join(', ');
 
-  const columnDefsMCB = OTstd_MCB.map(col => `"${col}" TEXT`).join(', ');
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS sjs_mcb (
+  const createTableSQL_b = `
+    CREATE TABLE IF NOT EXISTS bhvo2 (
       id INTEGER PRIMARY KEY,
       label TEXT NOT NULL,
-      ${columnDefsMCB}
+      ${columnDefs_b}
     );
-  `, (err) => {
-    if (err) return console.error(" Error creating sjs_mcb table:", err);
-    console.log("sjs_mcb table created.");
+  `;
 
-    const placeholdersMCB = Array(OTstd_MCB.length + 2).fill("?").join(", ");
-    const insertSQL_MCB = `INSERT OR IGNORE INTO sjs_mcb VALUES (${placeholdersMCB})`;
+  db.run(createTableSQL_b, (err) => {
+    if (err) return console.error(' Error creating bhvo2 table:', err);
+    console.log('bhvo2 table created.');
 
-    const row1_MCB = [1, "BHVO-2 STD", ...Tval_MCB];
-    const row2_MCB = [2, "Error", ...Terr_MCB];
+    // Prepare insert query with 81 placeholders (1 id + 1 label + 61 + 18 = 81)
+    const placeholders_b = Array(allCols_b.length + 2).fill('?').join(', ');
+    const insertSQL_b = `INSERT OR IGNORE INTO bhvo2 VALUES (${placeholders_b})`;
 
-    db.run(insertSQL_MCB, row1_MCB, function (err2) {
-      if (err2) console.error(" Error inserting BHVO-2 STD:", err2.message);
-      else if (this.changes > 0) console.log("Inserted BHVO-2 STD row");
+
+    // Build the rows
+    const row1_b = [1, 'BHVO-2 STD', ...Tval_b, ...Mval_b];
+    const row2_b = [2, 'Error', ...Terr_b, ...Merr_b];
+    console.log('allCols length:', allCols_b.length);
+    console.log('row1 length:', row1_b.length, 'row2 length:', row2_b.length);
+    console.log('placeholders count:', allCols.length + 2);
+    // Insert both rows
+    db.run(insertSQL_b, row1_b, (err) => {
+      if (err) {
+        console.error(' Error inserting Row 1 (BHVO-2 STD):', err.message);
+      } else if (this.changes > 0) {
+        console.log('Row 1 (BHVO-2 STD) inserted');
+      }
     });
 
-    db.run(insertSQL_MCB, row2_MCB, function (err3) {
-      if (err3) console.error(" Error inserting BHVO-2 Error row:", err3.message);
-      else if (this.changes > 0) console.log("Inserted BHVO-2 Error row");
+    db.run(insertSQL_b, row2_b, (err) => {
+      if (err) {
+        console.error(' Error inserting Row 2 (Error):', err.message);
+      } else if (this.changes > 0) {
+        console.log('Row 2 (Error) inserted');
+      }
     });
   });
+  
  
   //  Users
   db.run(`

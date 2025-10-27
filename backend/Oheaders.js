@@ -770,38 +770,163 @@ const Merr = [
 ]
 
 
-// ---- MCB (BHVO-2 STD) Reference ----
-const OTstd_MCB = [
-  "Si", "Ti", "Al", "Fe", "Mn", "Mg", "Ca", "Na", "K", "P",
-  "Sc", "V", "Cr", "Co", "Ni", "Cu", "Zn", "Rb", "Sr", "Y",
-  "Zr", "Nb", "Ba", "La", "Ce", "Nd", "Sm", "Eu", "Gd", "Tb",
-  "Dy", "Yb", "Lu", "Hf", "Ta", "Pb", "Th", "U"
+// // ---- MCB (BHVO-2 STD) Reference ----
+// const OTstd_MCB = [
+//   "Si", "Ti", "Al", "Fe", "Mn", "Mg", "Ca", "Na", "K", "P",
+//   "Sc", "V", "Cr", "Co", "Ni", "Cu", "Zn", "Rb", "Sr", "Y",
+//   "Zr", "Nb", "Ba", "La", "Ce", "Nd", "Sm", "Eu", "Gd", "Tb",
+//   "Dy", "Yb", "Lu", "Hf", "Ta", "Pb", "Th", "U"
+// ];
+
+
+
+
+
+
+
+
+const OTstd_b = [
+  "7  Li  [ No Gas ] Conc. [ ppb ]",
+  "7  Li  [ He ] Conc. [ ppb ]",
+  "45  Sc  [ No Gas ] Conc. [ ppb ]",
+  "45  Sc  [ He ] Conc. [ ppb ]",
+  "51  V  [ No Gas ] Conc. [ ppb ]",
+  "51  V  [ He ] Conc. [ ppb ]",
+  "52  Cr  [ No Gas ] Conc. [ ppb ]",
+  "52  Cr  [ He ] Conc. [ ppb ]",
+  "59  Co  [ No Gas ] Conc. [ ppb ]",
+  "59  Co  [ He ] Conc. [ ppb ]",
+  "60  Ni  [ No Gas ] Conc. [ ppb ]",
+  "60  Ni  [ He ] Conc. [ ppb ]",
+  "63  Cu  [ No Gas ] Conc. [ ppb ]",
+  "63  Cu  [ He ] Conc. [ ppb ]",
+  "66  Zn  [ No Gas ] Conc. [ ppb ]",
+  "66  Zn  [ He ] Conc. [ ppb ]",
+  "85  Rb  [ No Gas ] Conc. [ ppb ]",
+  "85  Rb  [ He ] Conc. [ ppb ]",
+  "88  Sr  [ No Gas ] Conc. [ ppb ]",
+  "88  Sr  [ He ] Conc. [ ppb ]",
+  "89  Y  [ No Gas ] Conc. [ ppb ]",
+  "89  Y  [ He ] Conc. [ ppb ]",
+  "90  Zr  [ No Gas ] Conc. [ ppb ]",
+  "90  Zr  [ He ] Conc. [ ppb ]",
+  "139  La  [ No Gas ] Conc. [ ppb ]",
+  "139  La  [ He ] Conc. [ ppb ]",
+  "140  Ce  [ No Gas ] Conc. [ ppb ]",
+  "140  Ce  [ He ] Conc. [ ppb ]",
+  "146  Nd  [ No Gas ] Conc. [ ppb ]",
+  "146  Nd  [ He ] Conc. [ ppb ]",
+  "147  Sm  [ No Gas ] Conc. [ ppb ]",
+  "147  Sm  [ He ] Conc. [ ppb ]",
+  "157  Gd  [ No Gas ] Conc. [ ppb ]",
+  "157  Gd  [ He ] Conc. [ ppb ]",
+  "159  Tb  [ No Gas ] Conc. [ ppb ]",
+  "159  Tb  [ He ] Conc. [ ppb ]",
+  "165  Ho  [ No Gas ] Conc. [ ppb ]",
+  "165  Ho  [ He ] Conc. [ ppb ]",
+  "172  Yb  [ No Gas ] Conc. [ ppb ]",
+  "172  Yb  [ He ] Conc. [ ppb ]",
+  "175  Lu  [ No Gas ] Conc. [ ppb ]",
+  "175  Lu  [ He ] Conc. [ ppb ]",
+  "178  Hf  [ No Gas ] Conc. [ ppb ]",
+  "178  Hf  [ He ] Conc. [ ppb ]",
+  "181  Ta  [ No Gas ] Conc. [ ppb ]",
+  "181  Ta  [ He ] Conc. [ ppb ]",
+  "232  Th  [ No Gas ] Conc. [ ppb ]",
+  "232  Th  [ He ] Conc. [ ppb ]"
 ];
 
-// BHVO-2 certified values in ppm (from USGS COA)
-const Tval_MCB = [
-  216000,   // Si 21.6 wt %
-  13600,    // Ti 1.36 wt %
-  84500,    // Al 8.45 wt %
-  86300,    // Fe 8.63 wt %
-  1330,     // Mn
-  73700,    // Mg 7.37 wt %
-  81700,    // Ca 8.17 wt %
-  16400,    // Na 1.64 wt %
-  1540,     // K 0.154 wt %
-  1330,     // P 0.133 wt %
-  31, 317, 289, 52, 126, 89, 103, 4.6, 389, 24,
-  100, 18, 1340, 15.7, 38.7, 25.7, 7.8, 6.7, 6.5, 0.8,
-  5.0, 1.6, 4.4, 2.5, 2.5, 1.7, 1.4, 0.5
+const Tval_b = [
+  5000, 5000,
+  32000, 32000,
+  317000, 317000,
+  280000, 280000,
+  45000, 45000,
+  119000, 119000,
+  127000, 127000,
+  103000, 103000,
+  9800, 9800,
+  389000, 389000,
+  26000, 26000,
+  172000, 172000,
+  15000, 15000,
+  38000, 38000,
+  25000, 25000,
+  6200, 6200,
+  6300, 6300,
+  900, 900,
+  1040, 1040,
+  2000, 2000,
+  280, 280,
+  4100, 4100,
+  1400, 1400,
+  1200, 1200
 ];
 
-// BHVO-2 standard deviations (converted to ppm)
-const Terr_MCB = [
-  2000, 300, 700, 600, 40, 600, 800, 200, 15, 15,
-  2, 10, 8, 2, 6, 5, 5, 0.5, 10, 1,
-  5, 1, 50, 0.5, 1, 1, 0.4, 0.2, 0.3, 0.1,
-  0.3, 0.1, 0.1, 0.05, 0.05, 0.05, 0.02, 0.02
+const Terr_b = [
+  0, 0,
+  1000, 1000,
+  11000, 11000,
+  19000, 19000,
+  3000, 3000,
+  7000, 7000,
+  7000, 7000,
+  6000, 6000,
+  1000, 1000,
+  23000, 23000,
+  2000, 2000,
+  11000, 11000,
+  1000, 1000,
+  2000, 2000,
+  1800, 1800,
+  400, 400,
+  200, 200,
+  0, 0,
+  40, 40,
+  200, 200,
+  10, 10,
+  300, 300,
+  0, 0,
+  300, 300
 ];
+
+const OMstd_b = [
+  "Al 237.312 nm ppm", "Al 308.215 nm ppm",
+  "Ca 315.887 nm ppm", "Ca 422.673 nm ppm",
+  "Fe 238.204 nm ppm", "Fe 259.940 nm ppm",
+  "K 766.491 nm ppm", "K 769.897 nm ppm",
+  "Mg 279.553 nm ppm", "Mg 280.270 nm ppm",
+  "Mn 257.610 nm ppm", "Mn 293.931 nm ppm",
+  "Na 588.995 nm ppm", "Na 589.592 nm ppm",
+  "P 213.618 nm ppm",  "P 214.914 nm ppm",
+  "Ti 334.941 nm ppm", "Ti 336.122 nm ppm"
+];
+
+const Mval_b = [
+  71600, 71600,
+  81700, 81700,
+  86300, 86300,
+  4300, 4300,
+  43600, 43600,
+  1290, 1290,
+  16400, 16400,
+  1200, 1200,
+  16300, 16300
+];
+
+const Merr_b = [
+  800, 800,
+  1200, 1200,
+  1400, 1400,
+  100, 100,
+  700, 700,
+  40, 40,
+  600, 600,
+  100, 100,
+  200, 200
+];
+
+
 
 module.exports = {
   Oheaders2,
@@ -813,7 +938,10 @@ module.exports = {
   OMstd,
   Merr,
   Mval,
-  OTstd_MCB,
-  Tval_MCB,
-  Terr_MCB
+  OTstd_b,
+  Tval_b,
+  Terr_b,
+  OMstd_b,
+  Mval_b,
+  Merr_b
 };

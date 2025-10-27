@@ -1,4 +1,4 @@
-const { Oheaders1, Oheaders2, O1n2, OTstd , OMstd } = require('./Oheaders');
+const { Oheaders1, Oheaders2, O1n2, OTstd , OMstd , OTstd_b , OMstd_b } = require('./Oheaders');
 
 
 // ==========================
@@ -129,8 +129,12 @@ const rest_dataHeaders = normalizeHeaders(O1n2).filter(
 
 const Tcor = corrHeaders(OTstd);
 const Mcor = corrHeaders(OMstd);
+const Tcor_b = corrHeaders(OTstd_b);
+const Mcor_b = corrHeaders(OMstd_b);
 const OTstdcleaned = normalizeHeaders(Tcor);
 const OMstdcleaned = normalizeHeaders(Mcor);
+const OTstdcleaned_b = normalizeHeaders(Tcor_b);
+const OMstdcleaned_b = normalizeHeaders(Mcor_b);
 const TEcorr = corrHeaders(TEconc);
 const MEcorr = corrHeaders(MEconc);
 
@@ -155,6 +159,9 @@ module.exports = {
   rest_dataHeaders,
   OTstdcleaned,
   OMstdcleaned,
+  OTstdcleaned_b,
+  OMstdcleaned_b,
+
   TEcorr,
   MEcorr
 };
