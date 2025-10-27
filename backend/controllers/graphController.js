@@ -1,4 +1,6 @@
 const graphModel = require('../models/graphModel');
+const fileModel = require("../models/fileModel");
+
 const QcGraphService = require('../services/qcGraphService');
 
 exports.getElements = async (req, res) => {
@@ -81,7 +83,9 @@ exports.getSJSGraphData = async (req, res) => {
     if (start_date && end_date) {
       result = await graphModel.fetchSJSGraphDataByDateRange(start_date, end_date, isAdmin, orgId);
     } else if (file_id) {
-      result = await graphModel.fetchSJSGraphDataByFileId(file_id, isAdmin, orgId);
+      const season = await fileModel.getSeasonById(file_id);
+      const solutionLabel = season === 'pre_basalt' ? 'SJS-Std' : 'BHVO-2 STD';
+      result = await graphModel.fetchSJSGraphDataByFileId(file_id, solutionLabel,isAdmin, orgId);
     }
 
     return res.json(result);

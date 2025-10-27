@@ -124,6 +124,14 @@ function getTypeById(fileId) {
   });
 }
 
+function getSeasonById(fileId) {
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT season FROM uploaded_files WHERE id = ?`, [fileId], (err, row) => {
+      if (err) return reject(err);
+      resolve(row?.season ?? null);
+    });
+  });
+}
 // ==========================
 // 7) Get File IDs + Types by Date Range
 // ==========================
@@ -246,6 +254,7 @@ module.exports = {
   fileExists,
   getFileById,
   getTypeById,
+  getSeasonById,
   getFileIdsByDateRange,
   getFileTypesByDateRange,
   getFileMetadata,

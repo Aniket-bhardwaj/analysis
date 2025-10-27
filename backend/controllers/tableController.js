@@ -129,13 +129,12 @@ class TableController {
         });
       }
 
-      const solutionLabel = 'SJS-Std';
+      
       let allMiniTableRowsForElement = [];
 
       for (const id of fileIdsToProcess) {
         const data = await miniTableService.getSJSMiniTableForElement(
           id,
-          solutionLabel,
           element,
           isAdmin,
           orgId

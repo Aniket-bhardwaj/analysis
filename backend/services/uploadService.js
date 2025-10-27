@@ -298,72 +298,72 @@ async function insertAllData(
     return { error: 'Failed to insert QC data: ' + err.message, fileId };
   }
 
-  // 3️⃣ Insert SJS / BHVO rows (season-aware)
-  try {
-    // 🧭 Choose correct element set
-    let allCols;
-    if (season === 'post_basalt') {
-      // Use reduced column set for BHVO/BCR
-      allCols = [...OTstdcleaned.slice(0, 20), ...OMstdcleaned.slice(0, 20)];
-    } else {
-      allCols = [...OTstdcleaned, ...OMstdcleaned];
-    }
+  // // 3️⃣ Insert SJS / BHVO rows (season-aware)
+  // try {
+  //   // 🧭 Choose correct element set
+  //   let allCols;
+  //   if (season === 'post_basalt') {
+  //     // Use reduced column set for BHVO/BCR
+  //     allCols = [...OTstdcleaned.slice(0, 20), ...OMstdcleaned.slice(0, 20)];
+  //   } else {
+  //     allCols = [...OTstdcleaned, ...OMstdcleaned];
+  //   }
 
-    // Generate corrected column names
-    const correctedCols = allCols.map(c => c.replace(/_Corrected$/i, '') + '_Corrected');
+  //   // Generate corrected column names
+  //   const correctedCols = allCols.map(c => c.replace(/_Corrected$/i, '') + '_Corrected');
 
-    // Pick proper table
-    const table = season === 'post_basalt' ? 'sjs_mcb' : 'sjs';
+  //   // Pick proper table
+  //   const table = season === 'post_basalt' ? 'sjs_mcb' : 'sjs';
 
-    // Dynamic SQL build (season-specific)
-    let insertSQL;
-    if (season === 'post_basalt') {
-      // BHVO-2 reference table — static, no file_id or extras
-      insertSQL = `INSERT INTO ${table} VALUES (${Array(correctedCols.length + 2).fill('?').join(', ')})`;
-      await ensureColumnsExist(table, correctedCols);
-    } else {
-      // SJS reference — includes file_id and extras
-      const columns = ['id', 'file_id', 'label', ...correctedCols, 'extra1', 'extra2', 'extra3', 'extra4'];
-      const placeholders = Array(columns.length).fill('?').join(', ');
-      const quotedCols = columns.map(c => `"${c}"`);
-      insertSQL = `INSERT INTO ${table} (${quotedCols.join(', ')}) VALUES (${placeholders})`;
-      await ensureColumnsExist(table, [...correctedCols, 'extra1', 'extra2', 'extra3', 'extra4']);
-    }
+  //   // Dynamic SQL build (season-specific)
+  //   let insertSQL;
+  //   if (season === 'post_basalt') {
+  //     // BHVO-2 reference table — static, no file_id or extras
+  //     insertSQL = `INSERT INTO ${table} VALUES (${Array(correctedCols.length + 2).fill('?').join(', ')})`;
+  //     await ensureColumnsExist(table, correctedCols);
+  //   } else {
+  //     // SJS reference — includes file_id and extras
+  //     const columns = ['id', 'file_id', 'label', ...correctedCols, 'extra1', 'extra2', 'extra3', 'extra4'];
+  //     const placeholders = Array(columns.length).fill('?').join(', ');
+  //     const quotedCols = columns.map(c => `"${c}"`);
+  //     insertSQL = `INSERT INTO ${table} (${quotedCols.join(', ')}) VALUES (${placeholders})`;
+  //     await ensureColumnsExist(table, [...correctedCols, 'extra1', 'extra2', 'extra3', 'extra4']);
+  //   }
 
-    // Reference labels
-    const stdLabel = season === 'post_basalt' ? 'BHVO-2 STD' : 'SJS-Std';
-    const sjsStdSource = qc.find(r => r['Solution Label'] === stdLabel) || {};
-    const errorSource = qc.find(r => r['Solution Label'] === 'Error') || {};
+  //   // Reference labels
+  //   const stdLabel = season === 'post_basalt' ? 'BHVO-2 STD' : 'SJS-Std';
+  //   const sjsStdSource = qc.find(r => r['Solution Label'] === stdLabel) || {};
+  //   const errorSource = qc.find(r => r['Solution Label'] === 'Error') || {};
 
-    const cleanNumber = (v) => {
-      if (v === undefined || v === null) return null;
-      if (typeof v === 'string') v = v.trim().replace(',', '');
-      const num = parseFloat(v);
-      return isNaN(num) ? null : num;
-    };
+  //   const cleanNumber = (v) => {
+  //     if (v === undefined || v === null) return null;
+  //     if (typeof v === 'string') v = v.trim().replace(',', '');
+  //     const num = parseFloat(v);
+  //     return isNaN(num) ? null : num;
+  //   };
 
-    // Dynamic row builder
-    const makeRow = (label, source) => {
-      const values = correctedCols.map(col => {
-        const base = col.replace(/_Corrected$/i, '');
-        return cleanNumber(source[base] ?? source[col]);
-      });
-      if (season === 'post_basalt') {
-        // sjs_mcb: id, label, ...values
-        return [null, label, ...values];
-      } else {
-        // sjs: id, file_id, label, ...values, extras
-        return [null, fileId, label, ...values, null, null, null, null];
-      }
-    };
+  //   // Dynamic row builder
+  //   const makeRow = (label, source) => {
+  //     const values = correctedCols.map(col => {
+  //       const base = col.replace(/_Corrected$/i, '');
+  //       return cleanNumber(source[base] ?? source[col]);
+  //     });
+  //     if (season === 'post_basalt') {
+  //       // sjs_mcb: id, label, ...values
+  //       return [null, label, ...values];
+  //     } else {
+  //       // sjs: id, file_id, label, ...values, extras
+  //       return [null, fileId, label, ...values, null, null, null, null];
+  //     }
+  //   };
 
-    await dataModel.runSQL(insertSQL, makeRow(stdLabel, sjsStdSource));
-    await dataModel.runSQL(insertSQL, makeRow('Error', errorSource));
+  //   await dataModel.runSQL(insertSQL, makeRow(stdLabel, sjsStdSource));
+  //   await dataModel.runSQL(insertSQL, makeRow('Error', errorSource));
 
-    console.log(`✅ ${table} rows inserted (${correctedCols.length} cols) for file ${fileId} (season=${season})`);
-  } catch (err) {
-    console.error(`[insertAllData] Failed to insert STD rows for file ${fileId}:`, err.message);
-  }
+  //   console.log(`✅ ${table} rows inserted (${correctedCols.length} cols) for file ${fileId} (season=${season})`);
+  // } catch (err) {
+  //   console.error(`[insertAllData] Failed to insert STD rows for file ${fileId}:`, err.message);
+  // }
 
   // 4️⃣ Filter sample columns
   const filteredRows = csvHandler.filterColumnsByKeys(samples, csvType, headers);
@@ -404,24 +404,13 @@ async function insertAllData(
     return { error: 'Failed to process sample data: ' + err.message, fileId };
   }
 
-  // 6️⃣ Apply correction factors
-  try {
-    const correctionResult = await insertCorrected(fileId, csvType, headers);
-    if (correctionResult.error) {
-      console.error(`Correction failed for file ${fileId}:`, correctionResult.error);
-    } else {
-      console.log(`Correction applied for file ${fileId}`);
-    }
-  } catch (err) {
-    console.error(`[insertAllData] Correction step failed for file ${fileId}:`, err.message);
-  }
 
   return { error: null, fileId };
 }
 
 
 // 3. Apply Correction Factors
-async function insertCorrected(fileId, csvType, headers) {
+async function insertCorrected(fileId, csvType, headers,season) {
 
 
   try {
@@ -475,7 +464,7 @@ async function insertCorrected(fileId, csvType, headers) {
     }
 
     // Step 6: Apply correction to SJS-Std rows
-    const stdIds = await dataModel.getStdIdsForFile(fileId);
+    const stdIds = await dataModel.getStdIdsForFile(fileId,season);
  
 
     for (const stdId of stdIds) {

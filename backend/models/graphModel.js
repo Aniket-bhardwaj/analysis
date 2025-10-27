@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const dbPath = path.join(__dirname, '../database.sqlite');
+
 const db = new sqlite3.Database(dbPath);
 const { MEconc, TEconc, OTstdcleaned, OMstdcleaned } = require('../colHeaders');
 
@@ -75,7 +76,8 @@ class graphModel {
     });
   }
 
-  static fetchSJSGraphDataByFileId(fileId, isAdmin, orgId) {
+  static fetchSJSGraphDataByFileId(fileId,solutionLabel, isAdmin, orgId) {
+
     return new Promise((resolve, reject) => {
       db.get(
         'SELECT type, org_id FROM uploaded_files WHERE id = ?',
@@ -91,22 +93,23 @@ class graphModel {
           const fileType = fileRow.type;
           const sjsElements = fileType === 2 ? OTstdcleaned : OMstdcleaned;
           const timeColumn = fileType === 2 ? `"Acq. Date-Time"` : `"Timestamp"`;
+          const stdTable = solutionLabel === 'SJS-Std' ? 'sjs' : 'bhvo2';
 
-          db.all('SELECT * FROM sjs', (err2, sjsRows) => {
+          db.all(`SELECT * FROM ${stdTable}`, (err2, sjsRows) => {
             if (err2) return reject(err2);
 
-            const stdRow = sjsRows.find(r => r.label === 'SJS-Std');
+            const stdRow = sjsRows.find(r => r.label === solutionLabel);
             const errorRow = sjsRows.find(r => r.label === 'Error');
             if (!stdRow || !errorRow) return reject(new Error('SJS data incomplete'));
 
             const query = `
               SELECT ${timeColumn} AS timestamp, ${sjsElements.map(el => `"${el}"`).join(', ')}
               FROM qc_data
-              WHERE file_id = ? AND "Solution Label" LIKE 'SJS-Std%'
+              WHERE file_id = ? AND "Solution Label" = ?
               ORDER BY ${timeColumn} ASC
             `;
 
-            db.all(query, [fileId], (err3, rows) => {
+            db.all(query, [fileId,solutionLabel], (err3, rows) => {
               if (err3) return reject(err3);
 
               const graphData = {};

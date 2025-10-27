@@ -160,15 +160,18 @@ function getSampleIdsForFile(fileId) {
   });
 }
 
-function getStdIdsForFile(fileId) {
+function getStdIdsForFile(fileId, season) {
+  const label = season === 'pre_basalt' ? 'SJS-Std' : 'BHVO-2 STD';
   const sql = `SELECT id FROM qc_data WHERE file_id = ? AND "Solution Label" = ?`;
+
   return new Promise((resolve, reject) => {
-    db.all(sql, [fileId, 'SJS-Std'], (err, rows) => {
+    db.all(sql, [fileId, label], (err, rows) => {
       if (err) reject(err);
       else resolve(rows.map(r => r.id));
     });
   });
 }
+
 
 
 function getSampleById(id, elementCols) {

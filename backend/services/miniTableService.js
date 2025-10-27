@@ -51,16 +51,22 @@ const miniTableService = {
     }
   },
 
-  async getSJSMiniTableForElement(fileId, solutionLabel, element,isAdmin, orgId) {
+  async getSJSMiniTableForElement(fileId,  element,isAdmin, orgId) {
   try {
-    console.log("Fetching SJS mini table for element:", element, "in fileId:", fileId, "with solutionLabel:", solutionLabel);
     const fileType = await fileModel.getTypeById(fileId); // 1 = ppm, 2 = ppb
+    const season = await fileModel.getSeasonById(fileId);
+    const solutionLabel = season === 'pre_basalt' ? 'SJS-Std' : 'BHVO-2 STD';
     element += "_Corrected";
 
     const rows = await TableModel.getMiniTableRaw(fileId, solutionLabel, element, isAdmin, orgId);
     if (!rows || rows.length === 0) return [];
+    let sjsStdRow, errorRow;
 
-    const [sjsStdRow, errorRow] = await TableModel.getSJSRows([element]);
+    if (season === "pre_basalt") {
+            [sjsStdRow, errorRow] = await TableModel.getSJSRows([element]);
+          } else if (season === "post_basalt") {
+            [sjsStdRow, errorRow] = await TableModel.getBHVORows([element]);
+          }
     const sjsStd = parseFloat(sjsStdRow[element]);
     
     const sjsError = 10;

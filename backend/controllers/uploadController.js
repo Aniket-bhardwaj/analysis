@@ -156,7 +156,8 @@ const uploadFile = async (req, res) => {
       const { error: correctionError } = await uploadService.insertCorrected(
         fileId,
         csvType,
-        headers
+        headers,
+        season
       );
       if (correctionError) throw new Error(correctionError);
 

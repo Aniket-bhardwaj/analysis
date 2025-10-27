@@ -215,7 +215,7 @@ const SJSTable = ({ selectedFileId, selectedDateRange }) => {
   const preferredColumns = [
     { key: 'element', label: 'Element' },
     { key: 'valueAvg', label: 'Value (avg)' },
-    { key: 'sjsStd', label: 'SJS-Std' },
+    { key: 'sjsStd', label: 'Std' },
     { key: 'errorAllowedPercent', label: 'Tolerance (%)' },
     { key: 'actualErrorPercent', label: 'Error (%)' },
     { key: 'rsd', label: 'RSD%' },

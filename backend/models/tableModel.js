@@ -175,6 +175,20 @@ class TableModel {
     });
   });
 }
+static async getBHVORows(elementColumns) {
+  return new Promise((resolve, reject) => {
+    const columnsToSelect = elementColumns.map(col => `"${col}"`).join(', ');
+    const query = `SELECT ${columnsToSelect} FROM bhvo2`;
+
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        console.error("Error fetching BHVO rows:", err);
+        return reject(err);
+      }
+      resolve(rows); // rows[0] = SJS-Std, rows[1] = Error
+    });
+  });
+}
 }
 
 module.exports = TableModel;
