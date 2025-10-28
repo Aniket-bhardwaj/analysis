@@ -1,5 +1,5 @@
 // =============================
-// 📁 csvHandler.js
+// csvHandler.js
 // =============================
 
 const fs = require('fs');
@@ -48,13 +48,13 @@ const filterOutCpsAndIstd = (columns) =>
 
 
 // -----------------------------
-// 🔤 Normalize headers
+// Normalize headers
 // -----------------------------
 const normalizeHeaders = (headers) =>
   headers.map(h => h.trim().replace(/^"|"$/g, '').replace(/\s+/g, ' '));
 
 // -----------------------------
-// 🧾 Header Parsing (Type 1)
+// Header Parsing (Type 1)
 // -----------------------------
 async function getHeadersType1(filePath) {
   return new Promise((resolve, reject) => {
@@ -71,7 +71,7 @@ async function getHeadersType1(filePath) {
 
 
 // -----------------------------
-// 🧾 Header Parsing (Type 2)
+// Header Parsing (Type 2)
 // -----------------------------
 
 function getHeadersType2(filePath) {
@@ -112,7 +112,7 @@ function getHeadersType2(filePath) {
 }
 
 // -----------------------------
-// 📤 Get Headers by Type
+// Get Headers by Type
 // -----------------------------
 async function getHeaders(csvType, filePath) {
   let headers;
@@ -129,7 +129,7 @@ async function getHeaders(csvType, filePath) {
 }
 
 // -----------------------------
-// 🔍 Detect CSV Type
+// Detect CSV Type
 // -----------------------------
 function checkCsvType(firstLine) {
   if (firstLine[0] === 'Rack:Tube') return 1;
@@ -157,7 +157,7 @@ function validateHeaders(actual, csvType) {
 }
 
 // -----------------------------
-// 📦 Parse Full Data Rows (both types)
+// Parse Full Data Rows (both types)
 // -----------------------------
 async function parseDataRows(filePath, headers) {
   const content = fs.readFileSync(filePath, 'utf8');
@@ -181,7 +181,7 @@ async function parseDataRows(filePath, headers) {
 }
 
 // -----------------------------
-// 🧹 Filter Columns into 2 Maps
+// Filter Columns into 2 Maps
 // -----------------------------
 function filterColumnsByKeys(rows, csvType,headers) {
   const isType1 = csvType === 1;
@@ -211,7 +211,7 @@ function filterColumnsByKeys(rows, csvType,headers) {
 function splitSamplesAndQc(rows, season = 'pre_basalt') {
   const samples = [], qc = [];
 
-  // 🧭 Season-specific QC patterns (identical to validateQcLabels)
+  // Season-specific QC patterns (identical to validateQcLabels)
   let qcPattern;
 
   if (season === 'pre_basalt') {
@@ -231,7 +231,7 @@ function splitSamplesAndQc(rows, season = 'pre_basalt') {
 
     const label = row[labelKey]?.trim() || '';
 
-    // ✅ Match against season’s QC pattern
+    // Match against season’s QC pattern
     if (qcPattern.test(label)) qc.push(row);
     else samples.push(row);
   }
@@ -257,7 +257,6 @@ function validateQcLabels(qc, season = 'pre_basalt') {
       { name: 'Wash', regex: /^Wash$/ },
     ];
   } else if (season === 'post_basalt') {
-    // Placeholder rules — replace these later with actual post-basalt QC labels
     required = [
       { name: 'Blank', regex: /^Blank$/ },
       { name: 'Standard', regex: /^Standard/i },
@@ -301,46 +300,8 @@ function validateQcLabels(qc, season = 'pre_basalt') {
   return true;
 }
 
-// function validateQcLabels(qc) {
-//   const required = [
-//     { name: 'Blank', regex: /^Blank$/ },
-//     { name: 'Standard', regex: /^Standard/i },
-//     { name: 'BLK', regex: /^BLK/i },
-//     { name: 'QC MES', regex: /^QC MES/i },
-//     { name: 'SJS-Std', regex: /^SJS-Std$/ },
-//     { name: 'Wash', regex: /^Wash$/ },
-//   ];
-
-//   const found = Array(required.length).fill(false);
-//   const invalid = [];
-
-//   for (const row of qc) {
-//     const label = row['Solution Label']?.trim();
-//     if (!label) continue;
-//     let match = false;
-//     for (let i = 0; i < required.length; i++) {
-//       if (required[i].regex.test(label)) {
-//         found[i] = true;
-//         match = true;
-//         break;
-//       }
-//     }
-//     if (!match) invalid.push(label);
-//   }
-
-//   const missing = required
-//     .filter((_, i) => !found[i])
-//     .map(p => p.name);
-
-//   if (missing.length || invalid.length) {
-//     throw new Error(`Missing: ${missing.join(', ')}\nInvalid: ${invalid.join(', ')}`);
-//   }
-
-//   return true;
-// }
-
 // -----------------------------
-// 📤 Exports
+// Exports
 // -----------------------------
 module.exports = {
   getHeaders,

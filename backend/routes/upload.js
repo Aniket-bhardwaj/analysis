@@ -95,12 +95,15 @@
     const file = req.file;
 
     if (!file) return res.status(400).json({ error: 'No file uploaded.' });
-
+    // routes/upload.js — inside /upload-files/attachment/:parentId route
     try {
       const destPath = path.join(attachmentsDir, file.originalname);
-      fs.renameSync(file.path, destPath);
-      const relPath = path.relative(path.join(__dirname, '..'), destPath).replace(/\\/g, '/');
 
+      // Instead of renameSync (which fails on drive boundaries or locked files)
+      fs.copyFileSync(file.path, destPath);
+      fs.unlinkSync(file.path); // remove the temp file safely
+
+      const relPath = path.relative(path.join(__dirname, '..'), destPath).replace(/\\/g, '/');
       const orgId = req?.rbac?.orgId || 1;
       const userId = req?.rbac?.userId || null;
 
@@ -111,17 +114,43 @@
 
       db.run(insertQuery, [file.originalname, relPath, orgId, userId, parentId], function (err) {
         if (err) {
-          console.error(' Attachment insert error:', err.message);
+          console.error('Attachment insert error:', err.message);
           return res.status(500).json({ error: 'Failed to save attachment.' });
         }
-        console.log(` Attachment saved: ${file.originalname} (ID ${this.lastID})`);
+        console.log(`Attachment saved: ${file.originalname} (ID ${this.lastID})`);
         res.json({ success: true, id: this.lastID });
       });
     } catch (err) {
-      console.error(' Attachment upload error:', err.message);
+      console.error('Attachment upload error:', err.message);
       res.status(500).json({ error: 'Internal server error.' });
     }
-  });
+
+  //   try {
+  //     const destPath = path.join(attachmentsDir, file.originalname);
+  //     fs.renameSync(file.path, destPath);
+  //     const relPath = path.relative(path.join(__dirname, '..'), destPath).replace(/\\/g, '/');
+
+  //     const orgId = req?.rbac?.orgId || 1;
+  //     const userId = req?.rbac?.userId || null;
+
+  //     const insertQuery = `
+  //       INSERT INTO uploaded_files (filename, file_path, org_id, created_by_user_id, parent_id, type)
+  //       VALUES (?, ?, ?, ?, ?, 3)
+  //     `;
+
+  //     db.run(insertQuery, [file.originalname, relPath, orgId, userId, parentId], function (err) {
+  //       if (err) {
+  //         console.error(' Attachment insert error:', err.message);
+  //         return res.status(500).json({ error: 'Failed to save attachment.' });
+  //       }
+  //       console.log(` Attachment saved: ${file.originalname} (ID ${this.lastID})`);
+  //       res.json({ success: true, id: this.lastID });
+  //     });
+  //   } catch (err) {
+  //     console.error(' Attachment upload error:', err.message);
+  //     res.status(500).json({ error: 'Internal server error.' });
+  //   }
+    });
 
   // =====================================================
   // List attachments for a parent record
