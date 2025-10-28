@@ -912,9 +912,9 @@ const handleDownloadPdf = async (fileId) => {
                           SelectProps={{ native: true }}
                           sx={{ width: '250px' }}
                         >
-                          <option value="">-- Choose Season --</option>
-                          <option value="pre_basalt">Pre Basalt</option>
-                          <option value="post_basalt">Post Basalt</option>
+                          <option value="">-- Choose Type --</option>
+                          <option value="pre_basalt">Soil</option>
+                          <option value="post_basalt">Basalt</option>
                         </TextField>
                       </Box>
                     )}
@@ -1022,7 +1022,7 @@ const handleDownloadPdf = async (fileId) => {
             <option value="all">Filter by...</option>
             <option value="name">Filename</option>
             <option value="organization">Organization</option> {/* ADDED */}
-            <option value="season">Season</option> {/* ADDED */}
+            <option value="season">Type</option> {/* ADDED */}
             <option value="uploadDate">Upload Date</option>
           </TextField>
 
@@ -1055,7 +1055,7 @@ const handleDownloadPdf = async (fileId) => {
           <TextField
             variant="outlined"
             fullWidth
-            placeholder="Search by File Name, Organization, Season or Upload Date" // MODIFIED
+            placeholder="Search by File Name, Organization, Type or Upload Date" // MODIFIED
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             InputProps={{
@@ -1089,7 +1089,7 @@ const handleDownloadPdf = async (fileId) => {
                     <TableCell className="table-cell-header" align="center">
                       Quality Check
                     </TableCell>
-                    <TableCell className="table-cell-header">Season</TableCell>
+                    <TableCell className="table-cell-header">Type</TableCell>
                     <TableCell className="table-cell-header">Organization</TableCell>
                     <TableCell className="table-cell-header">Upload Date</TableCell>
                     <TableCell className="table-cell-header">Actions</TableCell>
@@ -1131,9 +1131,9 @@ const handleDownloadPdf = async (fileId) => {
                             label={
                               file.seasonLabel ||
                               (file.season === "pre_basalt"
-                                ? "Pre Basalt"
+                                ? "Soil"
                                 : file.season === "post_basalt"
-                                ? "Post Basalt"
+                                ? "Basalt"
                                 : "Unspecified")
                             }
                             color={file.season === "post_basalt" ? "primary" : "default"}
