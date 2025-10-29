@@ -86,9 +86,9 @@ const uploadFile = async (req, res) => {
   }
 
   const seasonRaw = req.body?.season || req.query?.season;
-  const season = ['pre_basalt', 'post_basalt'].includes((seasonRaw || '').toLowerCase())
+  const season = ['soil', 'basalt'].includes((seasonRaw || '').toLowerCase())
     ? seasonRaw.toLowerCase()
-    : 'pre_basalt';
+    : 'soil';
 
   console.log(`Upload context resolved → orgId=${orgId}, orgName="${orgName}", userId=${userId}, season=${season}`);
 

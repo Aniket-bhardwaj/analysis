@@ -161,7 +161,7 @@ function getSampleIdsForFile(fileId) {
 }
 
 function getStdIdsForFile(fileId, season) {
-  const label = season === 'pre_basalt' ? 'SJS-Std' : 'BHVO-2 STD';
+  const label = season === 'soil' ? 'SJS-Std' : 'BHVO-2 STD';
   const sql = `SELECT id FROM qc_data WHERE file_id = ? AND "Solution Label" = ?`;
 
   return new Promise((resolve, reject) => {

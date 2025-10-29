@@ -254,7 +254,7 @@ class TableService {
       const csvType = await fileModel.getTypeById(fileId);
       const season = await fileModel.getSeasonById(fileId);
       const elementColumns = csvType === 1 ? OMstdcleaned : OTstdcleaned;
-      const solutionLabel = season === "post_basalt" ? "BHVO-2 STD" : "SJS-Std";
+      const solutionLabel = season === "basalt" ? "BHVO-2 STD" : "SJS-Std";
 
       const { avgRow, rsdRow } = await TableModel.getAvgAndRsdRows(
         fileId,
@@ -268,9 +268,9 @@ class TableService {
 
       let sjsStdRow, errorRow;
 
-      if (season === "pre_basalt") {
+      if (season === "soil") {
         [sjsStdRow, errorRow] = await TableModel.getSJSRows(elementColumns);
-      } else if (season === "post_basalt") {
+      } else if (season === "basalt") {
         [sjsStdRow, errorRow] = await TableModel.getBHVORows(elementColumns);
       }
 

@@ -55,8 +55,8 @@
     (req, res, next) => {
       // Make sure season is available to controller
       if (!req.body.season) {
-        console.warn('⚠️ No season field provided — defaulting to pre_basalt');
-        req.body.season = 'pre_basalt';
+        console.warn('⚠️ No season field provided — defaulting to soil');
+        req.body.season = 'soil';
       }
       next();
     },
@@ -124,33 +124,7 @@
       console.error('Attachment upload error:', err.message);
       res.status(500).json({ error: 'Internal server error.' });
     }
-
-  //   try {
-  //     const destPath = path.join(attachmentsDir, file.originalname);
-  //     fs.renameSync(file.path, destPath);
-  //     const relPath = path.relative(path.join(__dirname, '..'), destPath).replace(/\\/g, '/');
-
-  //     const orgId = req?.rbac?.orgId || 1;
-  //     const userId = req?.rbac?.userId || null;
-
-  //     const insertQuery = `
-  //       INSERT INTO uploaded_files (filename, file_path, org_id, created_by_user_id, parent_id, type)
-  //       VALUES (?, ?, ?, ?, ?, 3)
-  //     `;
-
-  //     db.run(insertQuery, [file.originalname, relPath, orgId, userId, parentId], function (err) {
-  //       if (err) {
-  //         console.error(' Attachment insert error:', err.message);
-  //         return res.status(500).json({ error: 'Failed to save attachment.' });
-  //       }
-  //       console.log(` Attachment saved: ${file.originalname} (ID ${this.lastID})`);
-  //       res.json({ success: true, id: this.lastID });
-  //     });
-  //   } catch (err) {
-  //     console.error(' Attachment upload error:', err.message);
-  //     res.status(500).json({ error: 'Internal server error.' });
-  //   }
-    });
+  });
 
   // =====================================================
   // List attachments for a parent record

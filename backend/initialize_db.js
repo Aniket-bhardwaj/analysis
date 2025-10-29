@@ -64,7 +64,7 @@ db.serialize(() => {
       org_id INTEGER DEFAULT 1,
       created_by_user_id INTEGER,
       parent_id INTEGER DEFAULT NULL,
-      season TEXT DEFAULT 'pre_basalt',
+      season TEXT DEFAULT 'soil',
       FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
     )
   `);
@@ -274,7 +274,7 @@ db.serialize(() => {
       org_id: "INTEGER DEFAULT 1",
       created_by_user_id: "INTEGER DEFAULT NULL",
       parent_id: "INTEGER DEFAULT NULL",
-      season: "TEXT DEFAULT 'pre_basalt'"
+      season: "TEXT DEFAULT 'soil'"
     },
     sample_data: {
       id: "INTEGER PRIMARY KEY AUTOINCREMENT",
@@ -375,9 +375,7 @@ db.serialize(() => {
 // ----------------------------------------------------
 
 db.serialize(() => {
-  db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (1, 'Main Lab')`);
-  db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (2, 'Client Lab A')`);
-  db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (3, 'Client Lab B')`);
+  db.run(`INSERT OR IGNORE INTO organizations (id, name) VALUES (1, 'Earth Face @ IITK')`);
 
   const seedUser = async (email, plainPassword, isAdmin, mustChange, orgId) => {
     db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, row) => {
@@ -403,10 +401,7 @@ db.serialize(() => {
     });
   };
 
-  seedUser("admin@gmail.com", "Admin1", true, false, 1);
-  seedUser("client1@gmail.com", "Client1", false, false, 2);
-  seedUser("client2@gmail.com", "Client2", false, false, 3);
-  seedUser("client3@gmail.com", "Client3", false, false, 2);
+  seedUser("superadmin@iitk.ac.in", "Supersu@iitk", true, false, 1);
 });
 
 module.exports = db;

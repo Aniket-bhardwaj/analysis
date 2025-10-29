@@ -84,7 +84,7 @@ exports.getSJSGraphData = async (req, res) => {
       result = await graphModel.fetchSJSGraphDataByDateRange(start_date, end_date, isAdmin, orgId);
     } else if (file_id) {
       const season = await fileModel.getSeasonById(file_id);
-      const solutionLabel = season === 'pre_basalt' ? 'SJS-Std' : 'BHVO-2 STD';
+      const solutionLabel = season === 'soil' ? 'SJS-Std' : 'BHVO-2 STD';
       result = await graphModel.fetchSJSGraphDataByFileId(file_id, solutionLabel,isAdmin, orgId);
     }
 

@@ -36,12 +36,12 @@ const listFiles = async (req, res) => {
         status: "Uploaded",
         pdfname: file.pdfname || null,
         hasPdf: !!file.pdf_path,
-        season: file.season || "pre_basalt", 
+        season: file.season || "soil", 
         seasonLabel:
-          file.season === "post_basalt"
-            ? "Post Basalt"
-            : file.season === "pre_basalt"
-            ? "Pre Basalt"
+          file.season === "basalt"
+            ? "basalt"
+            : file.season === "soil"
+            ? "soil"
             : "Unspecified", 
       };
     });

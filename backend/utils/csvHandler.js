@@ -12,11 +12,11 @@ const db = require('../initialize_db');
  * Dynamically load standard reference and error rows
  * for QC comparison depending on season.
  */
-async function getStandardValues(season = 'pre_basalt') {
+async function getStandardValues(season = 'soil') {
   return new Promise((resolve, reject) => {
     // Decide which table to query
-    const table = season === 'post_basalt' ? 'sjs_mcb' : 'sjs';
-    const refLabel = season === 'post_basalt' ? 'BHVO-2 STD' : 'SJS-Std';
+    const table = season === 'basalt' ? 'sjs_mcb' : 'sjs';
+    const refLabel = season === 'basalt' ? 'BHVO-2 STD' : 'SJS-Std';
 
     db.all(`SELECT * FROM ${table}`, (err, rows) => {
       if (err) return reject(err);
@@ -208,15 +208,15 @@ function filterColumnsByKeys(rows, csvType,headers) {
   });
 }
 
-function splitSamplesAndQc(rows, season = 'pre_basalt') {
+function splitSamplesAndQc(rows, season = 'soil') {
   const samples = [], qc = [];
 
   // Season-specific QC patterns (identical to validateQcLabels)
   let qcPattern;
 
-  if (season === 'pre_basalt') {
+  if (season === 'soil') {
     qcPattern = /^(Blank|Standard|BLK|QC MES|SJS-Std|Wash)/i;
-  } else if (season === 'post_basalt') {
+  } else if (season === 'basalt') {
     qcPattern = /^(Blank|Standard|BLK|QC MES|BCR-2 STD|BHVO-2 STD|Wash)/i;
   } else {
     console.warn(`[splitSamplesAndQc] Unknown season "${season}", using default QC pattern.`);
@@ -244,10 +244,10 @@ function splitSamplesAndQc(rows, season = 'pre_basalt') {
 // -----------------------------
 // QC Label Validation (Season-specific)
 // -----------------------------
-function validateQcLabels(qc, season = 'pre_basalt') {
+function validateQcLabels(qc, season = 'soil') {
   let required;
 
-  if (season === 'pre_basalt') {
+  if (season === 'soil') {
     required = [
       { name: 'Blank', regex: /^Blank$/ },
       { name: 'Standard', regex: /^Standard/i },
@@ -256,7 +256,7 @@ function validateQcLabels(qc, season = 'pre_basalt') {
       { name: 'SJS-Std', regex: /^SJS-Std$/ },
       { name: 'Wash', regex: /^Wash$/ },
     ];
-  } else if (season === 'post_basalt') {
+  } else if (season === 'basalt') {
     required = [
       { name: 'Blank', regex: /^Blank$/ },
       { name: 'Standard', regex: /^Standard/i },

@@ -40,7 +40,7 @@ const qcl = {
 // 1. File Validation
 // ==========================
 
-async function validate(filePath, originalName, season = 'pre_basalt') {
+async function validate(filePath, originalName, season = 'soil') {
   try {
     // --- Duplicate file check ---
     if (await fileModel.fileExists(originalName)) {
@@ -265,7 +265,7 @@ async function insertAllData(
   orgId,
   createdByUserId,
   isAdmin = false,
-  season = 'pre_basalt'
+  season = 'soil'
 ) {
   let fileId;
 

@@ -55,16 +55,16 @@ const miniTableService = {
   try {
     const fileType = await fileModel.getTypeById(fileId); // 1 = ppm, 2 = ppb
     const season = await fileModel.getSeasonById(fileId);
-    const solutionLabel = season === 'pre_basalt' ? 'SJS-Std' : 'BHVO-2 STD';
+    const solutionLabel = season === 'soil' ? 'SJS-Std' : 'BHVO-2 STD';
     element += "_Corrected";
 
     const rows = await TableModel.getMiniTableRaw(fileId, solutionLabel, element, isAdmin, orgId);
     if (!rows || rows.length === 0) return [];
     let sjsStdRow, errorRow;
 
-    if (season === "pre_basalt") {
+    if (season === "soil") {
             [sjsStdRow, errorRow] = await TableModel.getSJSRows([element]);
-          } else if (season === "post_basalt") {
+          } else if (season === "basalt") {
             [sjsStdRow, errorRow] = await TableModel.getBHVORows([element]);
           }
     const sjsStd = parseFloat(sjsStdRow[element]);

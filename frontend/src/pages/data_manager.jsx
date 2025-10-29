@@ -69,8 +69,8 @@ const DataManagerPage = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('all'); // TWEAKED: Default state for filter category
-  const [selectedValue, setSelectedValue] = useState(''); // ADDED: State for the second dropdown's value
+  const [filterType, setFilterType] = useState('all');
+  const [selectedValue, setSelectedValue] = useState(''); 
   const [expandedFileId, setExpandedFileId] = useState(null);
   const [selectedFileId, setSelectedFileId] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -249,7 +249,7 @@ const DataManagerPage = () => {
     }
 
     // Always resolve an explicit season value for backend
-    const effectiveSeason = selectedSeason?.trim() || 'pre_basalt';
+    const effectiveSeason = selectedSeason?.trim() || 'soil';
     const userData = JSON.parse(sessionStorage.getItem('user'))?.user;
 
     const formData = new FormData();
@@ -722,11 +722,11 @@ const handleDownloadPdf = async (fileId) => {
     // MODIFIED to handle seasons cleanly
     if (filterType === 'season') {
       const seasonOptions = [];
-      if (uniqueValues.has('pre_basalt')) seasonOptions.push({ value: 'pre_basalt', label: 'Pre Basalt' });
-      if (uniqueValues.has('post_basalt')) seasonOptions.push({ value: 'post_basalt', label: 'Post Basalt' });
+      if (uniqueValues.has('soil')) seasonOptions.push({ value: 'soil', label: 'Soil' });
+      if (uniqueValues.has('basalt')) seasonOptions.push({ value: 'basalt', label: 'Basalt' });
       
       // Check if any other values exist that aren't pre/post basalt
-      const otherValuesExist = [...uniqueValues].some(v => v !== 'pre_basalt' && v !== 'post_basalt');
+      const otherValuesExist = [...uniqueValues].some(v => v !== 'soil' && v !== 'basalt');
       if (otherValuesExist) {
          // This assumes any other value should be grouped as "Unspecified"
          // This matches the table chip's logic
@@ -760,7 +760,7 @@ const handleDownloadPdf = async (fileId) => {
         if (filterType === 'season') { 
            if (selectedValue === 'Unspecified') {
              // Match anything that isn't pre or post basalt
-             return file.season !== 'pre_basalt' && file.season !== 'post_basalt';
+             return file.season !== 'soil' && file.season !== 'basalt';
            }
            return file.season === selectedValue;
         }
@@ -774,8 +774,8 @@ const handleDownloadPdf = async (fileId) => {
       
       // ADDED: Helper function for season search
       const getSeasonLabel = (season) => {
-        if (season === "pre_basalt") return "pre basalt";
-        if (season === "post_basalt") return "post basalt";
+        if (season === "soil") return "soil";
+        if (season === "basalt") return "basalt";
         return "unspecified";
       };
       
@@ -913,8 +913,8 @@ const handleDownloadPdf = async (fileId) => {
                           sx={{ width: '250px' }}
                         >
                           <option value="">-- Choose Type --</option>
-                          <option value="pre_basalt">Soil</option>
-                          <option value="post_basalt">Basalt</option>
+                          <option value="soil">Soil</option>
+                          <option value="basalt">Basalt</option>
                         </TextField>
                       </Box>
                     )}
@@ -1022,7 +1022,7 @@ const handleDownloadPdf = async (fileId) => {
             <option value="all">Filter by...</option>
             <option value="name">Filename</option>
             <option value="organization">Organization</option> {/* ADDED */}
-            <option value="season">Type</option> {/* ADDED */}
+            <option value="season">Season</option> {/* ADDED */}
             <option value="uploadDate">Upload Date</option>
           </TextField>
 
@@ -1055,7 +1055,7 @@ const handleDownloadPdf = async (fileId) => {
           <TextField
             variant="outlined"
             fullWidth
-            placeholder="Search by File Name, Organization, Type or Upload Date" // MODIFIED
+            placeholder="Search by File Name, Organization, Season or Upload Date" // MODIFIED
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             InputProps={{
@@ -1130,13 +1130,13 @@ const handleDownloadPdf = async (fileId) => {
                           <Chip
                             label={
                               file.seasonLabel ||
-                              (file.season === "pre_basalt"
+                              (file.season === "soil"
                                 ? "Soil"
-                                : file.season === "post_basalt"
+                                : file.season === "basalt"
                                 ? "Basalt"
                                 : "Unspecified")
                             }
-                            color={file.season === "post_basalt" ? "primary" : "default"}
+                            color={file.season === "basalt" ? "primary" : "default"}
                             size="small"
                           />
                         </TableCell>

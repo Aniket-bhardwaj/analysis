@@ -11,7 +11,7 @@ function insertFile(
   pdfSavedPath,
   orgId,
   createdByUserId,
-  season = 'pre_basalt' // 🆕 new argument with default
+  season = 'soil' // 🆕 new argument with default
 ) {
   return new Promise((resolve, reject) => {
     const pdfNameForDb = pdfOriginalName || "";
