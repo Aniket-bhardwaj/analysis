@@ -2,36 +2,7 @@ version = 1
 
 [[analyzers]]
 name = "javascript"
-enabled = true
-runtime = "nodejs"
 
-[analyzers.meta]
-# Define your frameworks and environments
-frameworks = ["react"]
-environments = ["nodejs", "browser", "jest", "mongo"]
-
-test_patterns = [
-  "test/**",
-  "integration_tests/**",
-  "**/*test.js",
-  "**/*.spec.js"
-]
-
-exclude_patterns = [
-  "migrations/**",
-  "dist/**",
-  "node_modules/**",
-  "build/**"
-]
-
-[[analyzers]]
-name = "secrets"
-enabled = true
-
-[[analyzers]]
-name = "docker"
-enabled = true
-
-[[analyzers]]
-name = "test-coverage"
-enabled = true
+  [analyzers.meta]
+  plugins = ["react"]
+  environment = ["nodejs"]
